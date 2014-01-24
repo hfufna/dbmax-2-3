@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>DBFree Active Page</title>
+</head>
+<%
+**************************************** DBFree 2-22-MINI-HEADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set decimals to 0
+set century on
+set hour to 24
+%>
+<body topmargin="0" style="padding 1 1 1 1;" text="#000000" background="img/dbfree-ex-tile-blk.gif">
+<a href="start.msp" target="_top">
+
+<div align="left" style="position:absolute; top:3px; left:0px; width:100%;">
+<img border="0" src="logo2.jpg" style="position:absolute; top:0; left: 0;"></a>
+</div>
+
+<div align="left" style="position:absolute; top:45px; left:0px; width:100%; height:10px;">
+<hr style="border:solid 1px red;">
+</div>
+
+<div align="right" style="position:absolute; top:3px; right:3px;">
+<br><font size="1" color="#999090">Running on <b><i><%=getenv("SERVER_SOFTWARE")%></i></b></font>
+</div>
+
+</body>
+
+</html>

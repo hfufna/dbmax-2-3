@@ -1,0 +1,97 @@
+<html>
+<head>
+    <title>DBFree Default Companion Website</title>   
+
+    <meta http-equiv="Pragma" CONTENT="no-cache">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+    <META HTTP-EQUIV="EXPIRES" CONTENT="0">
+  
+    <meta charset="windows-1252">
+    <!-- meta charset="utf-8" //-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="shortcut icon" href="/favicon.png">
+
+    <!-- Bootstrap core CSS - DON'T CHANGE THE ORDER CSS/JS ARE CALLED HERE! -->
+    <link href="app-css/bootstrap.css" rel="stylesheet">
+    <link href="app-css/docs.css" rel="stylesheet">
+    <link href="app-css/pygments-manni.css" rel="stylesheet">    
+    <link href="app-css/bootstrap-theme.css" rel="stylesheet">
+    <link href="app-css/theme.css" rel="stylesheet">
+
+    
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 5]>
+      <script src="app-js/html5shiv.js"></script>
+      <script src="app-js/respond.min.js"></script>
+    <![endif]-->
+    <script src="app-js/jmax.js"></script>   
+    <script src="app-js/jquery.js"></script>
+    <script src="app-js/bootstrap.js"></script>
+</head>
+<body>
+<!----------------------------------- * HTML-BODY --------------------------------------- //-->
+<!----------------------------------- PART # *NAVBAR.HTM--------------------------------------- //-->
+    <header class="navbar navbar-inverse navbar-fixed-top " role="banner">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+          </button>
+          <img border="0" src="app-img/dbfree-tab.gif">
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="/index.htm">Home</a></li>
+            <li class="dropdown" id="menu1">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Navigation</a>
+              <ul class="dropdown-menu">
+                <li class="dropdown-header"></li>
+                <li><a href="/home.msp">Home</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </header>
+<!----------------------------------- END # *NAVBAR.HTM--------------------------------------- //-->
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<h1>Targeting mobile devices</h1>
+<div class="well">
+<img border="0" src="app-img/07.JPG" width="82" height="82" style="float: left" hspace="15">
+Developing an application for a mobile device is not simple: at least if we mean an application that actually <i>runs
+and resides</i> on the devices itself.<p>Today almost every smartphone has an internet connection: so why not to develope something that will run on
+the device but <b><span style="font-weight: 400; font-style: italic">inside its browser</span></b>?</p>
+<p>Discover how easy is to build a web application for mobile devices with <i>Antartis</i>,
+our application framework. </p>
+<a class="link" href="start.msp">Back to menu</a>
+</div>
+<!----------------------------------- *BOX COMPONENT--------------------------------------- //-->
+<div class="container">
+Here it is the code that generated the previous home page (making use of Antartis Framework):
+<div class="row">
+      <div class="thumbnail">
+        <code><font color="#0000FF">&lt;html&gt;<br>
+		&lt;% set maxlib to &quot;free31.max&quot; %&gt;</font><br>
+        
+		&lt;%=<font color="#000000">include(</font>&quot;/parts/html/header.htm&quot;<font color="#000000">)</font>%&gt;<br>
+		<font color="#0000FF">&lt;body&gt;</font><br>
+		&lt;%=<font color="#000000">include(</font>&quot;/parts/html/navbar.htm&quot;<font color="#000000">)</font>%&gt;<br>
+		&lt;%=<font color="#000000">container()</font>%&gt;<br>
+		&lt;%=<font color="#000000">box(</font>&quot;<font color="#356635">001</font>&quot;,&quot;<font color="#FF0000">Welcome back to future</font>&quot;,&quot;<font color="#356635">img1.jpg</font>&quot;,&quot;<font color="#008080">/pages/page1.msp</font>&quot;,&quot;<font color="#356635">More...</font>&quot;,&quot;1&quot;<font color="#000000">)</font>%&gt;<br>
+		&lt;%=<font color="#000000">box(</font>&quot;<font color="#356635">002</font>&quot;,&quot;<font color="#FF0000">Developing Web Apps</font>&quot;,&quot;<font color="#356635">img2.jpg</font>&quot;<font color="#008080">/pages/page2.msp</font>&quot;,&quot;<font color="#356635">More...</font>&quot;,&quot;1&quot;<font color="#000000">)</font>%&gt;<br>
+		&lt;%=<font color="#000000">box(</font>&quot;<font color="#356635">003</font>&quot;,&quot;<font color="#FF0000">Targeting Mobile Devices</font>&quot;,&quot;<font color="#356635">img2.jpg</font>&quot;,&quot;<font color="#008080">/pages/page3.msp</font>&quot;,&quot;<font color="#356635">More...</font>&quot;,&quot;1&quot;<font color="#000000">)</font>%&gt;<br>
+		&lt;%=<font color="#000000">pbModal(</font>&quot;<font color="#FF0000">About this server</font>&quot;,&quot;<font color="#008080">sys_info.msp</font>&quot;<font color="#000000">)</font>%&gt;</code><p><code>&lt;%=<font color="#000000">container(</font>0<font color="#000000">)</font>%&gt;<br>
+		<font color="#0000FF">&lt;/body&gt;<br>
+		&lt;/html&gt;</font><br>
+&nbsp;</code></div>
+    </div>
+</div>
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</body>
+
+</html>

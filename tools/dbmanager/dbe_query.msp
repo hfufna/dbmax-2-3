@@ -1,0 +1,331 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOX DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- local variables
+cMsg := "" + MSPFieldValue("VAR_ACTION")
+
+%>
+<%=modInfo()%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- INCOMING WEBVARS
+///////////////////////////////////////////////////////////////////////////
+cDir     := MSPFieldValue("VAR_DIR")
+cTable   := MSPFieldValue("VAR_TABLE")
+cIndex   := MSPFieldValue("VAR_INDEXLIST")
+cFilter  := MSPFieldValue("VAR_FILTER")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+cKeyCond := MSPFieldValue("VAR_KEYCOND")
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+//-- FAKE DIALOG WINDOW
+//
+cDialogWin := "dialog1"
+createWin(cDialogWin)
+
+//-- OPENING THE TABLE
+use (cTable) alias MASTER
+if not used()
+   ? "ERROR: could not open " + cTable
+   return
+endif
+
+//-- OPENING THE INDEX
+if not empty(cIndex)  
+   set index to (cIndex)
+endif
+select master
+go top
+
+//-- FORM WEBVARS
+cPosition  := upper(MSPFieldValue("V_POSIT"))
+cDataType  := upper(MSPFieldValue("V_TARG_TYPE"))
+cConfrType := upper(MSPFieldValue("V_CONFR_TYPE"))
+cCaseSens  := upper(MSPFieldValue("V_CONFR_CASE"))
+
+cVerb     := MSPFieldValue("V_VERB")
+cTargFld  := MSPFieldValue("V_TARG_FLD")
+cConfrFld := MSPFieldValue("V_CONFR_FLD")
+xCargo    := MSPFieldValue("V_NEW_VAL")
+
+%>
+<!----------------------------------- HTML -------------------------------------- //-->
+<body>
+<font size="4">Run a query against current table</font>
+<hr>
+<%
+do case
+***********************************
+case empty(cAction)
+***********************************
+%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post">
+<select name="V_VERB"><option><%=cVerb%></option><option>Replace</option><option>List</option><option>Delete</option></select>
+ALL fields <select name="V_TARG_FLD"><option><%=%></option><%=optFlds()%></select>
+with a value of <input name="V_TARG_VAL" type="text" size="30">
+as <select name="V_TARG_TYPE"><option><%=cDataType%></option><option>String</option><option>Numeric</option><option>Calendar Date</option><option>Logical</option></select>
+<select name="V_POSIT"><option><%=cPosition%></option><option>in place of</option><option>before</option><option>after</option></select> the field
+<br>
+ONLY if the field
+<select name="V_CONFR_FLD"><%=optFlds()%></select>
+<select name="V_CONFR_TYPE">
+   <option>contains the value</option>
+   <option>does not contains</option>
+   <option>is equal to</option>
+   <option>is not equal to</option>
+   <option>is empty</option>
+</select>
+<input type="text" name="V_NEW_VAL" size="10">
+<select name="V_CONFR_CASE"><option>ignore case</option><option>case sensitive</option></select>
+<!--- //-->
+<input type="hidden" name="VAR_ACTION" value="GO">
+<input type="hidden" name="VAR_DIR" value="<%=cDir%>">
+<input type="hidden" name="VAR_TABLE" value="<%=cTable%>">
+<input type="submit" name="PB_OK" value="Apply">
+</form>
+<!--- form end //--->
+<%
+***********************************
+case cAction="GO"
+***********************************
+
+
+do case
+   case cPosition = "IN"
+   case cPosition = "BEF"
+   case cPosition = "AFT"
+endcase
+
+do case
+   case cDataType= "STR"
+   case cDataType= "NUM"
+   case cDataType= "CAS"
+   case cDataType= "LOG"
+endcase
+
+do case
+   case cConfrType="CONT"
+      cConfrType := "="
+   case cConfrType="DOES"
+      cConfrType := "<>"
+   case cConfrType="IS EQ"
+      cConfrType := "=="
+   case cConfrType="IS NO"
+      cConfrType := "!"
+   case cConfrType="IS EM"
+      cConfrType := ""
+endcase
+
+do case
+   case cCaseSens="IGN"
+   case cCaseSens="CASE"
+endcase
+
+cVerb  := MSPFieldValue("V_VERB")
+cQuery := cVerb + ' all ' + cTargFld + ' with "' + MSPFieldValue("V_TARG_VAL") + '" for ' + cConfrFld + " " + cConfrType + '"' + xCargo + '"'
+%>
+<!---- form start //---->
+<form name="form2" action="<%=cSelf%>" method="post">
+<hr>
+<input type="hidden" name="VAR_ACTION" value="RUN">
+<textarea name="V_QUERY" cols="80" rows="2"><%=cQuery%></textarea>
+<input type="hidden" name="VAR_DIR" value="<%=cDir%>">
+<input type="hidden" name="VAR_TABLE" value="<%=cTable%>">
+<input type="submit" name="PB_OK" value="Proceed">
+</form>
+<!--- form end //--->
+<b><%=cQuery%></b><p>
+<%
+***********************************
+case cAction = "RUN"
+***********************************
+cHeader  := curDosDir()+"dbe_query_header.txt"
+cTxt     := ""
+cRun     := MSPFieldValue("V_QUERY")
+cRunFile := curdosdir() + "run.msp"
+cRunLink := dos2web(cRunFile)
+%>
+<form action="<%=cRunLink%>">
+<%
+if not empty(cRun)
+   cTxt += "<" + "%" +CR_LF
+   cTxt += "use " + cTable + " excl" +CR_LF
+   cTxt += "if used()" +CR_LF
+   cTxt += "   " + cRun +CR_LF
+   cTxt += "else" +CR_LF
+   cTxt += '   ? "A problem occurred! - This operation requires EXCLUSIVE access to table."' + CR_LF
+   cTxt += "endif" +CR_LF
+   cTxt += "%" + ">" +CR_LF
+   cHeadTxt := memoread(cHeader) +CR_LF
+   memowrit(cRunFile, cHeadTxt + cTxt)
+endif
+%>
+Review your query:<br>
+<textarea cols="80" rows="10"><%=cTxt%></textarea>
+<input type="submit" value="Confirm and run">
+</form>
+<%
+***********************************
+endcase
+***********************************
+%>
+<iframe id="ifbrowse" style="width:100%;height:70%;" src="dbe_browse.msp?XY=<%=cSeed%>&<%=cParmStr%>"></iframe>
+</body>
+<!----------------------------------- END HTML -------------------------------------- //-->
+</html>
+<%
+*-------------------------------------------------------------------------------
+function createWin(cId)
+*-------------------------------------------------------------------------------
+%>
+<iframe name="<%=cId%>" id="<%=cId%>" src="" style="display:none; position:fixed;top:5%; left:5%; width:90%; height: 80%; border:solid 1 px red; padding: 3 3 3 3; background-color: #E0E0E0;"></iframe>
+<%
+return
+
+*-------------------------------------------------------------------------------
+function optFlds()
+*-------------------------------------------------------------------------------
+local cStr, iii
+cStr := ""
+for iii=1 to afields()
+   cStr += "<option>" + fieldname(iii) + "</option>"
+next
+return cStr
+%>

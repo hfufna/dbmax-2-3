@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+ //--->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="app.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/dbfree50.js"></script>
+<script type="text/javascript">
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+</script>
+
+<title>Ajax search actuator</title>
+
+</head>
+<%
+*********************************************************ANTARTIS3-01*
+restore from MSPconfigVar("MSPDIR")+"\sessions\"+ MSPFieldValue("X")+".mem"
+set maxlib to &zcLib
+*********************************************************ANTARTIS3-01*
+
+//-- MISC
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+CR_LF := chr(13)+chr(10)
+
+*********************************************************************
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+*********************************************************ANTARTIS3-01*
+
+//-- LOCAL VARIABLES
+restore from (zcInit) additive
+*
+cGoBack := MSPFieldValue("VAR_GOBACK")
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+cRonly  := "readonly"
+lAppend := .f.
+lEdit   :=.f.
+lSaved  :=.f.
+lShow   :=.t.
+
+//-- INCOMING WEBVARS
+dThisDay   := cTod(MSPFieldValue("VAR_DAY"))
+nThisMonth := month(dThisDay)
+nThisYear  := year(dThisDay)
+cThisTime  := MSPFieldValue("VAR_TIME")
+
+//-- SHORTCUTS
+cParms := "?X=" + zcX + "&VAR_DAY=" + dtoc(dThisDay) + "&VAR_MONTH=" + zz(nThisMonth) + "&VAR_YEAR=" + zz(nThisYear)
+cThisPage  := cSelf + cParms
+cBackPage  := "view_day.msp" + cparms
+
+
+//-- TABLES TO USE
+//
+cDbPath := setDb("maxplanner")
+cDb  := cDBpath + "CUSTOM.DBF"
+cXb  := cDBpath + "CUSTOM_BY_ID.MTX"
+cXk  := "KEYLINK"
+
+//-- OPENING TABLES AND INDEXES
+//   if indexes not existing will be created
+//
+use (cDb) in 0 alias CUST index (cXb) key cXk
+set order to 1
+
+
+//-- MOVING CURSOR
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+if nRecno > 0
+   go nRecno
+endif
+
+
+%>
+<body>
+<%
+cParentField := MSPFieldValue("VAR_RETFLD")
+
+cKey := upper(MSPFieldValue("VAR_KEYVAL"))
+cFld := upper(MSPFieldValue("VAR_KEYFLD"))
+rrr:=0
+go top
+do while not eof()
+   cStr := mspDecode(fieldcont(cFld))
+   if cKey $ upper(cStr)
+      rrr++
+      %>
+      <div id="myself" style="border:dotted 1px gray;margin:2;padding:2;">
+         <a href="#1" 
+         onclick="retVal('<%=cParentField%>','<%=alltrim(fieldval(3))%>.<%=alltrim(fieldval(2))%>');toggleDiv('myself');">
+         <%=fieldval(2)%> <%=fieldval(3)%> 
+         </a>    
+      </div>
+      <%
+   endif
+   skip
+enddo
+if rrr = 0
+   ? "No match!"
+endif
+%>
+<div id="calbox" style="visibility:off;"></div>
+</html>
+</body>
+
+</html>

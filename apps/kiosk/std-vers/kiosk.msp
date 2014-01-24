@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+      KIOSK DEMO programmed in classic mode (as web form) 
+      ****************************************************
+      Written for DBFree V3 by G.Napolitano and others
+      www.dbfree.org - February 2013
+//-->
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<title>KIOSK</title>
+<link rel="stylesheet" type="text/css" href="/apps/kiosk/kiosk.css">
+<title>DBFree Self-refreshing Active Page</title>
+</head>
+<%
+lDebug :=.f.
+xAppId := "kiosk"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- DATABASE TO USE
+cDir := setDb("kiosk")
+cTable  := cDir + "TICKER.DBF"
+cIndex  := cDir + "TICKER.MTX"
+if not file(cTable)
+  ainit( "aField","FLD1","FLD2","FLD3","FLD4","FLD5","FLD6")
+  ainit( "aType","C","C","C","C","C","C")
+  ainit( "aSize",20,20,20,20,20,20)
+  ainit( "aDec",0,0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+use (cTable) // index (cIndex) key FLD1
+
+////////////////////////////////////////////////
+//-- APP SPECIFIC MEMORY FILE
+cAppMemPath := xMemDir
+if not isDir(cAppMemPath)
+   createDir(cAppMemPath)
+endif
+zMemFile := cAppMemPath + "kiosk.mem"
+if file(zMemFile)
+   restore from (zMemFile) additive
+endif
+
+//-- LOCAL SETTINGS
+//
+if type(znRowsToShow)="U"
+   znRec := 1
+   znRowsToShow  := 5 
+   znRefreshTime := 3000   
+   znCurrPage    := 0
+   save all like z*  to (zMemFile)
+endif
+
+//-- INCOMING WEBVARS
+//
+nViews := val(MSPFieldValue("VAR_VIEWS"))
+
+//-- LAST RECORD DISPLAYED
+nRecord   := val(MSPFieldValue("VAR_LASTREC"))
+%>
+<!----------------------------------- javascripts -------------------------------------- //-->
+<script type="text/javascript">  
+  var timeout = setTimeout("document.form1.submit();",<%=zz(znRefreshTime)%>);
+  
+  function resetTimeout() {
+    clearTimeout(timeout);
+    timeout = setTimeout("document.form1.submit();",<%=zz(znRefreshTime)%>);
+  }
+</script>
+<script type="text/javascript">
+    function ShowTime() {
+        var dt = new Date();
+        document.getElementById("div1").innerHTML= dt.toLocaleTimeString();
+        window.setTimeout("ShowTime()", 1000);
+    }
+</script>
+
+<!----------------------------------- comment -------------------------------------- //-->
+<!-- same could be done with
+<meta http-equiv="refresh" content="5" >
+//-->
+
+<!--------------------------------------- HH ------------------------------------------ //-->
+<body style="background-color: #054BAD; color:#FFFFFF;">
+<form name="form1" id="form1" action="<%=cSelf%>" method="post">
+<%=itDow(date())%> <%=itDate(date())%> &nbsp;&nbsp;&nbsp; V<%=nViews%>
+<%
+
+//-- CHECKING NOT TO GO BEYOND BOUNDS
+nRecord := max(nRecord,1)
+if nRecord >= lastrec()
+   nRecord := 1
+endif
+
+//-- MOVING TO FIRST RECORD TO DISPLAY
+go nRecord
+rrr := 0
+
+//-- SHOWING A PAGE COUNTER FOR USERS
+nCurrPage := int(recno()/znRowsToShow)+1
+nTotPages := int((lastrec()/znRowsToShow))
+nOrphans  := mod(lastrec(),znRowsToShow)
+nTotPages += iif(nOrphans>0,1,0)
+for iii=1 to nTotPages
+    cColor := iif(iii=nCurrPage,"FFCC00","054BAD")
+   %><span style="border:solid 1px gray; background-color: #<%=cColor%>;color:gray;">&nbsp;<%=zz(iii)%>&nbsp;</span><%
+next
+****************************************
+%>
+<!----------------------------------- START DISPLAYING -------------------------------------- //-->
+<p>
+<table border="0" width="100%">
+<%
+//-- DISPLAY ROWS
+do while not eof()
+   rrr++
+   %><tr bgcolor="<%=iif(mod(recno(),2)=0,'#054BAD','#0260C4')%>">
+   <td nowrap><font size="0.5em" color="gray"><%=recno()%></font></td><%
+   for iii=1 to afields()
+      %>
+      <td nowrap><%=zz(fieldval(iii))%></td>
+      <%
+   next
+   skip 
+   nRecord := recno()
+   if rrr >= znRowsToShow
+      exit
+   endif     
+   %></tr><%
+enddo
+
+//-- IF END OF TABLE JUST RESET COUNTER
+if nRecord >= lastrec()
+   nRecord := 1
+endif
+%>
+</table>
+<% 
+//-- INCREMENTING THIS COUNTER THAT IS TO AVOID PEOPLE STAY HERE
+//   ALL TIME CONSUMING TIME ON THIS SERVER
+//
+nViews++
+if nViews > 40
+   %><script language="javascript">alert('THIS SERVER IS FOR DEMO ONLY! Time is expired. If you need to experiment further please download the application and install it on your DBFree server.');document.location='http://<%=getenv("SERVER_NAME")%>/index.htm';</script><%
+endif
+%>
+<!-- THE COUNTERS TO BE PASSED FROM PAGE TO PAGE USING THIS FORM//-->
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VAR_LASTREC" value="<%=zz(nRecord)%>">
+<input type="hidden" name="VAR_VIEWS" value="<%=nViews%>">
+</form>
+
+<!----------------------------------- clock -------------------------------------- //-->
+<div id="div1" style="position:absolute; right:3; top:0;"></div>
+<script type="text/javascript">
+    // a startup script to put everything in motion
+    window.setTimeout("ShowTime()", 1000);
+</script>
+<!----------------------------------- BOTTOM -------------------------------------- //-->
+<div id="div_bott" style="position:fixed; bottom:2; left:3;font-size:0.5em;color:orange;">
+DB <%=cDir%>[<%=dbf()%>] Rows <%=znRowsToShow%> Timer:<%=zz(znRefreshTime)%> Standard Mode (Form) 
+   <a href="../start.msp?XY=<%=cSeed%>"><font color="#00FFFF">EXIT</font></a> 
+   <a href="../showcode.msp?VAR_FILE=<%=pageFile()%>" target="_blank"><font color="#FFFFFF">Show code</font></a>
+   Session:<%=cSeed%>
+</div>
+</body>
+
+
+</html>

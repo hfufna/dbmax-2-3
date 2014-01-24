@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="tablet7.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- CERCA APPARATO
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()      
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+
+   return
+endif
+******************************************* OK **
+
+//-- CONTROLLO ERRORI
+cTav := MSPFieldValue("VAR_TAV")
+if empty(cTav)
+   ? "ERRORE"
+   ? "Manca il tavolo!"
+   return
+endif
+
+*####################################################
+//-- DIMENSIONA ELEMENTI
+cAltPuls       := zz(min(int(xnWW/4)-2,47))   //-- solo per il menu
+
+cLarghIcoProd  := zz(int(xnWW/4)-2)   //-- larghezza icone dei gruppi di prodotto
+%>
+<style type="text/css">
+td {color:maroon;}
+.pbscelta {width:<%=cLarghIcoProd%>px;}
+</style>
+<%
+//-- INCOMING WEBVARS
+cMenuSet := MSPFieldValue("VAR_SET")
+
+//-- apre la tabella tavoli
+dbOpen(xDB,"2")
+sele tavoli
+locate for alltrim(ID_TAV)=alltrim(cTav)
+nCoperti := COPERTI
+cStatus  := STAT_TAV
+cIdSala  := ID_SALA
+
+//-- apre la tabella comande
+dbOpen(xDB,"3")
+sele comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+count to nComCorr
+go top
+
+//-- BACKGROUND ACTIONS
+do case
+******************************
+case cAction ="A_VARIA"
+******************************
+//-- registra variazione pizza
+sele comande
+nRec := val(MSPFieldValue("VAR_ROW"))
+cTipoVar := MSPFieldValue("EF_TIPOVAR")
+cDescVar := MSPFieldValue("EF_DESVAR")
+go nRec
+if rlock(3)
+   repl DESC_PROD with alltrim(DESC_PROD) + ":" + cTipoVar + " " + cDescVar
+   unlock
+endif
+cAction := ""
+
+
+******************************
+case cAction ="DELROW"
+******************************
+nRec := val(MSPFieldValue("VAR_ROW"))
+sele comande
+go nRec
+if rlock(3)
+   delete
+   repl DESC_PROD with "CANCELLATO"
+   repl STAT_COM with "CANCELLATA"
+   unlock
+endif
+cAction := ""
+
+******************************
+case cAction ="SAVEROW"
+******************************
+//-- salva una posizione di comanda
+//
+cCodProd  := MSPFieldValue("VAR_CODPROD")
+cDescrProd := MSPFieldValue("VAR_DESCR")
+cPrzUn     := MSPFieldValue("VAR_PRZ")
+cGrpProd   := MSPFieldValue("VAR_MENU")
+cDefDest   := MSPFieldValue("VAR_DEST")
+
+sele comande
+append blank
+if rlock(2)
+   repl COD_CLI    with xcCodCli
+   repl ID_COM     with zz(cTav) + "-" + str(recno(),4,0,"0")
+   repl ID_OP      with xcIdOp
+   repl ID_TAV     with cTav
+   repl ID_SALA    with xcIdSala
+   repl COD_PROD   with cCodProd
+   repl DESC_PROD  with cDescrProd
+   repl DEF_DEST   with cDefDest
+   repl STAT_COM   with "SOSPESA"
+   repl QNT        with 1
+   repl GRP_PROD   with cGrpProd
+   repl PRZ_UN     with val(cPrzUn)
+   repl D_REG      with date()
+   repl T_REG      with time()
+   repl NSESSIONE  with zcSession
+   unlock
+endif
+cAction := ""
+******************************
+endcase
+******************************
+
+//-- per abbreviare gli URL
+cIdStr := "&VAR_TAV="+cTav+"&VAR_ROOM="+zz(cIdSala)
+%>
+<body>
+<!----------------------------- *sempre in vista ----------------------------- //-->
+<%
+do case
+*******************************
+case empty(cMenuSet)
+*******************************
+%>
+<table width="<%=xnWW%>px" cellspacing="0" cellpadding="2">
+<tr>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=BEV1&X=<%=cIdStr%>"><img src="../../images/pw9_bevande1.gif" width="<%=cLarghIcoProd%>px"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=BEV2&X=<%=cIdStr%>"><img src="../../images/pw9_bevande2.gif" class="pbscelta"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=CAF&X=<%=cIdStr%>"><img src="../../images/pw9_caffetteria.gif" class="pbscelta"></a></td>
+	<td><a href="gestisci_tavolo.msp?X=<%=cIdStr%>"><img src="../../images/pbsq_comanda.gif" class="pbscelta"></a></td>
+</tr>
+<tr>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=PZ1&X=<%=cIdStr%>"><img src="../../images/pw9_pizze1.gif" class="pbscelta"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=PZ2&X=<%=cIdStr%>"><img src="../../images/pw9_pizze2.gif" class="pbscelta"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=DLC&X=<%=cIdStr%>"><img src="../../images/pw9_dolci1.gif" class="pbscelta"></a></td>
+	<td><a href="<%=cSelf%>?VAR_SET=1&X=<%=cIdStr%>"><img src="../../images/pbsq_altro.gif" class="pbscelta"></a></td>
+</tr>
+</table>
+<% 
+*******************************
+otherwise
+*******************************
+%>
+<table "<%=xnWW%>px" cellspacing="0" cellpadding="2">
+<tr>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=ANT&X=<%=cIdStr%>"><img src="../../images/pw9_antipasti.gif" class="pbscelta"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=PRI&X=<%=cIdStr%>"><img src="../../images/pw9_primi.gif" class="pbscelta"></a></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=SEC&X=<%=cIdStr%>"><img src="../../images/pw9_secondi.gif" class="pbscelta"></a></td>
+	<td><a href="gestisci_tavolo.msp?X=<%=cIdStr%>"><img src="../../images/pbsq_comanda.gif" class="pbscelta"></a></td>
+</tr><tr>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=CON&X=<%=cIdStr%>"><img src="../../images/pw9_contorni.gif" class="pbscelta"></a></td>
+   <td><a href="scegli_da_menu.msp?VAR_MENU=SEC&X=<%=cIdStr%>"><img src="../../images/pw9_pesce.gif" class="pbscelta"></td>
+	<td><a href="scegli_da_menu.msp?VAR_MENU=BEV1&X=<%=cIdStr%>"><img src="../../images/pw9_vini.gif" class="pbscelta"></a></td>
+	<td><a href="<%=cSelf%>?VAR_SET=&X=<%=cIdStr%>"><img src="../../images/pbsq_altro.gif" class="pbscelta"></a></td>
+</tr>
+</table>
+<% 
+*******************************
+endcase
+*******************************
+%>
+<!----------------------------------- *--------------------------------------- //-->
+<%
+do case
+*==============================
+case empty(cAction) or cAction="COM"
+*------------------------------
+//-- PRENDI COMANDA
+sele comande
+%>
+<table width="100%" cellpadding="0" border="0" bgcolor="#000000">
+<%
+cTav := padr(cTav,10," ")
+set filter to alltrim(ID_TAV) == alltrim(cTav) and not alltrim(STAT_COM) $ "CANC SERV"
+go top
+rrr :=0
+do while not eof()
+   rrr++
+   %>
+   <tr bgcolor="#FFFFFF">
+   <td><%=zz(rrr)%></td> 
+   <td><%=rtrim(DESC_PROD)%></td> 
+   <td>
+   <% if left(GRP_PROD,2) $ "PZ PP SE" %>
+   <a href="<%=cSelf%>?VAR_ACTION=VARIA&VAR_ROW=<%=zz(recno())%>&X=<%=cIdStr%>"><img height="<%=cAltPuls%>" src="../../images/pw9_varia.gif"></a>
+   <% endif %>
+   </td>
+   <td>
+   <a href="<%=cSelf%>?VAR_ACTION=DELROW&VAR_ROW=<%=zz(recno())%>&VAR_TAV=<%=cTav%>">
+	<img border="0" src="../../images/pw9_delrow.gif" height="<%=cAltPuls%>"></a>
+	</td>
+   </tr>
+   <%
+   skip
+enddo
+%></table>
+<%
+*------------------------------
+case cAction="DELROW"
+*------------------------------
+//-- annulla la riga di comanda (che rimane visibile solo al cameriere)
+sele comande
+nRec := val(MSPFieldValue("VAR_ROW"))
+go nRec
+if rlock(1)
+   repl STAT_COM  with "CANC"
+   repl T_REG   with time()
+   unlock
+endif
+cAction := ""
+
+*------------------------------
+case cAction="VARIA"
+*------------------------------
+//-- spostare tutto in una div invisibile sulla stessa riga del prodotto
+//   poi aprire la div e lasciare editare il campo variazione
+nGo := val(MSPFieldValue("VAR_ROW"))
+go nGo
+%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="background-color:#FFFF00;">
+<table border="0" width="100%" cellspacing="0" cellpadding="2">
+	<tr>
+		<td bgcolor="#FFFF00">Variazione a <%=DESC_PROD%></td>
+	</tr>
+</table>
+<select name="EF_TIPOVAR"><option>SENZA</option><option>CON</option></select>
+<select name="EF_DESVAR">
+<option>Mozzarella</option>
+<option>Prosciutto</option>
+<option>Basilico</option>
+<option>Piccante</option>
+<option>Pomodoro</option>
+<option>Bufala</option>
+</select>
+<input type="hidden" name="VAR_ACTION" value="A_VARIA">
+<input type="hidden" name="VAR_TAV" value="<%=cTav%>">
+<input type="hidden" name="VAR_ROW" value="<%=zz(nGo)%>">
+<input type="hidden" name="VAR_ID_OP" value="<%=xcIdOp%>">
+<input type="submit" name="PB_OK" value="OK">
+</form>
+<!--- form end //--->
+<%
+*------------------------------
+endcase
+*==============================
+%>
+<a href="vista_tavoli.msp?X=<%=cIdStr%>"><img height="<%=cAltPuls%>" src="../../images/pw9_tavoli.gif"></a>
+<a href="gestisci_tavolo.msp?X=<%=cIdStr%>"><img height="<%=cAltPuls%>" src="../../images/pw9_comanda-s2.gif"></font></a>
+
+<!----------------------------------- *--------------------------------------- //-->
+<hr><font color="lime" size="2">Op:<%=xcIdOp%> Sal:<%=xcIdSala%></font> <%=cTav%> <%=zz(nCoperti)%>P</font>
+<font color="#C0C0C0" size="2"><%=filebone(pageName())%> Term:<%=xcDevId%> A:<%=cLarghIcoProd%> WW=<%=xnWW%> HH=<%=xnHH%></font>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+</body>
+</html>

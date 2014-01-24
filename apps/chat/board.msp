@@ -1,0 +1,483 @@
+<html>
+<!--
+THIS MODULE IMPLEMENTS ALL THE CHAT FUNCTIONS
+It accepts the following actions:
+
+Non interactive:
+FILTER
+SAVE
+
+Interactive actions:
+LIST    - refresh the list of messages
+WRITE   - write a new message
+REPLY   - reply to a incoming message
+CLEANUP - delete old messages (default: previous day)
+DIR     - show a list of possible recipients (users): debug only
+
+//-->
+<%
+xAppId := "chat"
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set date to british
+set hours to 24
+set decimals to 0
+set century on
+set dele on
+
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb     := MSPFieldValue("VAR_SETDB")
+cTable     := MSPFieldValue("VAR_TABLE")
+cTableList := MSPFieldValue("VAR_TABLELIST")
+nRecno     := val(MSPFieldValue("VAR_RECNO"))
+cIndexList := MSPFieldValue("VAR_INDEXLIST")
+nIndexOrd  := val(MSPFieldValue("VAR_INDEXORD"))
+nRows      := val(MSPFieldValue("VAR_ROWS"))
+cDbRoot    := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+cSelf := pageName()
+
+//-- MISC
+CR_LF := chr(13)+chr(10)
+*************************************************************
+
+//-- INCOMING WEBVARS
+cAction  := MspFieldValue("VAR_ACTION")
+cUsrName := MspFieldValue("VAR_USR_NAME")
+cSafeKey := "VAR_USR_NAME=" + MspFieldValue("VAR_USR_NAME")
+
+
+//-- DATABASE SECTION
+cDbPath := setDb(xAppId)
+SET DELETED ON
+
+//-- message board
+cDb  := cDBpath + "BOARD.DBF"
+cXb  := cDBpath + "BOARD.MTX"
+cXk  := "CONV_ID"  //-- conversation ID
+
+if not file(cDb)
+  ainit( "aField","MSG_NO","CONV_ID","USR_SEND","USR_RECV","STATUS","MSG_TXT","D_REG","T_REG","MTYPE")
+  ainit( "aType","C","C","C","C","C","C","D","C","C")
+  ainit( "aSize",10,10,10,10,10,128,10,10,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+if not file(cXb)
+//-- indexing table with standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key cXk
+  use
+endif
+
+//-- friends list
+cDbFriends    := cDBpath + "usr_friends.DBF"
+cNxFriends    := "usr_friends_by_name.MTX"
+
+//-- user list for login to chat only (created by login page)
+//   will be opened only on request (not to be confused with POLARIS users)
+//
+cDbUsers   := cDBpath + "chat_usr.DBF"
+cNxUsers1  := "chat_usr_by_name.MTX"
+cNxUsers2  := "chat_usr_by_mail.MTX"
+
+
+cUsrName  := MSPFieldValue("VAR_USR_NAME")
+cSender   := MSPFieldValue("VAR_SEND")
+cReceiver := MSPFieldValue("VAR_RECV")
+cMtype    := MSPFieldValue("VAR_MTYPE")
+cMsgTxt   := MSPFieldValue("EF_MSG_TXT")
+
+//-- opening message board (always open)
+use (cDb) in 0 alias BOARD index (cXb) key cXk
+set order to 0
+
+//-- filtering on current user
+set filter to USR_SEND = cUsrName .or. USR_RECV = cUsrName
+go top
+
+//-- opening users
+use (cDbUsers) in 0 alias USERS index (cNxUsers1) key USR_NAME unique,(cNxUsers2) key EMAIL 
+
+//-- opening friends
+use (cDbFriends) in 0 alias FRIENDS index (cNxFriends) key USR_NAME
+
+sele BOARD
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=container()%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<table class="table" width="100%"><tr><td><font size="3"><b>Winix Chat:</b></font>
+<font size="4" color="red"><b><%=capital(cUsrName)%></b></font>
+</td><td align="right"><a href="login.msp?VAR_ACTION=LOGOUT<%=cSafeKey%>">Logout</a></td></tr></table>
+<%
+//-- BACKGROUND actions
+do case
+***********************************************************************************
+case cAction = "FILTER"
+*----------------------------------------------------------------------------------
+//-- limiting view to the specified recipient to follow a single conversation among others
+//
+set filter to (USR_SEND = cSender .and. USR_RECV = cUsrName) .or. (USR_RECV = cSender .and. USR_SEND = cUsrName)
+go top
+cAction := ""
+*----------------------------------------------------------------------------------
+case cAction = "SAVE"
+*----------------------------------------------------------------------------------
+//-- saving a new message
+lGo     :=.t.
+lErr    :=.f.
+cErrMsg := ""
+
+//-- check-out for empty message
+if empty(cMsgTxt)
+   lErr:=.t.
+   lGo :=.f.
+   cErrMsg += "(1)Non hai scritto niente nel messaggio!"
+endif
+
+//-- go to message and sets the status (Write,Reply,etc)
+if lGo
+   do case
+   case cMtype = "WRITE"
+      cStatus := "W"
+   case cMtype = "REPLY" .or. cMtype="E"
+      cStatus := "W"
+      nMsg := val(MSPFieldValue("VAR_RECNO"))
+      if nMsg <> 0
+         go nMsg
+         if rlock(2)
+            repl STATUS with "R"
+            unlock
+         endif
+      endif
+   otherwise
+      cStatus := ""
+   endcase
+endif // lGo
+
+//-- check-out for no recipient
+if lGo
+   if empty(cReceiver)
+      lErr:=.t.
+      lGo :=.f.
+      cErrMsg += "(2)Il messaggio non ha destinatario!"
+   else
+      //-- checking if recipient exists, otherwise refusing to save
+      //
+      sele USERS
+      seek cReceiver
+      if not found()
+         close USERS
+         lErr:=.t.
+         cErrMsg += "(3)Il destinatario del tuo messaggio (" + cReceiver + ") non esiste! Controlla che il nome sia scritto correttamente."
+      else
+         lGo:=.t.
+         //-- updating friends list
+         sele FRIENDS
+         go top
+         seek cReceiver
+         if not found()
+            append blank
+            if rlock(2)
+               repl OWNER with cUsrName
+               repl USR_NAME with cReceiver
+               repl D_REG with date()
+               repl D_LAST with date()
+               unlock
+            endif
+         endif
+      endif
+   endif // empty cReceiver
+endif // lGo
+
+//-- if is all OK saving new message
+sele BOARD
+if lGo
+   if flock(1)
+      append blank
+      nRec := recno()
+      unlock
+      go nRec
+      if rlock(1)
+         repl MSG_NO with str(recno(),7,0,"0")
+         repl USR_SEND with cSender
+         repl USR_RECV with cReceiver
+         repl D_REG with date()
+         repl T_REG with time()
+         repl MSG_TXT with cMsgTxt 
+         repl MTYPE with cMtype
+         repl STATUS with cStatus          
+         unlock
+      else
+         ? "RECORD LOCK ERROR while updating new record"
+      endif
+   else
+      ? "FILE LOCK ERROR while adding record" 
+   endif
+endif
+
+//-- error messages
+if lErr
+   %>
+   <div style="border:dotted 1px red; background-color:#FFF7D2; color:maroon;">
+   <font size="3" color="#FF0000">CHAT encountered errors:</font><br>
+   <%=cErrMsg%>
+   </div>
+   <%
+endif
+cAction :=""
+*----------------------------------------------------------------------------------
+endcase
+***********************************************************************************
+%>
+<!--------------------------------------- Determining who is the user //--------------------------------------------->
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+<input type="hidden" name="VAR_USR_NAME" value="<%=cUsrName%>" size="5" title="Sender" readonly>&nbsp;&nbsp;
+<input type="hidden" name="VAR_ACTION" value="">
+<input type="hidden" name="VAR_SEND" value="<%=cSender%>">
+<input type="submit" name="PB_OK" value="Update view">
+
+<table width="100%" cellspacing="0" cellpadding="3" style="border:none"><tr>
+<td bgcolor="#ECFBEA"><a href="<%=cSelf%>?VAR_ACTION=WRITE<%=webVars2url(aVars)%>">New message</a></td>
+<td bgcolor="#ECFBEA"><a href="friends.msp?X=<%=cSafeKey%>">List friends</a></td>
+<td align="right" bgcolor="#ECFBEA"><a href="<%=cSelf%>?VAR_ACTION=CLEANUP<%=webVars2url(aVars)%>">Wipe old messages</a>&nbsp; |&nbsp; Settings </td>
+</tr></table>
+</form>
+<hr>
+<%
+//-- FOREGROUND operations
+do case
+*==================================================================================
+case empty(cAction) .or. cAction = "LIST"
+*==================================================================================
+nRows := 15
+%>
+<table class="std">
+<%
+rrr := 0
+go bottom
+skip -nRows
+do while not eof()
+   showThisRecord(recno())
+   skip
+   rrr++
+enddo
+%></table><%
+cAction := ""
+*----------------------------------------------------------------------------------
+case cAction="CLEANUP"
+*----------------------------------------------------------------------------------
+dNow := date()
+go top
+for nnn=1 to 5
+  if flock(2)
+     dele all for D_REG < dNow
+     unlock
+     exit
+  endif
+next
+go top
+*----------------------------------------------------------------------------------
+case cAction="WRITE"
+*----------------------------------------------------------------------------------
+%>
+<hr><h3>Write new Message</h3> 
+<!----------------------------------- *//----------------------------------------->
+<form name="form2" action="<%=cSelf%>" method="post" style="form1">
+From:<input type="text" name="VAR_SEND" value="<%=cUsrName%>" readonly size="5" title="Sender">
+To:<select name="VAR_RECV" size="1">
+<option><%=cReceiver%></option>
+<%
+sele FRIENDS
+set filter to OWNER=cUsrName
+go top
+do while not eof()
+   %><option><%=zz(USR_NAME)%></option><%
+   skip
+enddo
+sele BOARD
+%>
+</select>
+<p>
+<textarea name="EF_MSG_TXT" id="ef_01" title="Please enter a string of text" rows="6" cols="100"></textarea>
+<br>
+<input type="hidden" name="VAR_MTYPE" value="WRITE">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="submit" name="PB_OK" value="Send message">
+<%=webVars2fields(aVars)%>
+<font size="2" color="#808080">(Max 128 caratteri!)</font></form>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "REPLY" 
+*----------------------------------------------------------------------------------
+nRec := val(MSPFieldValue("VAR_RECNO"))
+if nRec > 0
+   go nRec
+endif
+%>
+<table width="100%"><tr><td><font size="4"><b>Reply to Message</b></font></td><td align="right">&nbsp;</td></tr></table>
+<!----------------------------------- *//----------------------------------------->
+<form name="form3" action="<%=cSelf%>" method="post" style="form1">
+From:<input type="text" name="VAR_SEND" value="<%=cUsrName%>" readonly size="5">
+To:<input type="text" name="VAR_RECV" value="<%=cSender%>" readonly size="5">
+<p>
+<div style="border:dotted 1px green; color:green; background-color:#EFEFEF"><b><%=capital(USR_SEND)%></b> - <%=itDate(D_REG)%> at <%=T_REG%>(
+<%
+nnn := date()-D_REG
+if nnn > 0
+   %><%=nnn%> days ago<%
+else
+   nnn := elaptime(T_REG,time())
+   %><%=ttime(nnn)%> min before<%
+endif
+%>
+	)wrote:<br><i><%=zz(MSG_TXT)%></i></div>
+<textarea name="EF_MSG_TXT" title="Please leave a reply" rows="6" style="width:100%;background-color:#FCFCFC;color:#000000;"></textarea>
+<br>
+<input type="hidden" name="VAR_MTYPE" value="REPLY">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="submit" name="PB_OK" value="Send Reply">
+<%=webVars2fields(aVars)%>
+<font color="#808080" size="2">(Max 128 char!) </font>
+</form>
+<form name="form4" action="<%=cSelf%>" method="post" style="form1">
+<%=webVars2fields(aVars)%>
+<input type="hidden" name="EF_MSG_TXT" value="*Uscita*">
+<input type="hidden" name="VAR_MTYPE" value="END">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<hr>
+<div align="right"><input type="submit" name="PB_OK" value="End this thread"></div>
+</form>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "DIR" 
+*----------------------------------------------------------------------------------
+%><font size="4">Your friends</font><br><%
+sele FRIENDS
+set filter to OWNER=cUsrName
+go top
+if reccount()=0
+   ? "Non ci sono amici nella tua lista."
+else
+   go top
+   do while not eof()
+      ? recno() | " : " | USR_NAME | " last msg:" | D_LAST
+      skip
+   enddo
+endif
+close FRIENDS
+*----------------------------------------------------------------------------------
+otherwise
+*----------------------------------------------------------------------------------
+   ? "Action code [" + cAction + "] not recognized."
+*==================================================================================
+endcase
+*==================================================================================
+%>
+<div style="position:relative; bottom:0; left:0; width:100%; height:20px; background-color:#ECFBEA; color:#000000;">
+<div align="center"><font size="1" color="#C0C0C0">Winix Chat Board rel.0.0.5</font></div>
+</div></body>
+</html>
+<!----------------------------------- *end //----------------------------------------->
+<%
+******************************
+function showThisRecord(nnn)
+******************************
+lSelf:= .t.
+cColor := "red"
+//-- your own messages do not allow reply
+if USR_SEND = cUsrName
+   cColor := "green"
+   lSelf:=.f.
+endif
+if lSelf
+   cIcon := "img/msg_in.gif"
+else
+   cIcon := "img/msg_out.gif"
+endif
+%>
+<tr>
+  <!-- column //-->
+  <td class="std" width="20px">
+     <a href="<%=cSelf%>?VAR_USR_NAME=<%=cUsrName%>&VAR_SEND=<%=zz(USR_SEND)%>&VAR_ACTION=FILTER" title="Mostra solo messaggi provenienti da questo utente">
+     <img border="0" src="img/ico_follow.jpg"></a> <%=USR_SEND%>
+  </td>    
+  <!-- colonna  - icone in-out//-->
+  <td class="std" width="2%"><img border="0" src="<%=cIcon%>"></td>  
+  <% 
+  if lSelf
+     %>
+  <!-- column - message OUT //-->
+     <td class="std" width="80%">
+        <font color="gray" size="1"><%=twhen(T_REG)%> fa <b><%=zz(USR_SEND)%></b> wrote to you:</font><br>
+        <font color="red"><%=zz(MSG_TXT)%></font>    
+        <% if STATUS <> "R" %> -
+        <a href="<%=cSelf%>?VAR_ACTION=REPLY&VAR_RECNO=<%=zz(recno())%>&VAR_SEND=<%=zz(USR_SEND)%>&VAR_RECV=<%=zz(USR_RECV)%>&VAR_USR_NAME=<%=cUsrName%>"> [<font size="1" color="blue">Rispondi</font>]</a>   
+        <% endif %>      
+     </td>   
+     <% 
+  else 
+     %>   
+  <!-- column - message IN //-->
+     <td class="std" width="80%">
+        <font color="gray" size="1"><%=twhen(T_REG)%> before you wrote to <b><%=zz(USR_RECV)%></b>:</font><br><font color="green"><%=zz(MSG_TXT)%></font>
+     </td>  
+  <% 
+  endif 
+  %>
+  <!-- colonna  - date time//-->
+  <td class="std" nowrap width="5%"><font color="#C0C0C0" size="1"><%=T_REG%><br><%=itDate(D_REG)%></font></td>
+  <!-- colonna - record //-->
+    <td class="std" width="5%">
+      <font size="1" color="gray">Msg<%=recno()%>&nbsp;</font></a>
+    </td>   </tr><%
+return
+
+**************************************************
+function twhen(cTime)
+**************************************************
+local cT, cP
+cT := time()
+cP := elaptime(cTime,cT)
+return ttime(cP)
+
+
+**************************************************
+function ttime(cStr, lSeconds)
+**************************************************
+//-- receives a time string to be returned as a descriptive
+//   string about elapsed hours, minutes and seconds
+local cH, cM, cS, cOut
+cOut := ""
+cH := subs(cStr,1,2)
+cM := subs(cStr,4,2)
+cS := subs(cStr,7,2)
+if cH <> "00"
+   cOut += cH + " ore "
+endif
+if cM <> "00"
+   cOut += cM + " min. "
+endif
+cOut += cS + " sec."
+return cOut
+%>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!-- 
+      DBMax 2.5
+      
+      GENERATING LIBRARY DOCUMENTATION
+      BY SCANNING A GIVEN SOURCE FILE
+      (notice that this file must reside in same folder of target)
+//-->
+<%
+**************************************** DBMAX CROSS-DISTRO MINI-HEADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<%=include("/parts/html/header.htm")%>
+<!----------------------------------- Javascript -------------------------------------- //-->
+<%
+cFile := MSPFieldValue("VF")
+cKey := MSPFieldValue("VK")
+nStart := val(MSPFieldValue("VY"))
+%>
+<body>
+<div class="container">
+<div class="well"><h3><%=trimLeftAt(cKey,"(")%><i>(<%=trimRightAt(cKey,"(")%></i></h3></div>
+<%
+nHandle   := fopen(cFile)
+nLastByte := fseek(nHandle,0,2)
+cChunk := ""
+nFirstByte := fseek(nHandle,0,0)
+nThisPos   := fseek(nHandle,0,1)
+cPlain     := filebone(cFile)
+rrr := 0
+lOk :=.f.
+lDiv:=.f.
+
+? "File name:" | cFile
+? "File Handle:" | nHandle
+? "Byte start:" | nStart
+
+? "Current pos:" | nThisPos
+? "Last byte:" | nLastByte
+
+do while (nThisPos < nLastByte)
+   rrr++
+   if lower(cChunk)="function"
+      lOk :=.t.
+      cChunk := strTran(cChunk,"function","<b>")
+   endif
+   if lOk
+      if cChunk = "//*"
+         %><br><i><%=strTran(cChunk,"//*","")%></i><%
+      endif
+   endif
+   if lower(cChunk)="return"
+      lOk := .f.
+   endif
+   if lDiv
+      lDiv :=.f.
+      %></div><%
+   endif
+   cChunk   := freadstr(nHandle,132, chr(10))
+   nThisPos := fseek(nHandle, nThisPos+len(cChunk)+1, 0)
+enddo
+fclose(nHandle)
+%>
+
+</body>
+
+</html>

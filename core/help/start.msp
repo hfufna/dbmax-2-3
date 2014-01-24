@@ -1,0 +1,53 @@
+<html><!--
+                DBMAX 2.5  by Gianluca Napolitano
+                
+                GETTING STARTED MODULE ENTRYPOINT
+ //-->
+<%
+lDebug := .f.
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+xAppId := memoread(webroot()+"\xappid")
+
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("localbar.htm")%>
+<div class="container">
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h1>Getting Started</h1>
+<a class="btn btn-sm btn-primary pull-right" href="/home.msp?XY=<%=cSeed%>">Home Page</a></h4>
+
+
+<p>If you got this page it's because this server is not yet configured.</p>
+<p>For configuring the server you will need to be the administrator and to operate from the local network of the server
+<% if not isLocal()%> 
+wich currently is not the case (you're connected from <%=getenv("REMOTE_ADDR")%> outside the LAN).</p>
+<% else %>
+<br><a class="btn btn-sm btn-danger" href="/setup/start.msp">Configure DBMAX</a>
+<% endif %>
+
+<p>At the simpler level of usage
+
+DBMAX can operate in Z-mode (zero-configuration mode): this means that the only thing you have 
+to do is to use it as is now, reaching it as <b>http://<%=getenv("SERVER_NAME")%></b> from your current <%=iif(islocal(),"local","public")%> connection.<p>
+<p>This configuration gives you 3 predefined users: <a href="#1">Admin</a>, <a href="#2">Demo</a> and <a href="#3">Guest</a> and all of them share the same pool of applications.</p>
+<p>To complete the configuration you then may want to perform these tasks:
+<ul>
+<li>install the other applications your users will use (either from the shop or those you created by your own)</li>
+<li>create all the users that will be allowed to this site (or enable them to self-register)</li>
+<li>assign to each user (or user group) the applications they will be allowed to use </li>
+</ul>
+<p>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+</div>
+<%=include("/parts/html/footer.htm")%>
+</body>
+
+</html>

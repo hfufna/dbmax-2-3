@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>DBFree Official Site --Database-and-scripting-language-for-the-web - keeping alive the art of programming - MaxScript language</title>
+<meta name="keyword" content="dbfree-3,dbfree.org,MaxScript">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<script language="javascript" src="app-js/jmax.js"></script>
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<title>DBFree V3</title>
+</head>
+<!----------------------------------- MaxScript -------------------------------------- //-->
+<%
+lDebug :=.f.
+**************************************** DBFree 3-0-3-MID-HEADER
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+if lDebug
+? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+restore from(xGlobals) additive
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//--
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+nRecno  := val(MSPFieldValue("VAR_RECNO"))
+
+//--LOCAL VARIABLES
+cIp := getenv("REMOTE_ADDR")
+cUrl := getenv("SERVER_NAME")
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MID-HEADER
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- LOCALS
+cMsg := ""
+
+//-- INCOMING WEBVARS
+cStorage := mspconfigvar("DATADIR")
+cDb      := MSPFieldValue("VAR_DB")
+cDir     := cStorage + "\" + cDb + "\"
+cDir     := fixslash(cDir)
+%>
+<body>
+<%
+do case
+*************************
+case cAction="DELETE"
+*************************
+   cDel  := mspconfigvar("DATADIR")+"\$"+zz(seconds())
+   *? "RENAME " | cDb | " TO " | cDel
+   rename (cDb) to (cDel)
+   cAction := "DONE"
+*************************
+endcase
+*************************
+%>
+<!----------------------------------- FOREGORUND ACTIONS -------------------------------------- //-->
+<%
+do case
+*---------------------------------
+case cAction = "BACK"
+*---------------------------------
+%>
+<body bgcolor="#E1E8E4" background="img/bg_v-blue.JPG">
+   <table border="0" width="100%" id="table1" cellspacing="0" cellpadding="4">
+   <tr><td width="732" style="vertical-align: top">&nbsp;</td>
+	<td bgcolor="#4E4B49" align="right" width="40%" nowrap style="vertical-align: top"><a href="dbe_list_db.msp?XY=<%=cSeed%>&" style="color: white; text-decoration: none">Change DB</a></td></tr>
+   </table>
+<%
+*---------------------------------
+case empty(cAction)
+*---------------------------------
+%>
+<p><b><font size="3">Delete database [<%=filebone(cDb)%>] </font></b>
+<br>from its position under [<%=cStorage%>]
+<hr>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+Please confirm deletion of DB <%=cDb%>
+<br>
+<input type="hidden" name="VAR_DB" value="<%=cDb%>">
+<input type="submit" name="VAR_ACTION" value="DELETE">
+</form>
+<!--- form end //--->
+<%
+*---------------------------------
+case cAction = "DONE"
+*---------------------------------
+%>
+<script language="javascript">top.frm1.location='<%=cSelf%>?VAR_ACTION=BACK';</script>
+Database <b><%=cDb%></b> deleted from [<%=cDir%>]<hr>
+<%
+*----------------------------------
+endcase
+*----------------------------------
+%>
+</body>
+
+</html>

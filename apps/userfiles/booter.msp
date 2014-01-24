@@ -1,0 +1,64 @@
+<html lang="en">
+<!-- ------ 
+         DBMAX 2.3 (c)2013 G.Napolitano
+         START PAGE FOR LEGACY MAXSCRIPT WEB APPLICATIONS 
+         vers. 1.0.2 rev. Nov 12,2013
+         
+         JUST DROP THIS PAGE INTO THE FOLDER CONTAINING YOUR
+         OLD (OR DBFree) WEB APPLICATION TO MAKE IT VISIBLE TO DBMAX
+-------//-->
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+cSelf   := pageName()
+cBack   := callingPage()
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER
+
+//-- building info files for presenting application
+//
+cCaption  := curDosDir() + "app-caption.htm"
+cAbstract := curDosDir() + "app-abstract.htm"
+cIntro    := curDosDir() + "app-intro.htm"
+cInfo     := curDosDir() + "app-infos.htm"
+if not file(cIntro)
+   memowrit(cIntro,"<h2>Unknow web application</h2>Please provide an intro using the text file " + cIntro)
+endif
+if not file(cInfo)
+   memowrit(cInfo,"<b>This application is missing informations</b><p>Please provide the description using the text file " + cInfo)
+endif
+
+%>
+<%=include("/parts/html/header.htm")%>
+<!-- ----------------------------------  HTML BODY START* ------------------------------//-->
+<body>
+<%=include("/parts/html/navbar.htm")%>
+  <div class="row">
+    <div class="well"><%=include(cCaption)%></div>
+  </div>
+  
+  <div class="container">
+
+  <div class="row">
+     <div class="col-sm-6 col-md-6">
+        <div class="panel panel-content"><%=include(cIntro)%></div>
+     </div>
+          
+     <div class="col-sm-6 col-md-6" align="right">
+       <div class="panel panel-content">
+       <a class="btn btn-danger" style="margin-top:10px;" href="start.msp?XY=<%=cSeed%>">Launch Application</a>
+       <a class="btn btn-primary" style="margin-top:10px;" href="<%=link2menu(0)%>">Back to menu</a>
+       </div>
+     </div>
+  </div>
+</div>
+
+<!-- -----------------------------------------BODY END ----------------------------------//-->
+<%=include("/parts/html/footer.htm")%>
+</div>
+</body>
+</html>

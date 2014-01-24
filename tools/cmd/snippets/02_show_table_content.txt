@@ -1,0 +1,6 @@
+go top
+do while not eof()
+   ? recno()
+   //-- PLACE CODE FOR SHOWING FIELD HERE
+   skip
+enddo

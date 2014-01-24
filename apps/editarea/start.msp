@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>DEMO EDITAREA</title>
+</head>
+<!--------------------------------------- HH ------------------------------------------ //-->
+<!DOCTYPE html>
+<%
+**************************************** DBMAX MINI-HEADER backward compatible
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VO")
+cDbPath  := MspConfigVar("DATADIR")
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<body>
+<%
+cTxt := MSPFieldValue("EF_TXT")
+%>
+<!----------------------------------- comment -------------------------------------- //-->
+<script language="Javascript" type="text/javascript" src="/js/edit_area/edit_area_full.js"></script>
+<script language="Javascript" type="text/javascript">
+		// initialisation
+		editAreaLoader.init({
+			id: "ef_txt"	// id of the textarea to transform		
+			,start_highlight: true	// if start with highlight
+			,allow_resize: "both"
+			,allow_toggle: true
+			,word_wrap: true
+			,language: "en"
+			,syntax: "maxscript"	
+		});
+		// callback functions
+		function my_save(id, content){
+			alert("Here is the content of the EditArea '"+ id +"' as received by the save callback function:\n"+content);
+		}
+		
+		function my_load(id){
+			editAreaLoader.setValue(id, "The content is loaded from the load_callback function into EditArea");
+		}
+		
+		function test_setSelectionRange(id){
+			editAreaLoader.setSelectionRange(id, 100, 150);
+		}
+		
+		function test_getSelectionRange(id){
+			var sel =editAreaLoader.getSelectionRange(id);
+			alert("start: "+sel["start"]+"\nend: "+sel["end"]); 
+		}
+		
+		function test_setSelectedText(id){
+			text= "[REPLACED SELECTION]"; 
+			editAreaLoader.setSelectedText(id, text);
+		}
+		
+		function test_getSelectedText(id){
+			alert(editAreaLoader.getSelectedText(id)); 
+		}
+		
+		function editAreaLoaded(id){
+			if(id=="ef_txt")
+			{
+				open_file1();
+				open_file2();
+			}
+		}
+		
+		function open_file1()
+		{
+			var new_file= {id: "to\\ é # € to", text: "$authors= array();\n$news= array();", syntax: 'php', title: 'beautiful title'};
+			editAreaLoader.openFile('ef_txt', new_file);
+		}
+		
+		function open_file2()
+		{
+			var new_file= {id: "Filename", text: "<a href=\"toto\">\n\tbouh\n</a>\n<!-- it's a comment -->", syntax: 'html'};
+			editAreaLoader.openFile('ef_txt', new_file);
+		}
+		
+		function close_file1()
+		{
+			editAreaLoader.closeFile('ef_txt', "to\\ é # € to");
+		}
+		
+		function toogle_editable(id)
+		{
+			editAreaLoader.execCommand(id, 'set_editable', !editAreaLoader.execCommand(id, 'is_editable'));
+		}
+			
+</script>		
+<!----------------------------------- comment -------------------------------------- //-->
+EditArea Editor  |  <a href="<%=link2menu()%>">EXIT</a><hr>
+<form action="<%=cSelf%>" method="post">
+<textarea id="ef_txt"  name="ef_txt" style="height: 50%; min-height:350px; width: 100%;"><%=cTxt%></textarea>
+		<p>Custom controls:<br />
+			<input type='button' onclick='alert(editAreaLoader.getValue("ef_txt"));' value='get value' />
+			<input type='button' onclick='editAreaLoader.setValue("ef_txt", "new_value");' value='set value' />
+			<input type='button' onclick='test_getSelectionRange("ef_txt");' value='getSelectionRange' />
+			<input type='button' onclick='test_setSelectionRange("ef_txt");' value='setSelectionRange' />
+			<input type='button' onclick='test_getSelectedText("ef_txt");' value='getSelectedText' />
+			<input type='button' onclick='test_setSelectedText("ef_txt");' value='setSelectedText' />
+			<input type='button' onclick='editAreaLoader.insertTags("ef_txt", "&lt;%=", "%&gt;");' value='insertTags' />
+			<input type='button' onclick='toogle_editable("ef_txt");' value='Toggle readonly mode' />
+			<select onchange='editAreaLoader.insertTags("ef_txt", this.value, "");'>
+			<option>&lt;% %&gt;</option>
+			<option>do case</option>
+			<option>MspFieldValue("")</option>
+			<option>44444</option>
+			</select>
+		</p>
+<hr>
+<input type="submit" value="Save changes" name="PB_SAVE" onclick="my_save('ef_txt', content)">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+</form>
+
+<hr>
+
+<%=cTxt%>
+
+<hr>
+</body>
+
+</html>

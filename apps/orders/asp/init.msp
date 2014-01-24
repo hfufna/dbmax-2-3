@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<%
+**************************************** DBFree HEADER
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+freeslot()
+cSelf    := pageName()
+
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER
+%><head><title>DEMO DBFree</title><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><link rel="stylesheet" type="text/css" href="../../screen.css"><meta http-equiv="Pragma" CONTENT="no-cache"><META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE"><META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE"><META HTTP-EQUIV="EXPIRES" CONTENT="0"></head><%
+**************************************** DATABASE SETTINGS
+cDbPath := setDb("demo8")
+
+****** CUSTOMERS
+*
+cDb  := cDBpath + "CUSTOMERS.DBF"
+cXb  := cDBpath + "CUSTOMERS.MTX"
+if not file(cDb)
+  ainit( "aField","CUST_NUM","CUST_KEY","CUST_NAME","CUST_ADDR","CUST_WHO","DEXKEY")
+  ainit( "aType","C","C","C","C","C","C")
+  ainit( "aSize",6,10,40,140,80,16)
+  ainit( "aDec",0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+   //-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key CUST_NUM
+endif
+use
+
+******* HISTORY
+*
+cDb  := cDBpath + "HISTORY.DBF"
+cXb  := cDBpath + "HISTORY.MTX"
+if not file(cDb)
+  ainit( "aField","PRODCODE","PRODATTRIB","DESCRIPT","LIST_SELL","EACH_SELL","EACH_DISC","SALESQTY","SALE_DATE","SALESMADE","SALESDAYS","CUST_NUM","DEXKEY")
+  ainit( "aType","C","C","C","C","C","C","C","C","C","C","C","C")
+  ainit( "aSize",15,20,40,10,10,8,8,10,8,8,6,23)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  //-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key PRODCODE
+endif
+use
+
+********************* ORDERS
+*
+cDb  := cDBpath + "ORDERS.DBF"
+cXb  := cDBpath + "ORDERS.MTX"
+if not file(cDb)
+  ainit( "aField","T_DATE","CUST_NUM","CUST_ORD","REPNAME","PRODCODE","QTY","PRICE","DETAIL","IS_ACTIVE")
+  ainit( "aType","D","C","C","C","C","C","C","C","L")
+  ainit( "aSize",8,6,20,20,15,8,12,120,1)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  //-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key T_DATE
+endif
+use
+
+**************** PRODUCTS
+*
+cDb  := cDBpath + "PRODUCTS.DBF"
+cXb  := cDBpath + "PRODUCTS.MTX"
+if not file(cDb)
+  ainit( "aField","PRODCODE","SALE_UNIT","DESCRIPT","SELLPRICE")
+  ainit( "aType","C","C","C","C")
+  ainit( "aSize",15,10,40,12)
+  ainit( "aDec",0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  //-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key PRODCODE
+endif
+use
+
+
+****************** TRANSACTINS
+*
+cDb  := cDBpath + "TRANSACT.DBF"
+cXb  := cDBpath + "TRANSACT.MTX"
+if not file(cDb)
+  ainit( "aField","CUST_NUM","T_DATE","T_DETAILS","T_VALUE")
+  ainit( "aType","C","C","C","C")
+  ainit( "aSize",6,10,14,10)
+  ainit( "aDec",0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  //-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key CUST_NUM
+endif
+use
+%></body></html>

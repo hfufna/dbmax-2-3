@@ -1,0 +1,30 @@
+*****************************************************
+function setMemFile(cSeedStr,cApp,vUsePort,vEncrypt)
+*****************************************************
+local cOut, cIp, cPath, cDec
+cDec := set("DECIMALS")
+set decimals to 0
+cOut := ""
+if type(cApp)="U"
+   cApp := "default"
+endif
+if type(vEncrypt)="U"
+   cIp := zz(ip2num(getenv("REMOTE_ADDR")))
+else
+   cIp := getenv("REMOTE_ADDR")
+endif
+cIp := strTran(cIp,".","_")
+if type(vUsePort)="U"
+   cIp := cIp +"-"+getenv("SERVER_PORT")
+endif
+cPath := getMemDir(cApp,.t.)
+if type(cSeedStr)="U" 
+   cOut := cPath + cIp + "-" + zz(seconds()*100) + ".mem"
+else 
+   if not type(cSeedStr)="N"
+      cSeedStr := zz(cSeedStr)
+   endif
+   cOut := cPath + cIp + "-" + cSeedStr + ".mem"
+endif
+set decimals to val(cDec)
+return cOut

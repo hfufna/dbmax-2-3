@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="tablet7.css">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>CAMERIERE</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  **? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<h3>NUOVO TERMINALE</h3><a target="_top" href="/start.msp">Richiedi accesso</a>' html
+   return
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+else
+   //-- giusto per sicurezza
+   nRecApp := recno()
+endif
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? 'CASSA CHIUSA: <a target="top" href="/index.msp">Apri prima la cassa</a> e riprova' html
+   return
+endif
+
+//########################################################################
+//-- VISUALIZZA I FRAMES SOLO SE TUTTO FATTO
+//
+do case
+************************************
+case empty(cAction)
+************************************
+   %>
+   <div style="display:none;">
+   <form name="form1" action="<%=cSelf%>" method="post">
+   <input type="text" name="EF_WW" value="">
+   <input type="text" name="EF_HH" value="">
+   <input type="hidden" name="VAR_ACTION" value="GO">
+   <input type="submit">
+   </form>   
+   <script language="javascript">
+   document.form1.EF_WW.value=localStorage.jnWW;
+   document.form1.EF_HH.value=localStorage.jnHH;
+   document.form1.submit();
+   </script>
+   </div>
+   <%
+************************************
+case (cAction="GO")
+************************************
+   xnWW := val(MSPFieldValue("EF_WW"))
+   xnHH := val(MSPFieldValue("EF_HH"))
+   save all like x* to (xMemFile)
+   %>
+   <!----------------------------------- FRAME PAGE -------------------------------------- //-->
+	<frameset id="fset" rows="60,*" framespacing="0" border="0" frameborder="0">
+		<frame name="frm1" target="frm2" src="menu_cam.msp">
+		<frame name="frm2" src="preferenze_cam.msp" scrolling="auto" marginwidth="0" marginheight="0">
+	</frameset>
+	<noframes>
+	<body>
+	<p>This page uses frames, but your browser doesn't support them.</p>
+	</body>
+	</noframes>
+	<!----------------------------------- END -------------------------------------- //-->
+   <%
+************************************
+endcase
+************************************
+%>
+</html>

@@ -1,0 +1,159 @@
+<html>
+<%
+lDebug :=.f.
+xAppId := "myDBMAX"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   return
+endif
+
+//--
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VA"))
+cOption := upper(MSPFieldValue("VO"))
+nRecno  := val(MSPFieldValue("VR"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MID-HEADER
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- make sure the store URL has been set into the configuration file
+//
+cStoreUrl := MspConfigVar("ADD-ON")
+if empty(cStoreUrl)
+   cStoreUrl := "http://appstore.dbmaxserver.com"
+   cFile := MspConfigVar("MSPDIR")+"\bin\mspserver.cfg"
+   cCfg := memoread(cFile)
+   cCfg += "ADD-ON="+cStoreUrl+CR_LF
+   memowrit(cFile,cCfg)
+endif
+%>
+<%=include("/parts/html/header.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<script>
+if(typeof(Storage)!=="undefined")
+  {
+  sessionStorage.xuser=<%=xUser%>;
+  }
+else
+  {
+  document.getElementById("div_msg").innerHTML="Sorry, your browser does not support web storage...";
+  }
+</script>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<body>
+<!-- ------------------------------------- PAYLOAD -----------------------------------//-->
+<%=include("/parts/html/navbar.htm")%>
+<div class="well">
+<div class="row">
+<div class="col-sm-6 col-md-9"><h3><b>TOOLS for DBMax</b></h3>
+</div>
+<div class="col-sm-6 col-md-3">
+   <a href="<%=cStoreUrl%>" class="btn btn-warning">More Tools</a>
+   <a href="<%=link2menu("/console/")%>?XY=<%=cSeed%>" class="btn btn-default">Back</a>
+   <br>
+   <font color="#808080" size="1"><%=iif(empty(cSeed),"Authentication error",cSeed)%></font>
+</div>
+</div>
+</div>
+
+<div class="container">
+<%
+$extended
+cFileIntro := "app-intro.htm"
+cFileInfos := "app-abstract.htm"
+cFileCapt  := "app-caption.htm"
+cFolder    := curDosDir()
+nnn := 0
+nFolders := adir( cFolder+"\*.", aDName, aDSize, aDDate, aDTime, aDAttr )
+
+//-- searches into each subfolder the files that identify an application
+//
+for iii = 1 to nFolders
+   cFoldPath := fixslash(aDName[iii])
+   cFoldName := dos2web(aDName[iii])
+   cFoldDesc := filebone(cFoldName)
+   
+   cAppStarter := link2app(cFoldPath)
+   
+   //-- make sure is a folder not a file
+   if aDSize[iii]=0  
+      if not left( cFoldDesc,1) $ "._"
+         nnn++
+         
+         //-- Application caption
+         cFile := cFoldPath + "\" + cFileCapt
+         cRef  := "&nbsp;<a href='/core/file_edit.msp?XY="+cSeed+"&VF=" +cFile + "'>(Edit)</a>"
+         if not file(cFile)
+            memowrit(cFile,"<h3>"+cFoldDesc+"</h3>Web application " + cRef)
+         endif
+         cTxt1  := memoread(cFile)
+         
+         //-- Application short presentation
+         cFile := cFoldPath + "\" + cFileIntro
+         cRef  := "<a href='/core/file_edit.msp?XY="+cSeed+"&VF=" +cFile + "'>(Please edit)</a>"
+         if not file(cFile)
+            memowrit(cFile,"No intro presentation " + cRef)
+         endif
+         cTxt2  := memoread(cFile)
+         
+         //-- Application extended description
+         cFile := cFoldPath + "\" + cFileInfos
+         cRef  := "<a href='/core/file_edit.msp?XY="+cSeed+"&VF=" +cFile + "'>(Please edit)</a>"
+         if not file(cFile)
+            memowrit(cFile,"No infos or description of features " +cRef)
+         endif
+         cTxt3  := memoread(cFile)
+         
+         //-- creating the box for presenting the application
+         cDid := "div_"+zz(nnn)
+         
+         cSafeKey="?XY="+cSeed
+         %>
+         <div class="well">
+           <div class="row">
+             <div class="col-sm-6 col-md-3">
+               <a class="link" href="<%=link2app(cFoldPath)%><%=cSafeKey%>"><%=cTxt1%></a>
+             </div>
+             <div class="col-sm-6 col-md-9">
+               <%=cTxt3%>               
+               <a href="#<%=cDid%>" class="link" onclick="toggleDiv('<%=cDid%>');">More..</a>
+               <a name="<%=cDid%>"></a>
+               <div id="<%=cDid%>" style="display:none;">
+                 <div><%=cTxt2%></div>
+                 <a href="#<%=cDid%>" class="link" onclick="showDiv('<%=cDid%>',0);">Close</a>
+               </div>
+             </div>
+           </div>
+         </div>
+         <%
+      endif
+   endif
+next
+%>
+<div class="alert">(<%=zz(nnn)%> choices)&nbsp;<a href="<%=link2menu(0)%>?XY=<%=cSeed%>" class="btn btn-default">Back</div></a>
+</div>
+[<%=cSeed%>]<div id="div_msg"></div>
+</body>
+<!-- -----------------------------------------PAYLOAD END ----------------------------------//-->
+<%=include("/parts/html/footer.htm")%></html><%

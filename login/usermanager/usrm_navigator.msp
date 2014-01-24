@@ -1,0 +1,257 @@
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 SLAVE HEADER 0201
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 02 -- GETTING SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- 012 -- GETTING CARGO VARS
+if not empty(xCargoFile) 
+   if file(xCargoFile)
+      restore from (xCargoFile) additive
+   else
+      ? "ERROR: Cargo file [" + xCargoFile + "] missing!"
+      *return   
+   endif
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- 014 - DEFAULT REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- 015 -- DEFAULT DATABASE SETTINGS
+if type(xDbSet)="C" and not empty(xDbSet)
+   cDir := setDb(xDbSet)
+else
+   cDir := setDb("cmd")
+endif
+if type(xDbType)="C" and not empty(xDbType)
+   xDbType := upper(trimRight(xDbType,1))
+   if not xDbType $ "MAX XBASE"
+      set dbtype to (xDbType)
+   endif
+endif
+
+//-- 020 -- MISC SETTINGS
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER 0201
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%=modInfo()%>
+<!-- ---------------------------------------- END DBMAX SLAVE HEADER ----------------------------------------//-->
+<%
+//-- INCOMING WEBVARS
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+
+
+
+//-- DATABASE SETTINGS OVVERRIDE
+//   (usermanager uses XBASE indexes)
+cDir := setDb(xAppId)
+set dbtype to ""
+
+*--- USERS
+*
+cTable  := cDir + "site_usr.DBF"
+cIndex  :=  cDir + "site_usr_by_name.MTX"
+cIndex2 :=  cDir + "site_usr_by_mail.MTX"
+use (cTable) in 0 alias USERS index (cIndex) ,(cIndex2)
+set order to 0
+
+
+//-- THE NAVIGATOR
+nRows := val(MSPFieldValue("NR"))
+nRows := iif(nRows<15,15,nRows)
+
+*** PAGE COUNTER 
+nRec := val(MspFieldValue("VR"))
+
+*** MOVING THE POINTER
+select USERS
+if nRec < 1
+   nRec := 1
+endif
+if nRec >= reccount()
+   nRec := reccount()-1
+endif
+go nRec
+
+
+
+//-- PARAMETERS FOR URL
+cParms := "XY=" + cSeed
+
+//-- BACKGROUND ACTIONS
+do case
+**********************************
+case cAction="NU" //-- NEW USER
+**********************************
+   append blank
+   nnn := recno()
+   go nnn
+   if rlock(2)
+      repl USR_NAME with "User" + zz(nnn)
+      repl USR_ID   with str(recno(),4,0,"0")
+      repl D_REG with date()
+      repl USR_GRP with "DEF"
+      repl USR_GRP with "20"
+      repl USR_PSW with "123"
+      repl REMIND  with "default password"
+      repl FNAME with "USER " + zz(recno())
+      repl SURNAME with "GENUSERS"
+      repl EMAIL with "NOMAIL"
+      repl EXP_DATE with date()+365
+      repl IS_LOGGED with .f.
+      unlock
+   endif
+   nRec := nnn
+   cAction := ""
+**********************************
+endcase
+**********************************
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body onload="top.frm2.location='usrm_splash.msp?XY=<%=cSeed%>';" style="background-color:#F2F2F2;">
+
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<div class="container" style="margin-top:-50px;">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<p align="center"><span class="badge"> <%=xUser%></span> <font size="1" color="gray"><%=iif(empty(cSeed),"Authentication error",cSeed)%></font></p>
+
+<form name="form_nav" action="<%=cSelf%>" method="post">
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VR" value="<%=zz(nRec)%>">
+<input type="hidden" name="U" value="<%=xUser%>">
+<input type="hidden" name="VAR_DBTYPE" value="<%=xDbType%>">
+
+<input class="btn btn-sm btn-danger" type="button" name="PB_NEW" value="New" onclick="top.frm1.location='<%=cSelf%>?XY=<%=cSeed%>&VA=NU';" title="Add new user">
+<input class="btn btn-sm btn-info" type="submit" name="PB_TOP" value="|<" onclick="form_nav.VR.value='0'" title="Go to first record">
+<input class="btn btn-sm btn-primary" type="submit" name="PB_PREV" value="<" onclick="form_nav.VR.value='<%=zz(nRec-nRows)%>'" title="Previous Page">
+<input class="btn btn-sm btn-primary" type="submit" name="PB_NEXT" value=">" onclick="form_nav.VR.value='<%=zz(nRec+nRows)%>'" title="Next page">
+<input class="btn btn-sm btn-info" type="submit" name="PB_BOTT" value=">|" onclick="form_nav.VR.value='<%=zz(lastrec())%>'" title="Last record">
+
+<br><font size="1" color="gray">(<%=cTable%>) There are <%=zz(lastrec())%> users.</font><br>
+
+</div>
+
+<table class="table" style="background-color:#FFFFFF;">
+<%
+rrr := 0
+go nRec
+do while not eof()
+   %>
+   <tr>
+   <td>
+      <input type="checkbox" id="cb_<%=zz(rrr)%>" name="CB_<%=zz(rrr)%>" value="">
+      <a href="#" class="link" onclick="top.frm2.location='userapps.msp?XY=<%=cSeed%>&VK=<%=zz(USR_NAME)%>';"><b><%=USR_NAME%></b></a>
+   </td>
+   <td align="right">
+      <a href="#" class="btn btn-xs btn-default" onclick="top.frm2.location='useredit.msp?XY=<%=cSeed%>&VK=<%=zz(USR_NAME)%>&VR=<%=zz(recno())%>';">Edit</a>
+      <font size="1"><%=zz(recno())%></font> 
+      <br>
+   </td>
+   </tr>
+   <%
+   skip
+   rrr++ 
+   if rrr >= nRows
+      exit
+   endif
+enddo
+%>
+</table>
+</form>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</body>
+
+</html>
+<%
+//------------------------------------------------------------------------
+function showThisRec()
+//------------------------------------------------------------------------
+cOutRecTab := ""
+nFields := fcount()
+   
+   //-- building a table to host all the fields and their values
+   cOutRecTab += [<table class="table">] + CR_LF
+   cOutRecTab +=  [<tr>]  + CR_LF
+   for iii = 1 to nFields
+      cLabel := fieldname(iii)
+      mVal   := fieldcont(cLabel)
+      do case
+      case type(mVal) = "M"
+         mVal  := alltrim(mVal)
+         cTyp  := "Memo"
+         cRecSize := "1000"
+      case type(mVal) = "C"
+         mVal  := alltrim(mVal)
+         cTyp  := "Char "
+         cRecSize := wstr(len(mVal))
+      case type(mVal) = "N"
+         mVal := ltrim(str(mVal))
+         cTyp  := "Num "
+      case type(mVal) = "L"
+         mVal := iif(mVal,"Y","N")
+         cTyp  := "Bool"
+         cRecSize := "1"
+      case type(mVal) = "D"
+         mVal := dtoc(mVal)
+         cTyp  := "Day "
+         cRecSize := "12"
+      endcase
+      
+      cOutRecTab +=  [<td align="right">] + capital(cLabel) + [&nbsp;(] + cTyp + [) ] + cRecSize +[&nbsp;</td>] + CR_LF
+      
+      if val(cRecSize) > 80
+         cOutRecTab += [<td><textarea readonly style="width:100%" rows="5">] + MSPdecode(mVal) + [</textarea] + CR_LF
+      else
+         cOutRecTab +=  [<td align="left"><input readonly]
+         cOutRecTab +=  [ size="] + cRecSize + [" type="text" name="EF_] + fchar(cLabel) + [" value="] + MSPDecode(mVal) + [" style="color:gray"></td>] + CR_LF
+      endif
+      
+   next
+   cOutRecTab +=  [</tr>]  + CR_LF
+   cOutRecTab += [</table>]  + CR_LF
+return cOutRecTab
+%>

@@ -1,0 +1,290 @@
+<!----------------------------------- * MODULO 1 //----------------------------------------->
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+ //--->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="app.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/dbfree50.js"></script>
+<title></title>
+
+<script type="text/javascript">
+var off=0;
+
+function stop(nnn){
+off=nnn;
+}
+
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (off==0) {
+   if (nVisib == 1)
+      {
+      bb.style.display='block';
+      }
+   else if (nVisib == 0)
+      { 
+      bb.style.display='none';
+      }
+}
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   off=0;
+   }
+}
+</script>
+</head>
+<%
+lDebug :=.f.
+xAppId := "maxplanner"
+**************************************** DBMAX-2-3-5 MAXPLANNER-HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** 
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+
+//-- INCOMING WEBVARS
+
+//-- RETRIEVING APP-SPECIFIC VARS
+restore from (xCargoFile) additive
+restore from (zcInit) additive
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+*************************************************END MAXPLANNER-HEADER
+
+//-- TABLES TO USE
+//
+cDbPath := setDb("maxplanner")
+cDb  := cDBpath + "PLANNING.DBF"
+cXb  := cDBpath + "PLAN_BY_DATE.MTX"
+
+//-- OPENING TABLES AND INDEXES
+//   if indexes not existing will be created
+//
+use (cDb) in 0 index (cXb) key PLAN_DATE
+set order to 0
+
+//-- INCOMING WEBVARS
+cDisplay   := iif(empty(MSPFieldValue("VAR_DISPLAY")),"none","block")
+dThisDay   := ctod(MSPFieldValue("VAR_DAY"))
+nThisMonth := val(MSPFieldValue("VAR_MONTH"))
+if nThisMonth=0
+   nThisMonth := month(dThisDay)
+endif
+lShowPast := iif(empty(MSPFieldValue("VAR_PAST")),.t.,.f.)
+
+//-- setting and saving current month
+znCurrMonth := nThisMonth
+save all like z* to (xCargoFile)
+
+dFirst  := ctod("01/" + str(znCurrMonth) + "/" + zz(znCurrYear))
+if not lShowPast
+   dFirst := date()
+endif
+nDow    := dow(dFirst)-1
+nTotDays:= 0
+
+//-- page to link to when clicking on the day
+cLinkTo := "view_day.msp?XY="+cSeed
+%>
+
+<body>
+<!----------------------------------- *menu mese //----------------------------------------->
+<div style="position:absolute; top:0; left:0">
+<table border="0" id="table1">
+		<tr>
+		<td valign="top" bgcolor="#E5E5E5">
+		   <a href="view_year.msp?XY=<%=cSeed%>" title="<%=zcMsgYear%>"><b>
+		   <img border="0" src="img/calendar_year.jpg" width="54" height="46"></a>
+		</td>
+		<td valign="top"> 
+		   <a href="view_day.msp?XY=<%=cSeed%>&VAR_DAY=<%=date()%>"  title="<%=zcMsgDay%>">
+         <img border="0" src="img/calendar_today.JPG" width="54" height="46">
+         </a>
+		</td>
+		</tr>
+</table>
+</div>
+<div style="position:absolute; top:6; left:5"><b><font size="2" color="red">&nbsp; <%=zz(znCurrYear)%> </font></b></div>
+<!----------------------------------- *end menu //----------------------------------------->
+
+<!----------------------------------- *crea vista mese //----------------------------------------->
+<div style="position:absolute; top:50; left:0; width:100%;">
+<table width="100%" border="0" cellpadding="3" bgcolor="#EEEEEE" style="border-collapse: collapse">
+<tr>
+<td colspan="2">
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nThisMonth)%>" title="<%=zticoRefMonth%>"><font size="4" color="navy"><b><%=zaMonths[nThisMonth]%></b></font></a>
+<!-- link to show future days only //-->
+<% if nThisMonth = month(date()) %>
+   <a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nThisMonth)%>&VAR_PAST=OFF" title="<%=zticoPastOff%>"><img border="0" src="img/ico_fromdate.gif" width="26" height="20"></a>
+<% endif %>
+<!-- link to expand the view //-->
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nThisMonth)%>&VAR_DISPLAY=ALL" title="<%=zticoExpMonth%>">
+<img border="0" src="img/ico_expand.gif" width="26" height="20"></a>
+</td>
+</tr>
+<%
+dStart := dFirst+nTotDays
+nNow := 0
+nDaysOfThisMonth := daysOfMonth(nThisMonth)
+*
+for nToday=1 to nDaysOfThisMonth
+   cFontClr := "black" 
+   cBgClr := "#FCFCFC"           
+   *
+   dThisDay := dStart+nNow
+   nCurrDayW := dow(dThisDay)
+   if month(dThisDay)== nThisMonth
+      if nCurrDayW=1
+         cFontClr := "red"
+      endif
+      if nCurrDayW=7
+         cFontClr := "navy"
+      endif
+      do case
+         case date()> dThisDay
+            cBgClr := "#FCFCFC"
+            cFontClr := "#C0C0C0"
+         case date()=dThisDay
+            cBgClr := "yellow"
+      endcase
+      %>
+      <td width="5%" bgcolor="<%=cBgClr%>"  valign="top" align="right" style="border:solid 1px gray">
+          <!---------------- *link al giorno //------------------------>
+          <a href="view_day.msp?XY=<%=cSeed%>&VAR_DAY=<%=dThisDay%>&VAR_MONTH=<%=zz(nThisMonth)%>">
+          <b><font color="<%=cFontClr%>" size="4"><%=day(dThisDay)%></font></b></a>
+      </td>
+      <td colspan="5" bgcolor="<%=cBgClr%>" valign="top" style="border:solid 1px gray">
+          <%
+      set filter to PLAN_DATE=dThisDay
+      count to nnn
+      if nnn>0  
+         if cDisplay="none" %>
+		       <!-- icon to open the day //-->
+			    <a href="javascript:toggleDiv('<%=zz(nToday)%>');"><font color="<%=cFontClr%>"><%=zaDays[nCurrDayW]%>
+			    </font> <img border="0" src="img/mini-clock.gif" width="12" height="12"></a>
+             <% 
+         endif %>
+         <div id="<%=zz(nToday)%>" style="display:<%=cDisplay%>">
+         <table>
+         <!-- showing child records //-->
+         <%doExpand(dThisDay)%>
+         </table>
+         </div>
+         </td>
+          <%
+      else
+         %>
+         <font color="<%=cFontClr%>"><%=zaDays[nCurrDayW]%></font>
+         <%
+      endif //--nnn
+      *
+      nNow++
+      nTotDays++
+   endif
+   %>
+   </tr><tr>
+   <%
+next 
+%></tr>
+</table>
+</div>
+<!----------------------------------- *end mese //----------------------------------------->
+
+</body>
+</html>
+<%
+****************************
+procedure doExpand(dDay)
+****************************
+local nnn, rrr
+
+%>
+<tr bgcolor="#DFDFDF">
+<td bgcolor="<%=cBgClr%>"></td>
+<td><font size="1">ID</font></td>
+<td><font size="1"><%=ztCust_name%></font></td>
+<td><font size="1"><%=ztCargo1%></font></td>
+<td><font size="1"><%=ztCargo2%></font></td>
+<td><font size="1"><%=ztCargo3%></font></td><td>
+	<font size="1"><%=ztPlan_descr%></font></td></tr>
+<%
+rrr:=0
+go top
+do while not eof()
+   rrr++
+   %><tr bgcolor="#EFEFEF"><td bgcolor="<%=cBgClr%>" align="right"><%=rrr%></td>
+   <td bgcolor="<%=cBgClr%>" width="55px" nowrap align="right">
+   <font size="1" color="gray">#<%=zz(recno())%></font>
+   <a target="_self" href="edit_day.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nThisMonth)%>&VAR_DAY=<%=dThisDay%>&VAR_ACTION=EDIT&VAR_RECNO=<%=zz(recno())%>&VAR_GOBACK=<%=cSelf%>" title="<%=PLAN_ID%>">
+      <img border="0" src="img/round_right.gif">
+   </a>
+   <td bgcolor="#EFEFEF"><b><%=initCap(CUST_NAME)%></b></td>
+   <td bgcolor="#EFEFEF"><%=CARGO1%></td>
+   <td bgcolor="#EFEFEF"><%=CARGO2%></td>
+   <td bgcolor="#EFEFEF"><%=CARGO3%></td>
+   <td bgcolor="#EFEFEF"><%=PLAN_DESCR%></td></tr><%
+   skip
+enddo
+%></tr><tr><td colspan="6" bgcolor="<%=cBgClr%>">&nbsp;</td><%
+return
+%>

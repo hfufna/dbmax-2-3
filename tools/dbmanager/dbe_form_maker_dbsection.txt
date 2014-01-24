@@ -1,0 +1,56 @@
+<%
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+//-- OPENING THE TABLE
+use (cTable) alias MASTER
+if not used()
+   ? "ERROR 1: could not open table [" + cTable + "]"
+   return
+endif
+
+//-- OPENING THE INDEX
+if not empty(cIndex)  
+   set index to (cIndex)
+endif
+select master
+go top
+
+//************* NAVIGATOR
+go nRec
+do case
+case cAction = "A"
+   append blank
+case cAction = ">>"
+   go bottom
+case cAction = "<<"
+   go top
+case cAction = "<"
+   skip -1
+case cAction = ">"
+   skip
+endcase
+nRec := recno()
+
+//-- navigator checkup
+nLast := lastrec()
+if nRec <=0
+   go top
+   nRec := recno()
+endif
+if nRec >nLast
+   go bottom
+   nRec := recno()
+endif
+
+
+//-- GETTING INFO ON RECORD STRUCTURE
+nFlds := aFields()
+declare aFldStru[ nFlds,4 ]
+mfields(aFldStru)   //-- contains all fieldnames and types
+%>

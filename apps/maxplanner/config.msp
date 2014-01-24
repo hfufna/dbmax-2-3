@@ -1,0 +1,265 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+ //--->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/dbfree30.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/dbfree50.js"></script>
+<title>Configuring MaxPlanner</title>
+
+<style type="text/css">
+
+body {padding:2px;}
+ 
+.squared {
+background-color: #FFFFFF; 
+color: #000000; 
+font-size: 12; 
+border: solid 1px black;
+margin-left: 3px;
+margin-top: 5px;
+margin-right: 3px;
+padding: 5px;
+}
+ 
+ 
+.boxed {font-size:20; font-weight:bold; background-color: #E2E2E2;}
+.sez {				margin-left:10px; font-size:10; color:green; background-color: #FFFFFC;}
+.grp {{margin-left:90px; font-size:10; color:navy; background-color: #FFFFFC;}
+.lib {{margin-left:180px; font-size:10; color:maroon; background-color: #FFFFFC;}
+.rno {{margin-left:230px; font-size:10; color:gray; background-color: #FFFFFC;}
+.dscz {border: solid 1px black; padding:5px;}
+.sntx {border: dotted 1px maroon; padding:5px;}
+.prmt {border: dotted 1px #C0C0C0; padding: 5px;}
+.exmp {background-color: #FFFFE1; padding:8px; color: maroon;}
+.als {background-color: #E2E2E2; padding:2px; color:blue;}
+ 
+.void {
+background-color: #FFFFFF; 
+color: #000000; 
+font-size: 12; 
+border:none;
+margin-left: 35px;
+margin-top: 5px;
+}
+
+</style>
+
+</head>
+<!--------------------------------------- end 1 //--------------------------------------------->
+<%
+*********************************************************ANTARTIS3-01*
+restore from MSPconfigVar("MSPDIR")+"\sessions\"+ MSPFieldValue("X")+".mem"
+set maxlib to &zcLib
+*********************************************************ANTARTIS3-01*
+
+//-- MISC
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+CR_LF := chr(13)+chr(10)
+
+*********************************************************************
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VO")))
+cSelf   := pageName()
+cBack   := callingPage()
+cAnchor := MSPFieldValue("VAR_ANCHOR")
+
+*********************************************************ANTARTIS3-01*
+
+zcLanguageId := MSPFieldValue("LANG") //-- language to use
+if empty(zcLanguageId)
+   zcLanguageId := "ENG"                
+endif
+
+
+//-- USING SYSTEM FILE
+//
+cDbPath := setDb("maxplanner")
+cDbSys  := cDBpath + "_SYSVARS.DBF"
+cXbSys  := cDBpath + "_SYSVARS.MTX"
+cKeySys := "ELEM_ID"
+
+use (cDbSys) index (cXbSys) key (&cKeySys)
+set order to 1
+set filter to LANG_ID=zcLanguageId
+go top
+
+//-- BACKGROUND actions
+do case
+*==================================================================================
+case cAction = "SAVE"
+*----------------------------------------------------------------------------------
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+go nRecno
+saveRecord(nRecno,aVars)
+
+*----------------------------------------------------------------------------------
+case cAction = "RESET"
+*----------------------------------------------------------------------------------
+//-- RESET FILES
+delete file (zcInit)
+set filter to LANG_ID = zcLanguageId .or. LANG_ID="*"
+   go top
+   do while not eof()
+      *-- retrieving variable name from table field
+      xxx := alltrim(ELEM_ID)
+      *-- declaring a variable with same name
+      private &xxx
+      *-- assigning the appropriate value
+      do case
+      case ELEM_TYPE="A"
+         adeclare(xxx,1)
+         cTmp := alltrim(ELEM_TXT)
+         strToarr(cTmp,"*",&xxx)
+      case ELEM_TYPE="C"
+         &xxx := alltrim(ELEM_TXT)
+      case ELEM_TYPE="N"
+         &xxx := ELEM_VAL
+      case ELEM_TYPE="L"
+         &xxx := iif(ELEM_VAL=0,.f.,.t.)       
+      endcase
+      skip
+   enddo
+save all like z* to (zcInit)
+restore from (zcInit) additive
+%>
+<h2>Reset!</h2>
+<%
+return
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+
+<body>
+
+<div style="position:absolute;top:0;left:0;width:100%;height:55px;">
+<table height="100%" border="0" width="68"><tr><td><a href="start.msp"><img border="0" src="img/calendar_home.jpg" width="54" height="46"></a></td><td>&nbsp;</td></tr></table>
+</div>
+
+<div style="position:absolute;top:56px;left:0px;width:100%">
+<h2>Configuring MaxPlanner</h2>
+<%
+
+go top
+do while not eof()
+   showRec(recno())
+   skip
+enddo
+%>
+</div>
+</body>
+</div>
+</html>
+
+<%
+****************************
+procedure showRec(nRec)
+****************************
+%>
+<!------------------------- Form <%=zz(nRec)%>//----------------------------->
+<div id="rec_<%=zz(nRec)%>" class="boxed">
+<form name="form_<%=zz(nRec)%>" action="<%=cSelf%>" method="post">
+<table border="0">
+<tr>
+<td rowspan="5" valign="top" bgcolor="#808080">&nbsp;<b><font color="#FFFFFF"><%=zz(nRec)%></font></b></td>
+<td bgcolor="#808080" colspan="3"><font color="#FFFFFF">
+   <font size="1">ELEM_ID</font> <font size="3"><b><%=zz(ELEM_ID)%></b></font>
+</td>
+</tr><tr>
+<td>
+   <input type="text" name="EF_ELEM_DESCR" value="<%=zz(ELEM_DESCR)%>" size="100"><br>
+   <textarea class="squared" name="EF_ELEM_TXT" cols="80" rows="4"><%=zz(ELEM_TXT)%></textarea>
+</td>
+<td align="right">
+   <input type="submit" name="PB_OK" value="OK"><br>
+   <font size="1">ELEM_VAL</font><input type="text" name="EF_ELEM_VAL" value="<%=zz(ELEM_VAL)%>" size="10"><br>
+   <font size="1">LANG_ID</font><select name="EF_LANG_ID"><%=optLang(LANG_ID)%></select><br>
+   <font size="1">ELEM_TYPE</font><select name="EF_ELEM_TYPE"><%=optType(ELEM_TYPE)%></select>
+   <input type="hidden" name="VAR_ACTION" value="SAVE">
+   <input type="hidden" name="VAR_RECNO" value="<%=zz(nRec)%>">
+   <input type="hidden" name="X" value="<%=zcX%>">
+</td>
+</tr>
+</table></form>
+</div>
+<%
+return
+
+****************************
+function rec2form(nRec)
+****************************
+local iii,rrr
+go nRec
+%><!------------------------- Form <%=zz(nRec) %>//----------------------------->
+<div id="rec_<%=zz(nRec)%>" class="boxed">
+<form name="xform_<%=zz(nRec)%>" action="<%=cSelf%>" method="post">
+<table border="0">
+<%
+for iii=1 to afields()
+   %>
+   <tr><td><font size="1"><%=fieldname(iii)%></font></td></tr>
+   <tr><td><input type="text" name="EF_<%=fieldname(iii)%>" value="<%=zz(fieldval(iii))%>" size="<%=zz(fieldsize(iii))%>"></td></tr>
+   <%
+next
+%>
+<tr><td align="center">
+<input type="hidden" name="VAR_ACTION" value="<%=cAction%>">
+<input type="submit" name="PB_OK" value="OK">
+</td></tr></form></table></div>
+<!--------------------------------------------------------------------------//-->
+<%
+return
+
+*********************************
+function optLang(cInitVal)
+*********************************
+%>
+<option selected><%=zz(cInitVal)%></option>
+<option>IT</option>
+<option>EN</option>
+<option>FR</option>
+<option>DE</option>
+<option>ES</option>
+<%
+return
+
+*********************************
+function optType(cInitVal)
+*********************************
+%>
+<option selected><%=zz(cInitVal)%></option>
+<option>A</option>
+<option>C</option>
+<option>N</option>
+<option>D</option>
+<option>L</option>
+<%
+return
+
+%>

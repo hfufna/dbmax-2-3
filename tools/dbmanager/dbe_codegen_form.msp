@@ -1,0 +1,343 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+%>
+<%=modInfo()%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<div class="container">
+<%
+*--- di servizio a questo modulo
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+
+nStart  := val(MSPFieldValue("VAR_START"))
+nRows   := val(MSPFieldValue("VAR_ROWS")) 
+cTable  := MSPFieldValue("VAR_TABLE")
+cAction := upper( MSPFieldValue("VAR_ACTION") )
+cMsg    := ""
+nFields := 0
+
+cDbRoot   := MSPFieldValue("VAR_ROOT")
+cDbPath   := MSPFieldValue("VAR_PATH")
+cFileMask := MSPFieldValue("VAR_MASK")
+cNextLink := MSPFieldValue("VAR_LINK")
+cMessage  := MSPFieldValue("VAR_MSG")
+
+//-- se fornita VAR_ROOT questa diventa la sottocertalla di DATADIR da cui partire
+if empty(cDbRoot)
+   cDbRoot   := MSPconfigvar("DATADIR")
+endif
+if right(rtrim(cDbRoot),1) <> "\"
+   cDbRoot := cDbRoot+"\"
+endif
+
+//-- se fornita VAR_PATH questa diventa la root 
+if empty(cDbPath)
+   cDbPath := filepath(cTable)
+else
+   cDbRoot := cDbPath
+endif
+if right(rtrim(cDbRoot),1) <> "\"
+   cDbRoot := cDbRoot+"\"
+endif
+
+//-- se fornita VAR_MASK si usa come maschera di navigazione file
+if empty(cFileMask)
+   cFileMask := "*.dbf"  
+endif
+cMask := cDbRoot + cFileMask
+
+//-- se fornita VAR_LINK sar?usato come pagina da chiamare cliccando sul file
+if empty(cNextLink)
+   cNextLink  := "use_this.msp"
+endif
+
+//-----------
+if not empty(cTable)
+   cDb := fileBone(cTable)
+else
+   cDb :=""
+   cAction := "NAVIGATE"
+endif //--empty(cDb)
+%>
+<body>
+<table border="0" width="100%" id="table1" cellspacing="0" cellpadding="3">
+	<tr>
+		<td>
+      <font size="3"><b>Web form for table <font color="#0000FF"><%=filebone(cTable)%></font></b></font><font color="#0000FF"> </font>
+		</td>
+	</tr>
+</table>
+<%
+do case
+*-----------------------------------------------------------------------------
+case empty(cAction) .or. cAction="BUILD"
+*-----------------------------------------------------------------------------
+cTable  := cDbPath + cDb + ".dbf"   //-- per il controllo file
+
+if not empty(cDb) and file(cTable)
+   use (cTable) noupdate
+   if not used()
+      ? "ERROR: seems the table " + cDb + " can not be opened" html
+   endif
+
+   //-- how many fields has this table? Just find it out.
+   nFields := fcount()
+   if nFields = 0
+      ? "ERROR: field count returns zero"
+      return
+   else
+     *? "DEBUG: OK! processing " + str(nFields) + " fields"
+   endif
+   %>
+   <font color="#008000">Now expose the HTML form code in your browser and Cut&amp;paste the form to your page.</font><hr>
+   
+<!-- ===============================================================//-->
+<!-- =========================       FORM     ======================//-->
+<!-- ========================= START COPY HERE =====================//-->
+<!-- ===============================================================//-->
+<form action="some_page.msp" method="post" class="webform">
+<table border="0" class="table1">
+<tr>
+   <td class="th1"><font color="#FFFFFF">Field</font></td>
+   <td class="th1"><font color="#FFFFFF">Fieldname</font></td>
+   <td class="th1"><font color="#FFFFFF">Input value</font></td>
+</tr>
+<%
+   for iii = 1 to nFields
+      cLabel := fieldname(iii)
+      mVal   := fieldcont(fieldname(iii))
+      cType  := vtype(fieldname(iii))
+      nFlen  := 8
+      do case
+      case type(mVal) = "C"
+         nFlen := len(mVal)
+         mVal := alltrim(mVal)
+      case type(mVal) = "N"
+         nFlen := len(str(mVal))
+         mVal := ltrim(str(mVal))
+      case type(mVal) = "D"
+         nFlen := 12
+         mVal := dtoc(mVal)
+      case type(mVal) = "L"
+         nFlen := 1
+         mVal := iif(mVal,"S","N")
+      case type(mVal) = "M"
+         mVal := alltrim(mVal)
+      endcase
+      
+      cLeadVal := "<" + "%=zz(" + cLabel + ")%" + ">"
+%>
+<tr>
+   <td class="td1"><font color="#FFFFFF"><%=zz(iii)%></font></td>
+   <td  class="td1" align="right"><font color="#666666"><%=cLabel%>&nbsp;(<%=cType%>)<%=zz(nFlen)%></font></td>
+   <td align="left" class="td1">
+    <% if cType = "M" %><textarea name="EF_<%=cLabel%>" rows=4 cols=40><%=cLeadVal%></textarea>
+    <% else %><input type="text" name="EF_<%=cLabel%>" value="<%=cLeadVal%>" size=<%=zz(iif(nFlen>40,40,nFlen))%>>
+    <% endif %></td>
+</tr>
+      <%
+   next
+   %>
+</table>
+<hr>
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VAR_OPTION" value="">
+<input type="reset" name="PB_ESC" value="Reset form">&nbsp;
+<input type="submit" name="PB_OK" value="Send to server">
+</form>  
+<!-- ================================================================//-->
+<!-- =========================       FORM      ======================//-->
+<!-- ============================ END COPY HERE =====================//-->
+<!-- ================================================================//-->
+<hr>
+<p>
+<font color="#008000">
+This is the code to Cut&amp;paste straight into your page to save the results of the form above:
+</font>
+<hr>
+<!-- ===============================================================//-->
+<!-- =====================     FORM SAVER     ======================//-->
+<!-- ====================   START COPY HERE   ======================//-->
+<!-- ===============================================================//-->
+<code>
+<%
+? "do case"
+? repl("*",60)
+? 'case cAction="SAVE"'
+? repl("*",60)
+? 'nRec := val(MSPFieldValue("VAR_REC"))'
+? "//-- load values coming from the form"
+for iii = 1 to nFields
+    cLabel := fieldname(iii)
+    mVal   := fieldcont(fieldname(iii))
+    do case
+      case type(mVal) = "C"
+         ? lower(type(mVal)) + padr(initcap(cLabel),14) + ':= MSPFieldValue("EF_' + cLabel + '")'
+      case type(mVal) = "N"
+         ? lower(type(mVal)) + padr(initcap(cLabel),14) + ':= val(MSPFieldValue("EF_' + cLabel + '"))'
+      case type(mVal) = "D"
+         ? lower(type(mVal)) + padr(initcap(cLabel),14) + ':= ctod(MSPFieldValue("EF_' + cLabel + '"))'
+      case type(mVal) = "L"
+         ? lower(type(mVal)) + padr(initcap(cLabel),14) + ':= iif(MSPFieldValue("EF_' + cLabel + '")="S",.t.,.f.)'
+      case type(mVal) = "M"
+         ? lower(type(mVal)) + padr(initcap(cLabel),14) + ':= MSPFieldValue("EF_' + cLabel + '")'
+    endcase 
+next
+?
+? "use (cTable) in 0 //-- index (cIndex) key " +  upper(fieldname(1))
+? 'if cOption="APPEND"'
+? "   append blank"
+? "   nRec := recno()"
+? "endif"
+?
+? "go nRec"
+? "if rlock(2)"
+for iii = 1 to nFields
+  cLabel := fieldname(iii)
+  mVal   := fieldcont(fieldname(iii))
+  cVar   := "EF_" + cLabel
+  ? "   repl " + padr(cLabel,14) + ' with ' + lower(type(mVal)) + initcap(cLabel)
+next
+? "   unlock"
+? "endif"
+? repl("*",60)
+? "endcase"
+? repl("*",60)
+%>
+</code>
+<!-- ===============================================================//-->
+<!-- =====================     FORM SAVER     ======================//-->
+<!-- ======================= END COPY HERE =========================//-->
+<!-- ===============================================================//-->
+
+<hr>
+<%
+else
+   ? "ERROR: file [" + cTable + "] does not exist in " + cDbPath html
+endif //-- not empty(cDb) and file(cTable)
+
+*-----------------------------------------------------------------------------
+endcase
+*=============================================================================
+return
+%>
+
+</body>
+
+</html>

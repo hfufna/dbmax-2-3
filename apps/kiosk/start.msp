@@ -1,0 +1,185 @@
+<html>
+<%
+lDebug :=.f.
+xAppId := "kiosk"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+set decimals to 0
+*****************************************
+public znRowsToShow, znRefreshTime 
+
+//-- INCOMING WEBVARS
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+
+set century on
+set hour to 24
+cSelf    := pageName()
+
+//-- DATABASE TO USE
+cDir := setDb("kiosk")
+cTable  := cDir + "TICKER.DBF"
+cIndex  := cDir + "TICKER.MTX"
+if not file(cTable)
+  ainit( "aField","FLD1","FLD2","FLD3","FLD4","FLD5","FLD6")
+  ainit( "aType","C","C","C","C","C","C")
+  ainit( "aSize",20,20,20,20,20,20)
+  ainit( "aDec",0,0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+
+//-- INDEX IS NOT USED IN THIS VERSION
+use (cTable) // index (cIndex) key FLD1
+if reccount()=0
+   populateDb()
+endif
+use
+
+//-- APPLICATION SPECIFIC SESSION FILE
+cAppMemPath := xMemDir
+if not isDir(cAppMemPath)
+   createDir(cAppMemPath)
+endif
+zMemFile := cAppMemPath + "kiosk.mem"
+if file(zMemFile)
+   restore from (zMemFile) additive
+endif
+
+//-- BACKGROUND ACTIONS
+do case
+************************
+case cAction="SAVE"
+   znRowsToShow  := val(MSPFieldValue("EF_ROWS"))
+   znRefreshTime := val(MSPFieldValue("EF_TIMEOUT"))
+   save all like zn* to (zMemFile)
+************************
+case cAction="RESET"
+   delete file (zMemFile)
+   znRec := 1        //-- used by AJAX version
+   znCurrPage := 0   //-- used by AJAX version
+   znRowsToShow  := 5
+   znRefreshTime := 3000
+   save all like zn* to (zMemFile)
+***********************
+case cAction="ZAP"
+    use (cTable) exclusive
+    if used()
+       zap
+       populateDb()
+    endif
+***********************
+endcase
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<body class="container">
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<%=include("/parts/html/header.htm")%>
+<div class="well" style="margin-top:-60px">
+<strong>Kiosk 1.1 Configuration module</strong> 
+<a class="btn btn-primary" href="booter.msp?XY=<%=cSeed%>">EXIT</a> 
+<a class="btn btn-info" href="std-vers/kiosk.msp?XY=<%=cSeed%>">Start Kiosk STD</a>
+<a class="btn btn-info" href="mxo-vers/superkiosk.msp?XY=<%=cSeed%>">Start MXO mode</a>
+<a class="btn btn-info" href="aj-vers/ajkiosk.msp?XY=<%=cSeed%>">Start Ajax Mode</a>
+</div>
+
+<br><font size="4">System info:</font><p><font color="#808080">Server:</font> <%=getenv("SERVER_NAME")%>
+<br><font color="#808080">Position for database:</font> <%=cDir%>
+<br><font color="#808080">Position for memory files:</font> <%=cAppMemPath%>
+<br><font color="#808080">Memory file (delete to reset settings):</font> <%=zMemFile%>
+
+<h3>Display settings</h3>
+<%
+znRowsToShow  := iif(znRowsToShow<5,5,znRowsToShow)
+znRefreshTime := iif(znRefreshTime<3,3,znRefreshTime)
+%>
+<form name="form1" action="<%=cSelf%>" method="post">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <div class="input-group" style="margin:3px 3px 3px 3px;"> 
+      <span class="input-group-addon">Rows to display</span>
+      <input type="text" class="form-control" name="EF_ROWS" value="<%=zz(znRowsToShow)%>">
+   </div>
+   <div class="input-group" style="margin:3px 3px 3px 3px;"> 
+      <span class="input-group-addon">Timeout (millisecs)</span>
+      <input type="text" class="form-control" name="EF_TIMEOUT" value="<%=zz(znRefreshTime)%>">
+  </div>
+  <div style="margin:3px 3px 3px 3px;"></div>
+    <input class="btn btn-default" type="submit" name="VA" value="RESET to defaults">
+    <input class="btn btn-primary" type="submit" name="VA" value="SAVE settings">
+  </div>
+</form>
+<p>&nbsp;</p><a class="btn btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VA=ZAP">Reload demo DB</a>
+<p><font size="2" color="#808080">Current session handler: <%=cSeed%>
+<!--------------------------------------- end 4 //--------------------------------------------->
+</font>
+</p>
+</body>
+<%=include("/parts/html/footer.htm")%>
+</html>
+<%
+****************************************
+PROCEDURE populateDb()
+****************************************
+   //-- PRELOAD WITH DEMO DTA
+   ainit("aGrp1","ROME","PARIS","LONDN","BONN","MADRD")
+   ainit("aGrp2","BRUSL","ATHNS","BARCL","FRKFT","KOLN")
+   nnn := 1
+   for iii=1 to 45
+     append blank
+     if rlock(1)
+        repl FLD1 with "FLY"+zz(iii+100)
+        repl FLD2 with  val(time()) - nnn | ":" | zz(nnn*10)
+        repl FLD3 with  aGrp1[nnn]
+        repl FLD4 with  aGrp2[nnn]
+        repl FLD5 with  val(time()) + nnn | ":" | zz(nnn*10)     
+        repl FLD6 with  "GATE " + zz(nnn)
+        nnn++
+      unlock
+     endif
+     if nnn > len(aGrp1)
+        nnn := 1
+     endif
+   next
+return("")
+%>

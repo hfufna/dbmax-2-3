@@ -1,0 +1,94 @@
+<html>
+<head>
+<html>
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<link rel="stylesheet" type="text/css" href="../../screen.css">
+</head>
+
+<%
+*************************************************** TELCO HEADER-0-1
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+
+*************************************************** END HEADER
+cAction := MSPFieldValue("VAR_ACTION")
+cSelf   := pageName()
+
+set decimals to 0
+set century on
+set date to italian
+set hour to 24
+cSelf := pageName()
+set deleted on
+
+CR_LF := chr(13)+chr(10)
+
+************************************************* 
+
+//-- INCOMING WEBVARS
+cIdProd   := MSPFieldValue("VAR_ID_PROD")
+cDescProd := MSPFieldValue("VAR_DESC_PROD")
+
+//-- SETTING DATABASE TO USE
+cDbPath := setDb("costi")
+cDb := cDbPath + "ricette.dbf"
+cXb := cDbPath + "ricette.mtx"
+
+//-- OPENING FILES
+if not file(cXb)
+   use (cDb)
+   cDefKey := fieldname(1)
+   index on (&cDefKey) to (cXb)
+endif 
+
+//-- FILTERING DATABASE
+use (cDb) index (cXb)
+set filter to ID_PROD = cIdProd
+go top
+count to nnn
+go top
+
+%>
+<body bgcolor="#ECF5FF">
+<table border="0" width="100%" cellspacing="0" cellpadding="3">
+	<tr><td bgcolor="#006699"><font color="#FFFFFF"><%=cDescProd%></font></td></tr>
+</table>
+
+<!----------------------------------- RECORDS GRID -------------------------------------- //-->
+<% 
+nFlds := aFields()
+
+if not empty(cIdProd)
+   %>
+   <table cellspacing="0" cellpadding="0" width="100%" border="1" cellspacing="0" style="border-collapse: collapse">
+   <%
+   rrr := 0
+   go top
+   do while not eof()
+      %><tr bgcolor="#FFFFFF"><%
+      rrr++
+      nRec := recno()
+      for nFld=1 to afields()
+        %>
+        <td><%=zz(fieldval(nFld))%></td>
+        <%
+      next
+      skip
+      %></tr><%
+   enddo
+   %>
+   </table>
+   <!----------------------------------- END GRID -------------------------------------- //-->
+   <%
+endif
+%>
+<!----------------------------------- BODY END -------------------------------------- //-->
+</body>
+</html>
+<%

@@ -1,0 +1,134 @@
+<!doctype html>
+<!DOCTYPE html>
+<%
+**************************************** DBMAX MINI-HEADER backward compatible
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<%
+*******************************************************************
+** this must be changed with your own key in a real application
+*******************************************************************
+cGoogleKey := "959211973818"
+%>
+<script type="text/javascript"> 
+var google.maps.visualRefresh=true;
+
+function ismaxlength(obj){
+var mlength=obj.getAttribute? parseInt(obj.getAttribute("maxlength")) : ""
+if (obj.getAttribute && obj.value.length>mlength)
+obj.value=obj.value.substring(0,mlength)
+}
+ 
+</script>
+  <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAA6dRR0NHPAaRvgt8h2Q-FHRRRnt0mHPKedJW0x_17pzPEh5klxhR7LVjkQ_-62MRRXYseq5ZHzx4zRg" type="text/javascript"></script>
+  <script type="text/javascript">
+    function moveMap() {
+        var map = new GMap2(document.getElementById('map'));
+        var full_address;
+        var objs_full_address = ['ctl00_ContentLeft1_citta', 'ctl00_ContentLeft1_address', 'ctl00_ContentLeft1_ncivico'];
+        var zoom = 0;
+        for (var i = 0; i < objs_full_address.length; i++) {
+            if (document.getElementById(objs_full_address[i]).value) {
+                if (!full_address) full_address = '';
+                full_address += document.getElementById(objs_full_address[i]).value + ',';
+                if (objs_full_address[i] == 'ctl00_ContentLeft1_citta') zoom = 12;
+                if (objs_full_address[i] == 'ctl00_ContentLeft1_address') zoom = 14;
+                if (objs_full_address[i] == 'ctl00_ContentLeft1_ncivico') zoom = 18;
+            }
+        }
+ 
+        zoom = (zoom == 0) ? 5 : zoom;
+        var geoCoder = new GClientGeocoder();
+        document.getElementById('debug').value = full_address;
+        geoCoder.getLatLng((full_address ? full_address : 'italia'), function(point) {
+        if (point) {
+ 
+            var blueIcon = new GIcon(G_DEFAULT_ICON);
+            blueIcon.image = "img/basic-1.gif"; //blueIcon.png sarà una tua immagine ad hoc uguale all'originale ma di un colore diverso
+            blueIcon.iconSize = new GSize(20, 32);
+            //Mettiamo l'oggetto delle opzioni in una var normale, per comodità
+            markerBlue = { icon: blueIcon };
+            
+                map.setCenter(point, zoom);
+                if (!full_address) return;
+                var marker = new GMarker(point, markerBlue);
+                marker.value = full_address;
+                map.addOverlay(marker);
+                var res = point.toString().match(/^\((.*)\,\s(.*)\)$/);
+                document.getElementById('ctl00_ContentLeft1_lat').value = res[1].toString();
+                document.getElementById('ctl00_ContentLeft1_lng').value = res[2].toString();
+            }
+        });
+        map.addControl(new GMapTypeControl());
+        map.addControl(new GLargeMapControl());
+    }
+ 
+    function moveMap_LatLong() {
+        var lat = document.getElementById('ctl00_ContentLeft1_lat').value;
+        var lng = document.getElementById('ctl00_ContentLeft1_lng').value;
+        if ((!lat) || (!lng)) return;
+ 
+        var map = new GMap2(document.getElementById('map'));
+ 
+        var point = new GLatLng(lat, lng);
+        map.setCenter(point, 18);
+ 
+        var marker = new GMarker(point);
+        map.addOverlay(marker);
+ 
+        map.addControl(new GMapTypeControl());
+        map.addControl(new GLargeMapControl());
+    }
+    </script>
+
+<body>
+
+<form name="form1" id="form1" action="">
+		<div>
+			<label for="citta">Inserisci CAP e Città</label> 
+			<input onblur="moveMap();" id="EF_1" class="imputcitta" title="Città." tabIndex="10" type="text" name="EF_1"> <br>
+		</div>
+		
+		<div>
+			<label for="indirizzo">Indirizzo</label> 
+			<input onblur="moveMap()" id="EF_2" class="imputvia" title="Indirizzo." tabIndex="20" type="text" name="EF_2"> <br>
+		</div>
+		
+		<div>
+			<label for="numero">N° Civico</label> 
+			<input onblur="moveMap()"    id="EF_3" class="imputnumero" title="N° Civico." tabIndex="30" type="text" name="EF_3"> <br>
+   	</div>
+</form>
+
+</body>
+
+<script type="text/javascript"> 
+ 
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-9598953-2']);
+  _gaq.push(['_trackPageview']);
+ 
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+ 
+</script>
+
+</html>

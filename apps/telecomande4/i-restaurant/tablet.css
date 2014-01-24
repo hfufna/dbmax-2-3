@@ -1,0 +1,43 @@
+body {
+   font-family:Lucida Console;
+   font-size:20px;
+   margin: 3 3 3 3;
+   padding: 3 3 3 3;
+}
+td {
+   vertical-align: top;
+   font-size:20px;
+}
+.tablet {
+   font-size:30px;
+}
+.box {
+   background-color: yellow;
+   font-size:28px;
+   height:33px;
+}
+
+select {
+   font-size:28px;
+   height:33px;
+}
+
+.dialog {
+   font-size:22px;
+}
+.title2 {
+   font-size:20px;
+   font-weight: bold;
+}
+
+input.pb {
+   background-color:#C0C0C0;
+   font-size:28px;
+   height:36px;
+}
+
+input.text {
+   background-color:yellow;
+   font-size:28px;
+   height:36px;
+}

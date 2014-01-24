@@ -1,0 +1,451 @@
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+
+PORTED TO DBMAX 2.3 - November 2013
+
+This application makes use of 
+1 - APPLICATION-SPECIFIC MEMORY FILE (xCargoFile)
+2 - LANGUAGE-SPECIFIC MEMORY FILE (zcInit)
+ //--->
+<%
+lDebug :=.f.
+xAppId := "maxplanner"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+   //-- INITIALIZE THE CARGO
+   if empty(xCargoFile)
+      xCargoFile := xMemDir + "\" + cSeed + "_maxplanner.mem"
+      save all like x* to (xMemFile)
+   endif
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- APPLICATION SPECIFIC SESSION FILE
+
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+else
+   //-- init module specific globals
+   znCurrYear  := year(date()) //-- YEAR TO USE
+   znCurrMonth := 1
+   znCurrWeek  := 1
+   zdCurrDay   := date()
+   
+   //-- GETTING REGION SPECIFIC TERMS FROM LOCAL SYSTEM TABLE
+   //  This includes the language to use
+   //
+   zcLanguageId := MSPFieldValue("LANG") //-- language to use
+   if empty(zcLanguageId)
+      zcLanguageId := "ENG"                
+   endif
+   zcInit := curDosDir() + zcLanguageId + ".mem"   //-- file for language
+   ***
+   save all like z* to (xCargoFile)
+endif
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=include("header.htm")%>
+<%=appInfo()%>
+<%
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VAR_OPTION")))
+cSelf   := pageName()
+cBack   := callingPage()
+cAnchor := MSPFieldValue("VAR_ANCHOR")
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+************************************************
+
+//-- DATABASE TO USE
+//
+cDbPath := setDb("maxplanner")
+
+//-- generating application tables
+genDefTables()
+
+//--generating and saving default strings to system table
+genDefValues()
+
+//-- loading values from system table into memory
+getFromSysTable()
+
+%>
+<body>
+<!----------------------------------- *top menu //----------------------------------------->
+<div style="position:absolute;top:0;left:0;width:100%;height:50px;vertical-align:top;">
+<table border="0" width="100%">
+<tr>
+<td>
+   <a href="<%=link2menu(0)%>?XY=<%=cSeed%>"><img border="0" src="img/calendar_home.jpg" width="54" height="46"></a>
+</td>
+<td align="right">
+   <a href="config.msp?XY=<%=cSeed%>&X=<%=xCargoFile%>"><img border="0" src="img/calendar_config.jpg" width="54" height="46"></a>
+	<a href="config.msp?XY=<%=cSeed%>&X=<%=xCargoFile%>&VAR_ACTION=RESET"><img border="0" src="img/calendar_reset.jpg" width="54" height="46"></a>
+</td>
+</tr><tr><td colspan="2" height="3" bgcolor="#FFCC99"></td></tr>
+</table>
+</div>
+
+<!----------------------------------- *logo //----------------------------------------->
+<div style="position:absolute;top:50;left:0;width:100%;height:100%;vertical-align:top;">
+<div align="center">
+<a href="view_year.msp?XY=<%=cSeed%>">
+<img border="0" src="img/calendar_logo.gif"></a><br>
+<font size="2" color="#000000">
+Session handler: <b><%=cSeed%></b> <br>Database in use: <b><%=cDbPath%></b> <br>Memory folder: <b><%=xCargoFile%></b>
+</font>
+</div>
+</div>
+
+<!----------------------------------- *lower menu //----------------------------------------->
+<div style="position:absolute;bottom:0;left:0;width:100%;height:50px;vertical-align:top;">
+<div align="center">
+	<font size="1" color="gray"><%=libVer()%> | <a href="detect.msp?XY=<%=cSeed%>">Tester</a></font>
+</div></div>
+
+</body>
+</html>
+<!----------------------------------- *eoh //----------------------------------------->
+<%
+****************************************************************************************
+function genDefValues()
+****************************************************************************************
+//-- SYSTEM TABLE
+//
+cDbSys  := cDBpath + "_SYSVARS.DBF"
+cXbSys  := cDBpath + "_SYSVARS.MTX"
+cKeySys := "ELEM_ID"
+if not file(cDbSys)
+  ainit( "aField","ELEM_ID","ELEM_TXT","ELEM_VAL","LANG_ID","ELEM_TYPE","ELEM_DESCR")
+  ainit( "aType","C","M","N","C","C","C")
+  ainit( "aSize",30,10,10,10,1,100)
+  ainit( "aDec",0,0,3,0,0,0)
+  create (cDbSys) from aField, aType, aSize, aDec
+endif
+close data
+
+//-- STRINGS TO USE WITH ICONS AND DESCRIPTIONS
+//   all these vars, their values and optional description are saved
+//   into a special DBF table, to provide power users an easy method
+//   for personalization. This include changing the description for
+//   icons, buttons and entry fields associated with DBF tables
+//
+use (cDbSys) index (cXbSys) key (&cKeySys)
+set order to 1
+
+//-- IF TABLE IS EMPTY WE DO PRELOAD
+//   creating a var is matter of calling the local function addRec that actually
+//   adds a new record to system table in one single statement.
+//   Parameters for the function are:
+//   (1) the name of the variable to be created
+//   (2) the value for that variable (either a string or a number)
+//   (3) the language set of which it must be part of
+//   (4) the type of variable to generate (A=array,C=char,N=numeric,L=logic)
+//
+if reccount()=0 .or. .not. file(zcInit)
+   addRec("zcMsgToday","Cosa c'è da fare oggi?","IT","C")
+   addRec("zcMsgNextFree","Apre la pagina per le ricerche","IT","C")
+   addRec("zcMsgAll","Mostra tutti gli impegni dell'anno","IT","C")
+   addRec("zcMsgYear","Mostra il calendario dell'anno corrente","IT","C")
+   addRec("zcMsgDay","Salta agli impegni di oggi","IT","C")
+   addRec("zcMsgEdit","Modifica Scheda","IT","C")
+   addRec("zcMsgAppend","Nuova Scheda","IT","C")
+   addRec("zcMsgSaved","Modifiche registrate","IT","C")
+   addRec("zcMsgMove","Sposta impegno","IT","C")
+   addRec("zcMsgDel","Cancella impegno","IT","C")
+   addRec("ztCust_name","Nome","IT","C")
+   addRec("ztCargo1","Cargo 1","IT","C")
+   addRec("ztCargo2","Cargo 2","IT","C")
+   addRec("ztCargo3","Cargo 3","IT","C")
+   addRec("ztCargo4","Cargo 4","IT","C")
+   addRec("ztPlan_descr","Descrizione","IT","C")
+   addRec("ztPlan_notes","Note","IT","C")
+   addRec("ztStatus","Status","IT","C")
+   addRec("ztMarked","Chiuso?","IT","C")
+   addRec("ztSave_rec","Salva modifiche","IT","C")
+   addRec("ztkeylink","Codice cliente","IT","C")
+   addRec("ztBack_to","Torna indietro","IT","C")
+   addRec("zticoPrevDay","Vai al giorno precedente","IT","C")
+   addRec("zticoNextDay","Vai al giorno successivo","IT","C")
+   addRec("ztmsgViewMonth","Visualizza tutto il mese corrente","IT","C")
+   addRec("ztmsgNoPlann","Non ci sono appuntamenti fissati il","IT","C")
+   addRec("zticoNewPlann","Nuovo appuntamento","IT","C")
+   addRec("zticoEditPlann","Visualizza i dettagli di questo appuntamento","IT","C")
+   addRec("zaMonths","Gennaio*Febbraio*Marzo*Aprile*Maggio*Giugno*Luglio*Agosto*Settembre*Ottobre*Novembre*Dicembre","IT","A")
+   addRec("zaDays","Domenica*Lunedì*Martedì*Mercoledì*Giovedì*Venerdì*Sabato","IT","A")
+   addRec("zaWeekDays","Dom*Lun*Mar*Mer*Gio*Ven*Sab","IT","A")
+   addRec("zcMsgToday","What we are going to do today?","ENG","C")
+   addRec("zcMsgNextFree","Query the database","ENG","C")
+   addRec("zcMsgAll","Show all meetings of current year","ENG","C")
+   addRec("zcMsgYear","Show full calendar","ENG","C")
+   addRec("zcMsgDay","Jump to today's view","ENG","C")
+   addRec("zcMsgEdit","Edit current meeting","ENG","C")
+   addRec("zcMsgAppend","New meeting","ENG","C")
+   addRec("zcMsgSaved","Changes have been saved","ENG","C")
+   addRec("zcMsgMove","Move this meeting to another day","ENG","C")
+   addRec("zcMsgDel","Delete this meeting","ENG","C")
+   addRec("ztCust_name","Customer Name","ENG","C")
+   addRec("ztCargo1","Cargo 1","ENG","C")
+   addRec("ztCargo2","Cargo 2","ENG","C")
+   addRec("ztCargo3","Cargo 3","ENG","C")
+   addRec("ztCargo4","Cargo 4","ENG","C")
+   addRec("ztPlan_descr","Description","ENG","C")
+   addRec("ztPlan_notes","Notes","ENG","C")
+   addRec("ztStatus","Status","ENG","C")
+   addRec("ztMarked","Expired?","ENG","C")
+   addRec("ztSave_rec","Save changes","ENG","C")
+   addRec("ztkeylink","Custom key","ENG","C")
+   addRec("ztBack_to","Go back","ENG","C")
+   addRec("zticoPrevDay","Go to previous day","ENG","C")
+   addRec("zticoNextDay","Go to next day","ENG","C")
+   addRec("ztmsgViewMonth","Show all days of the month","ENG","C")
+   addRec("ztmsgNoPlann","No dates taken for today","ENG","C")
+   addRec("zticoNewPlann","Add a meeting","ENG","C")
+   addRec("zticoEditPlann","Show all details of this meeting","ENG","C")
+   addRec("zaMonths","January*February*March*April*May*June*July*August*September*October*November*December","ENG","A")
+   addRec("zaDays","Sunday*Monday*Thursday*Wednesday*Tuesday*Friday*Saturday","ENG","A")
+   addRec("zaWeekDays","Sun*Mon*Thu*Wed*Tue*Fry*Sat","ENG","A")
+   addRec("zaTimeSlot","08:00*08:30*09:00*09:30*10:00*10:30*11:00*11:30*12:00*12:30*13:00*13:30*14:00*14:30*15:00*15:30*16:00*16:30*17:00*17:30","ENG","A")
+   addRec("ztEditRecTitle","Meeting #","ENG","C")
+   addRec("ztEditRecTitle","Scheda N°","IT","C")
+   addRec("ztEditRecStr1","Scheduled at:","ENG","C")
+   addRec("ztEditRecStr1","Orario:","IT","C")
+   addRec("ztPbDelPlanRec","Cancella questo impegno","IT","C")
+   addRec("ztPbDelPlanRec","Delete this meeting","ENG","C")
+   addRec("zticoCalDel","Annulla questo impegno","IT","C")
+   addRec("zticoCalDel","Delete this meeting","ENG","C")
+   addRec("zticoCalMov","Sposta questo impegno ad altra data","IT","C")
+   addRec("zticoCalMov","Re-schedule this meeting","ENG","C")
+   addRec("zticoCalClose","Segna come concluso","IT","C")
+   addRec("zticoCalClose","Mark as attended","ENG","C")
+   addRec("ztPbMove","Sposta","IT","C")
+   addRec("ztPbMove","Change","ENG","C")
+   addRec("ztMsgMove","Nuova data a cui spostare","IT","C")
+   addRec("ztMsgMove","New date for this meeting","ENG","C")
+   addRec("ztPbAbort","Rinuncia","IT","C")
+   addRec("ztPbAbort","Abort","ENG","C")
+   addRec("ztPbContinue","Continua","IT","C")
+   addRec("ztPbContinue","Proceed","ENG","C")
+   addRec("ztPbGoNewDay","Vai al nuovo giorno","IT","C")
+   addRec("ztPbGoNewDay","Show the day of new meeting","ENG","C")
+   addRec("ztNoPlanToday","Non ci sono impegni per questo giorno","IT","C")
+   addRec("ztNoPlanToday","There are no meetings scheduled for this day","ENG","C")
+   addRec("zaTimeSlot","08:00*08:30*09:00*09:30*10:00*10:30*11:00*11:30*12:00*12:30*13:00*13:30*14:00*14:30*15:00*15:30*16:00*16:30*17:00*17:30","*","A")
+   addRec("zticoExpMonth","Mostra tutti gli impegni del mese","IT","C")
+   addRec("zticoExpMonth","Show all meetings of this month","ENG","C")
+   addRec("zticoPastOff","Mostra solo i giorni da oggi in poi","IT","C")
+   addRec("zticoPastOff","Show only the remaining days of this month","ENG","C")
+   addRec("zticoRefMonth","Ripristina vista su tutto il mese","IT","C")
+   addRec("zticoRefMonth","Refresh month's default view","ENG","C")
+   addRec("ztopenThisDay","Mostra i dettagli di questo giorno","IT","C")
+   addRec("ztopenThisDay","Show details of this day","ENG","C")
+   addRec("ztmsgViewDay","Mostra tutti gli impegni della giornata","IT","C")
+   addRec("ztmsgViewDay","Show an expanded view of this day","ENG","C")
+   addRec("ztfilterLbl","Immettere il nome (o parte) da ricercare","IT","C")
+   addRec("ztfilterLbl","Enter part of the name to search for","ENG","C")
+   addRec("ztPbDoFilter","Inizia ricerca","IT","C")
+   addRec("ztPbDoFilter","Start query","ENG","C")
+   addRec("ztdivFilter","Nominativi simili:","IT","C")
+   addRec("ztdivFilter","Best match:","ENG","C")
+   *
+   //--PRELOADING TIME SLOTS TO BE USED IN DAY EDITING
+   //  these vars are used to build the DAY VIEW
+   //
+   nDayHourStart:=8
+   nDayHourEnd :=18
+   nTimeDivision:=30
+   *
+   nStart := nDayHourStart
+   nEnd   := nDayHourEnd-1
+   cTmp := ""
+   for iii=nStart to nEnd   
+      nTslots := 60/nTimeDivision
+      for rrr=1 to nTslots
+         cLabel := str((iii),2,0,"0") + ":" + str((rrr*nTimeDivision-nTimeDivision),2,0,"0")
+         cTmp += cLabel+"*"
+      next
+   next  
+   cTmp := trimRight(cTmp,1)
+   addRec("zaTimeSlot",cTmp,"*","A") 
+endif
+return ""
+
+*************************************************************************
+function genDefTables()
+*************************************************************************
+//-- GENERATING TABLES
+//
+cDb  := cDBpath + "PLANNING.DBF"
+cXb  := cDBpath + "PLANNING_BY_DATE.MTX"
+cXk  := "PLAN_DATE"
+if not file(cDb)
+  ainit( "aField","PLAN_ID","PLAN_DATE","START_TIME","END_TIME","CUST_NAME","CARGO1","CARGO2","CARGO3","CARGO4","PLAN_DESCR","PLAN_NOTES","KEYLINK","STATUS","MARKED","D_REG","T_REG")
+  ainit( "aType","C","D","C","C","C","C","C","C","C","M","M","C","C","L","D","C")
+  ainit( "aSize",10,8,5,5,30,30,30,30,30,10,10,10,20,1,8,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+//-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key cXk
+endif
+
+cDb  := cDBpath + "PLAN_DET.DBF"
+cXb  := cDBpath + "PLAN_DET_BY_ID.MTX"
+cXk  := "PLAN_ID"
+if not file(cDb)
+  ainit( "aField","PLAN_ID","CARGO1","OP_ID","OP_DESC","D_OP","TIME_SPENT","KEYLINK","D_REG","T_REG")
+  ainit( "aType","C","C","C","M","C","N","C","D","C")
+  ainit( "aSize",10,20,20,10,10,3,12,8,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+//-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key cXk
+endif
+  
+cDb  := cDBpath + "CUSTOM.DBF"
+cXb  := cDBpath + "CUSTOM_BY_ID.MTX"
+cXk  := "KEYLINK"
+if not file(cDb)
+  ainit( "aField","KEYLINK","NAME","SURNAME","ADDR1","ADDR2","CITY","ZIP","COUNTY","STATE","PHONE1","PHONE2","CELLPHONE","TAXCODE","EMAIL","VATCODE","CARGO")
+  ainit( "aType","C","C","C","C","C","C","C","C","C","C","C","C","C","C","C","M")
+  ainit( "aSize",10,30,30,30,30,30,12,20,20,20,20,20,22,30,20,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+//-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key cXk
+endif
+
+return
+
+************************************************************
+function addRec(cElement, xVal, cLanguage, cType ,cDescr)
+************************************************************
+//-- saves a record into system table
+//   IMPORTANT: arrays must be provided as strings with 
+//   values separated by an asterisk - remember to omit the 
+//   first and the last.
+//
+if vtype("cDescr")="U"
+   cDescr:= ""
+endif
+
+append blank
+if rlock(2)
+   repl ELEM_ID with cElement
+   repl ELEM_TYPE with cType
+   do case
+   case type(xVal)="N"
+      repl ELEM_VAL with xVal
+   case  type(xVal)="L"
+      repl ELEM_TXT with iif(xVal,".T.",".F.")
+   otherwise
+      repl ELEM_TXT with xVal
+   endcase
+   repl LANG_ID with cLanguage
+   repl ELEM_DESCR with cDescr
+   unlock
+endif
+return recno()
+
+**********************************
+function getVar(cVarName)
+**********************************
+//-- gets a variable value by seeking the associated
+//   record into system table
+//
+local cVal
+cVarName := alltrim(cVarName)
+cVal := "**" + cVarName + "**"
+set near on
+go top
+seek cVarName
+if found()
+   cVal := alltrim(ELEM_TXT)
+endif
+return cVal
+
+
+****************************************
+function getFromSysTable()
+****************************************
+//-- RETRIEVING VALUES FROM THE SYS TABLE
+//   At this point the system table should already exist and being loaded with
+//   values: so it is time to load values into memory.
+//   Notice that variables are declared here by using a macro operator
+//   actuated upon the string retrieved from the field ELEM_ID of system table.
+//   The data type of the variable is determined by the value of the field 
+//   ELEM_TYPE, while the actual value is provided either by ELEM_VAL (for 
+//   numerics) or by ELEM_TXT (for arrays, strings and logical).
+//   Different sets of variables can be used, grouped on the field LANG_ID
+//   (that accepts any string value): "*" stands for common to all groups.
+//   Now we filter the system table on the parameter received from the webVar
+//   that loaded the global zcLanguageID so to retrieve all the records
+//   belonging to that language set (plus all those marked with "*").
+//
+set filter to LANG_ID = zcLanguageId .or. LANG_ID="*"
+go top
+
+//-- first time program is executed or after config file removed
+//   we generate a new language-specific memory file. Its name was determined
+//   by using a global variable saved in the application-specific memory file
+//   
+if not file(zcInit)
+   go top
+   do while not eof()
+      *-- retrieving variable name from table field
+      kkk := alltrim(ELEM_ID)
+      *-- declaring a variable with same name
+      private &kkk
+      *-- assigning the appropriate value
+      do case
+      case ELEM_TYPE="A"
+         adeclare(kkk,1)
+         cTmp := alltrim(ELEM_TXT)
+         strToarr(cTmp,"*",&kkk)
+      case ELEM_TYPE="C"
+         &kkk := alltrim(ELEM_TXT)
+      case ELEM_TYPE="N"
+         &kkk := ELEM_VAL
+      case ELEM_TYPE="L"
+         &kkk := iif(ELEM_VAL=0,.f.,.t.)       
+      endcase
+      skip
+   enddo
+
+   //-- saving the LANGUAGE-SPECIFIC MEMORY FILE
+   save all like z* to (zcInit)
+endif
+return ""
+%>

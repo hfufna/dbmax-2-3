@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/screen.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script type="text/javascript" src="/js/dbfree50.js"></script>
+<title>DBFree 2.1 Template</title>
+</head>
+<%
+**************************************** DBFree 2-30-HEADER
+//-- 1 LIBRARY - loading DBFree external library functions
+
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+freeslot()
+
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+
+//-- 2 EXPORT SYSTEM 
+//   default folder to pick up files from is DATADIR
+//   remember that must match to an alias of webserver
+cXiAlias    := "/export/"
+cPathExport := MspConfigVar("EXPORT")
+if empty(cPathExport)
+   cPathExport := MspConfigVar("DATADIR")
+endif
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VAR_OPTION")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+//-- 5 SAFETY SYSTEM 
+cUsrName := MSPFieldValue("VAR_USR_NAME")
+cUsrGrp  := upper(MSPFieldValue("VAR_USR_GRP"))
+cUsrRole := MSPFieldValue("VAR_USR_ROLE")
+cUrl     := setId(cSelf,cUsrName,cUsrGrp,cUsrRole)
+cSafeKey := setId("",cUsrName,cUsrGrp,cUsrRole)
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 7 PERSONALIZATION -- background and sub-webs
+cEntryPoint := dos2web(upDir(curDosDir()))   //--subweb
+cBkg := MspFieldValue("VAR_BKG")
+if empty(cBkg)
+   cBkg := "/default_bg.gif"
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cDBroot := MSPConfigVar("DataDir")+"\"
+set default to (cDBroot ) 
+
+//-- 9 SAFETY SYSTEM
+*-- uncomment to abort page if username was not passed
+if empty(cUsrName)
+   *? "ERROR: No USERNAME supplied: your group is [" + cUsrGrp + "]"
+   *return
+endif
+
+//-- 10 PARAMETRIZATION
+cSetDb := MSPFieldValue("VAR_SETDB")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+nRec   := val(MSPFieldValue("VAR_REC"))
+xParm  := "VAR_SETDB="+cSetDb+"&VAR_TABLE="+cTable+"&VAR_INDEX="+cIndex
+
+************************************************************ END 2-30
+CR_LF := chr(13)+chr(10)
+CSEP  := "&nbsp;&nbsp;|&nbsp;&nbsp;"
+
+
+//-- INCOMING WEBVARS
+cCustNum := MSPFieldValue("VAR_CUST")
+cCustName:=upper(alltrim(MSPFieldValue("VAR_CUSTNAME")))
+
+//--DATABASES TO USE
+cDbPath := setDb("demo8")
+cDb1 := cDbPath + "customers.dbf"
+cXb1 := cDbPath - "customers.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+%>
+<!---  <%=pagename()%>  -- <%=libInfo()%> -- <%=zcLib%>//-->
+<body>
+<font size="3">Customer selected:<%=cCustNum%></font>
+<br>
+<%
+do case
+*---------------------------------------------------------------------------------------------------
+case empty(cAction) or cAction = "GETCUSTID"
+*---------------------------------------------------------------------------------------------------
+   cButtText := "Search"
+   cMsg := "Please enter text to search (at least 3 chars):"
+   %>
+   <form id="form1" action="<%=cSelf%>" method="post" style="margin-top_0;margin-bottom:0;">
+      <font class='lrg'>Select Customer</font><br>
+      <font color="#FF0000"><%=cMsg%></font><br>
+      <input type="text" name="EF_CUSTNUM" value="<%=cCustNum%>" size="20" >
+      <input type="hidden" name="VAR_ACTION" value="DOSEARCH">
+      <input type="submit" name="PB_OK" value="<%=cButtText%>">
+   </form>
+
+<%
+*---------------------------------------------------------------------------------------------------
+case cAction="DOSEARCH"
+*---------------------------------------------------------------------------------------------------
+
+if val(cCustNum) > 0
+   //-- INDEXED SEARCH
+   seek cCustNum
+   if found()
+      %>
+      A/C_Num=<%=CUST_NUM%>   
+      Account=<b><%=CUST_NAME%></b>
+      Address=<%=CUST_ADDR%>  
+      Contact=<%=CUST_WHO%>  
+      <hr>
+      <a href="place_order.msp?VAR_ACTION=ADDORD&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Place an order</font></a><%=cSep%>
+      <a href="transactions.msp?VAR_ACTION=LISTRANS&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Transactions</font></a><%=cSep%>
+      <a href="customer_details.msp?VAR_ACTION=SHOWDET&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Customer details</font></a><%=cSep%>
+      <%
+   else
+      ? cCustNum+ " Not found!"
+   endif
+else 
+   //-- FULL (NOT INDEXED SEARCH)
+   set order to 0
+   ? "Matches for <b>[" + cCustName + "]</b> - Click on A/C to select:" html
+   
+   //-- THIS FORCES FULL LISTING - REMOVE TO DISABLE THIS FEATURE
+   if empty(cCustName)
+      cCustName =" "
+   endif
+   rrr := 0
+   do while ! eof()
+      if cCustName $ CUST_NAME 
+         rrr++
+         %>
+         <font size="1" color="gray"><i><%=str(rrr,5,0,"0")%></i></font>
+         <a href="<%=cSelf%>?VAR_ACTION=DOSOMETHING&VAR_CUST=<%=zz(CUST_NUM)%>"><font color="red"><%=CUST_NUM%></font></a> 
+         <font color="gray"><b><%=CUST_NAME%></b></font> - <%=initCap(CUST_ADDR)%><br>
+         <%    
+      endi
+      skip
+   enddo
+   %>
+   <hr>
+   End of listing - <%=rrr%> customers found
+   <%
+endif  
+*---------------------------------------------------------------------------------------------------
+case cAction = "DOSOMETHING"
+*---------------------------------------------------------------------------------------------------
+//-- DISPLAY CUSTOMER DATA
+%>
+<%=CUST_NAME%><br>
+<%=CUST_ADDR%>
+<hr>
+      <a href="place_order.msp?VAR_ACTION=ADDORD&VAR_CUST=<%=cCustNum%>"><font color="maroon">Place an order</font></a><%=cSep%>
+      <a href="transactions.msp?VAR_ACTION=LISTRANS&VAR_CUST=<%=cCustNum%>"><font color="maroon">Transactions</font></a><%=cSep%>
+      <a href="customer_details.msp?VAR_ACTION=SHOWDET&VAR_CUST=<%=cCustNum%>"><font color="maroon">Customer details</font></a><%=cSep%>
+<hr>
+<%
+*---------------------------------------------------------------------------------------------------
+endcase
+*---------------------------------------------------------------------------------------------------
+%>
+</body>
+
+</html>

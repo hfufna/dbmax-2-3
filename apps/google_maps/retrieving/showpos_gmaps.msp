@@ -1,0 +1,320 @@
+<!-- DBFree© (c)2007-2010 G.Napolitano & MAXSIS//-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="COPYRIGHT" CONTENT="G.Napolitano & MAXSIS ITALY (www.maxsis.it)- running on DBMAX - OPC4 is partly based on DBFREE (www.dbfree.org)">
+<META NAME="AUTHOR" CONTENT="G.Napolitano & Associates - MAXSIS ITALY (www.maxsis.it) - portion of code by © Dynamic Drive (www.dynamicdrive.com)">
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/gnx50.js"></script>
+<title>DBMax POLARIS© by MAXSIS</title>
+
+<!---
+* DHTML Window Widget- © Dynamic Drive (www.dynamicdrive.com)
+* This notice must stay intact for legal use.
+* Visit http://www.dynamicdrive.com/ for full source code
+* to close the windows use:
+* <a href="#" onclick="parent.ww.hide();">Close</a>
+*
+//-->
+<script type="text/javascript" src="/js/windowfiles/dhtmlwindow.js"></script>
+<script type="text/javascript" src="/js/modalfiles/modal.js"></script>
+<link rel="stylesheet" href="/js/windowfiles/dhtmlwindow.css" type="text/css">
+<link rel="stylesheet" href="/js/modalfiles/modal.css" type="text/css">
+<script language="javascript">
+function mspWin( cUrl, winWidth, winHeight, cTitle){
+
+if (navigator.userAgent.toLowerCase().indexOf("msie")==-1)
+   {xsize = self.innerWidht; ysize = self.innerHeight;}
+   else {xsize = document.body.clientWidth;ysize = document.body.clientHeight;}
+   
+if (xsize>1024) {xsize=1024};
+if (ysize>880) {ysize=880};
+if (winWidth==null) {winWidth=(xsize)*0.85}; 
+if (winHeight==null) { winHeight=(ysize)*0.85}; 
+if (cTitle==null) { cTitle='DBMAX'} ; 
+var parm = 'width='+winWidth+'px,height='+winHeight+'px,center=1,resize=1,scrolling=1';
+cUrl +='';
+ww = dhtmlmodal.open('editWin', 'iframe', cUrl, cTitle, parm );
+}
+</script>
+</head> 
+
+<%
+*************************************************************DBFREE-2-23*
+set dbtype to
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+//-- 1 LIBRARY - loading DBFree external library functions
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xRoot := strTran(xRoot,"/","\")
+xcLib   := xRoot + "\lib\dbmax25.max"
+set maxlib to &xcLib
+
+//-- 2 EXPORT SYSTEM 
+//   default folder to pick up files from is DATADIR
+//   remember that must match to an alias of webserver
+cXiAlias    := "/export/"
+cPathExport := MspConfigVar("EXPORT")
+if empty(cPathExport)
+   cPathExport := MspConfigVar("DATADIR")
+endif
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VO")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+//-- 5 SAFETY SYSTEM 
+cUsrName := MSPFieldValue("VAR_USR_NAME")
+cUsrGrp  := upper(MSPFieldValue("VAR_USR_GRP"))
+cUsrRole := MSPFieldValue("VAR_USR_ROLE")
+cUrl     := setId(cSelf,cUsrName,cUsrGrp,cUsrRole)
+cSafeKey := setId("",cUsrName,cUsrGrp,cUsrRole)
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 7 PERSONALIZATION -- background and sub-webs
+cEntryPoint := dos2web(upDir(curDosDir()))   //--subweb
+cBkg := MspFieldValue("VAR_BKG")
+if empty(cBkg)
+   cBkg := "/start/default_bg.gif"
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb     := MSPFieldValue("VAR_SETDB")
+cTable     := MSPFieldValue("VAR_TABLE")
+nRecno     := val(MSPFieldValue("VAR_RECNO"))
+nIndexList := val(MSPFieldValue("VAR_INDEXLIST"))
+nIndexOrd  := val(MSPFieldValue("VAR_INDEXORD"))
+nRows      := val(MSPFieldValue("VAR_ROWS"))
+cDbRoot    := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+//-- 9 SAFETY SYSTEM
+*-- uncomment to abort page if username was not passed
+if empty(cUsrName)
+   *? "ERROR: No USERNAME supplied: your group is [" + cUsrGrp + "]"
+   *return
+endif
+
+//-- MISC
+CR_LF := chr(13)+chr(10)
+*************************************************************DBFREE-2-23**
+cDbPath := setDb("googledemo")
+
+
+cDb   := cDBpath + "mappe.DBF"
+cMtx  := cDBpath + "mappe_by_GPSPOS.MTX"
+
+if not file(cDb)
+  ainit( "aField","ID_OBJ","MAP_NAME","GPS_POS","GPS_LAT","GPS_LONG","DESCR","FULLTEXT")
+  ainit( "aType","C","C","C","C","C","C","M")
+  ainit( "aSize",10,25,50,16,16,80,10)
+  ainit( "aDec",0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+endif
+
+***********************************
+use (cDb) index (cMtx) key GPS_POS
+***********************************
+%>
+<!-- 
+We use default coordinates of MAXSIS home town
+firenze 43.769, 11.2503  
+zoom: 17
+MapTypeId.TERRAIN
+//-->
+<%
+cMapName   := "FI-C"
+cLatitude  := "43.769"
+cLongitude := "11.2503"
+cLink := "display_rec.msp?KEYPOS="
+%>
+<!----------------------------------- *google API 3 //----------------------------------------->
+
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" /> 
+<style type="text/css">html {height: 100%}  body {height: 100%; margin: 0px; padding: 0px} #map_canvas {height: 100%} </style> 
+<script type="text/javascript"  src="http://maps.google.com/maps/api/js?sensor=false"> </script> 
+
+<script type="text/javascript">   
+var cCanvas  = '<%=cMapName%>';     //-- name for the canvas
+var nPoX     = <%=cLatitude%> ;     //-- latitude for initial position
+var nPoY     = <%=cLongitude%>;     //-- longitude for initial position
+var infoLink = '<%=cLink%>';        //-- link to show inside the info windows of pinpoints
+
+var thisMap ;                 //-- object to store the canvas
+var markersArray = [];        //-- array for pinpoint list (markers)
+
+//--------------------------------------------------------------------------------------------------------------------
+// Initializing the page
+function initGoogleMaps() {   
+   var cCanvas    = new google.maps.LatLng(nPoX, nPoY);   
+   var mapOptions = { zoom: 17,  center: cCanvas,   mapTypeId: google.maps.MapTypeId.ROADMAP };     
+   
+   thisMap =  new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+   
+   //-- add default event listener (when clicking on the map it adds a pinpoint)
+   //   Pintpoint itself lives only until the map is loaded into the actual page: to save it in the DBF table
+   //   some other action must be done (i.e. clicking on SAVE LAST button)
+   google.maps.event.addListener(thisMap, 'click', function(event) { addMarker(event.latLng);
+    });
+}    
+
+//--------------------------------------------------------------------------------------------------------------------
+function addMarker(location) {   
+   thisMarker = new google.maps.Marker({ position: location, map: thisMap });
+   markersArray.push(thisMarker); 
+   //-- writes current mouse position values (translated into GPS coordinates)
+   //   into the left frame hidden form that hosts them
+   //   When this form is submitted does save values in the DBF table
+   top.frm1.form1.EF_POS.value = location;
+   top.frm1.form1.EF_MAP_NAME.value = cCanvas;
+   
+   //-- Abilitates auto-saving of a pinpoint after it is placed on the map
+   //top.frm1.form1.submit();
+}
+
+   
+//-- Removes the overlays from the map, but keeps them in the array 
+function clearOverlays() {   
+   if (markersArray) 
+   {  for (i in markersArray) 
+        { markersArray[i].setMap(null);} 
+   }
+}  
+
+//--------------------------------------------------------------------------------------------------------------------
+//-- Shows any overlays currently in the array 
+function showOverlays() {   
+   if (markersArray) 
+   { for (i in markersArray) 
+      { markersArray[i].setMap(thisMap);}   
+   } 
+}  
+
+//--------------------------------------------------------------------------------------------------------------------
+//-- Deletes all markers in the array by removing references to them 
+function deleteOverlays() {   
+   if (markersArray) 
+   { for (i in markersArray) 
+      { markersArray[i].setMap(null);}     
+   markersArray.length = 0;   
+   } 
+}
+
+//--------------------------------------------------------------------------------------------------------------------
+//-- add a new marker to canvas object (will be lost if not saved into database)
+function putMarker( nlat, nlong ) {   
+   pinPosition = new google.maps.LatLng(nlat,nlong);
+   thisMarker = new google.maps.Marker({     position: pinPosition,     map: thisMap   });
+   markersArray.push(thisMarker); 
+}
+
+//-- Load values (coordinates) from DBF table into a javascript array  
+//--------------------------------------------------------------------------------------------------------------------
+function loadOverlays() {   
+var aDbf = [];
+<%
+//-- start maxScript mashUp
+go top
+rrr := 0
+do while not eof()
+   cVal := " -- " + zz(GPS_POS) + " -- " + dtoc(date()) + " " + time() + " -- "
+   //-- prints the fake line 
+   %>
+   aDbf[<%=zz(rrr)%>]=['<%=zz(GPS_POS)%>','<%=zz(GPS_LAT)%>','<%=zz(GPS_LONG)%>','<%=zz(cVal)%>'];
+   <%
+   skip
+   rrr++
+   if rrr > 400
+      exit
+   endif
+enddo
+//-- end MaxScript mashUp
+%>
+if (aDbf) 
+   {  for (iii in aDbf) 
+        { 
+        //-- getting values from the array created from reading DBF table
+        thisPos = aDbf[iii][0];
+        thisX = aDbf[iii][1];
+        thisY = aDbf[iii][2];
+        thisTitle = aDbf[iii][3];
+        pinPosition = new google.maps.LatLng(thisX,thisY);
+        // this is the original google click event
+        // infowindow  = new google.maps.InfoWindow( {content: infoLink ,size: new google.maps.Size(50,50)} ); 
+        //-- add a new pinpoint to current map at specified position
+        addMarker(pinPosition);
+        markersArray[iii].setMap(thisMap);
+        //-- passing lat and long of current pinpoint
+        thisMarker.setTitle('Marker ' + iii + " " + thisTitle);     
+        //google.maps.event.addListener( thisMarker, 'click', function() {infowindow.open( thisMap, thisMarker);});         
+        cCurrPos = thisMarker.position;
+        cCurrLat = thisMarker.position.lat();
+        cCurrLng = thisMarker.position.lng();
+        //-- add a click event to current pinpoint
+        google.maps.event.addListener( thisMarker, 'click', function() {mspWin(infoLink + cCurrPos  + '&X=' + cCurrLat + '&Y='+ cCurrLng )});  
+        }
+   }
+}
+
+//-- just for debug
+function passData(cStr) {
+alert(cStr);
+}
+</script> 
+
+<body onload="initGoogleMaps();">  
+<form name="form1" id="form_toolbox" method="post">
+<!----------------------------------- *this is the map (canvas) //----------------------------------------->
+<div z-order="0" id="map_canvas" style="width:100%; height:100%"></div> 
+   <!----------------------------------- toolbox overimposed on the map  //----------------------------------------->
+   <div z-order="1" id="box" style="position:absolute; top:5; left:70; margin-left:5; margin-top:5; background-color:white; border:solid 5px white;">
+      Current pos: N<input type="text" name="VAR_LAT" value="<%=cLatitude%>" size="10">
+      W<input type="text" name="VAR_LONG" value="<%=cLongitude%>" size="10" class="inp_box">
+      <input type="button" name="PB_3" value="Save current pinpoint"          onclick="top.frm1.form1.submit();">
+      <input type="button" name="PB_1" value="Clear map"          onclick="location.reload();deleteOverlays()">
+      <input type="button" name="PB_2" value="Retrieve from DBF"  onclick="loadOverlays();showOverlays();">
+      <br>
+      <font color="gray">Click anywhere on the map to place a pinpoint: click on "Add to table" to save last addedd to database.<br>
+      Click on a pinpoint to open the correspondant record from DBF table</font>
+   </div>
+</form>
+
+</body> 
+</html>

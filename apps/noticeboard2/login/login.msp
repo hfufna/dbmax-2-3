@@ -1,0 +1,967 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+         Based on DBFREE 3.0 NATIVE LOGIN SYSTEM for MaxScript 2.3 
+         adapted to NOTICEBOARD2        
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+
+<title>Login Page for DBFree Applications</title>
+</head>
+<%
+**-- LOCAL APP LOGIN SUBSYSTEM
+**
+cAppLogDir := "noticeboard2"
+
+**-- PAGE APPEARANCE SETTINGS SETTINGS 
+**   
+cWelcomePage := "welcome.msp"
+*cMenuLeft    := "menu_by_files.msp"
+*cMenuLeft    := "menu_by_db.msp"
+cMenuLeft    := "menu_left.msp"
+cMenuRight   := "void.htm"
+cDestFrm     := "_self"
+
+**************************************** SPECIAL HEADER FOR LOGIN 3.0
+*  THIS HEADER IS TO BE USED ONLY FOR LOGIN
+*  ALL PAGES LINKED WITH THIS ONE NEED TO USE THE APPROPRIATE HEADER
+*  THAT RETRIEVES THE INFORMATIONS STORED INTO MEMORY FILES
+*
+//-- CALLING THE LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- SESSION HANDLING VIA MEMORY FILE
+//   THE FILE TO USE IS CONTAINED IN GLOBAL VAR xMemFile 
+//   THIS FILES CHANGES EVERYTIME THE USER LOGS IN
+//
+cSessionDir := mspconfigvar("DATADIR") + "\_mem\"
+if not file(cSessionDir)
+   md(cSessionDir)
+endif
+cSubDir := cSessionDir + "login\"
+if not file(cSubDir)
+   md(cSubDir)
+endif
+store "" to xcUsrName,xcUsrGrp,xcUsrRole
+*-- creating a seed to pass to every page
+*
+*   the only data that will be passed between pages will be the seed (a number)
+*   every page then will use it to build the path for memory file using the
+*   appropriate header. This way the seed, even if exposed to hackers, will
+*   be absolutely useless
+set decimals to 3
+xcSeed := zz(seconds())
+xcSeed := strTran(xcSeed,".","")
+set decimals to 0
+
+*--- creating the memory file corresponding to this seed
+cIp      := getenv("REMOTE_ADDR")
+xMemFile := mspconfigvar("DATADIR")+"\_mem\login\"
+xMemFile += strTran(cIp,".","_")
+xMemFile += "_" + xcSeed + ".mem"
+*? "MEMFILE=" | xMemFile
+save all like x* to (xMemFile)
+*
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+CR_LF := chr(13)+chr(10)
+**************************************** END LOGIN-HEADER
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+
+// LOCAL VARIABLES
+cBackLink  := dos2web(upDir(curDosDir())+"\start.msp")
+
+
+
+****************************************
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<title>DBFREE LOGIN</title>
+<style type="text/css">
+a { color: blue;}
+a:hover { background-color: yellow;color: #336699;}
+a:visited { color: blue;}
+.infobox {display:none;position:absolute;top:0;left:0;width:100%;height:20;background-color:yellow;color:red;}
+.content {position:relative; top:20;}
+</style>
+
+<script type="text/javascript">
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+
+function validateMail(this_field) 
+   {
+   if(this_field.value== "")
+      return;
+   if(this_field.value.indexOf("@") < 0)
+      {
+      this_field.focus();
+      alert("Please insert a valid E-Mail address");
+      }
+   if(this_field.value.indexOf(".") < 0)
+      {
+      this_field.focus();
+      alert("E-Mail address does not look correct");
+      }   }
+   
+checkForm(the_form) 
+   {
+   if(the_form.password.value == "") 
+      {
+      the_form.password.focus();
+      alert("Please insert your password");
+      return false;	
+      }
+   return true;	
+   }   
+</script>
+</head>
+<!----------------------------------- HTML BODY START -------------------------------------- //-->
+<body background="../img/stucco.jpg" onload="top.frm1.location='void.htm';">
+<hr style="position:relative; top:-10; border:solid 1px green;">
+<%
+*********************************************** LOGIN PRELOAD **************************************
+
+//-- ENABLING PASSWORD BY MAIL (MANUAL SETTING)
+//   Requires the necessary BLAT files to be installed!
+lMailEnabled := .f.
+
+//-- INCOMING WEB VARS
+//
+*-- loading as-is  (strings)
+cUsername := MSPFieldValue("EF_USERNAME")
+cPassword := MSPFieldValue("EF_PASSWORD")
+cFname    := MSPFieldValue("EF_FNAME")
+cSurname  := MSPFieldValue("EF_SURNAME")
+cRemind   := MSPFieldValue("EF_REMIND")
+cEmail    := MSPFieldValue("EF_EMAIL")
+*-- converting to calendar dates
+dReg    	 := ctod(MSPFieldValue("EF_D_REG"))
+dExpDate  := ctod(MSPFieldValue("EF_EXP_DATE"))
+*-- converting to logical value (boolean)
+lMarked  := iif(MSPFieldValue("EF_IS_LOGGED")="S",.t.,.f.)
+
+
+//-- DETECTING IP
+cIp   := getenv("REMOTE_ADDR")
+
+//////////////////////////////////////////////////////////////////////////////
+//-- DATABASE TO USE
+cDir := setDb("noticeboard2")
+
+//-- 1 - TABLE FOR MENUS (not used here, only created)
+//
+t_menus  := cDir + "usr_menus.DBF"
+i_menus  := cDir + "usr_menus.MTX"
+if not file(t_menus)
+   ainit( "aField","USR_ID","USR_NAME","GROUP","MODULE","PAGE_NAME","PAGE_FRM","MOD_TITLE","MOD_DESCR")
+   ainit( "aType","C","C","C","C","C","C","C","M")
+   ainit( "aSize",5,16,20,35,35,10,80,8)
+   ainit( "aDec",0,0,0,0,0,0,0,0)
+   create (t_menus) from aField, aType, aSize, aDec
+endif
+if not file(i_menus)
+   use (t_menus) in 0 alias USERMENU index (i_menus) key USR_ID
+endif
+use
+
+
+//-- 2 - TABLE FOR LOGGING ACTIVITY
+//
+t_usrlog   := cDir + "usr_log.DBF"
+i_usrlog_1 := cDir + "usr_log_by_name.MTX"
+i_usrlog_2 := cDir + "usr_log_by_ip.MTX"
+if not file(t_usrlog)
+  ainit( "aField","LOG_ID","D_REG","T_REG","MSG","USR_NAME","IP_ADDR","CLASS","CARGO","OP_ID","T_TIME")
+  ainit( "aType","C","D","C","M","C","C","C","M","C","N")
+  ainit( "aSize",20,8,10,10,20,16,35,10,20,5)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,2)
+  create (t_usrlog) from aField, aType, aSize, aDec 
+endif
+use (t_usrlog) in 1 alias LOGS index (i_usrlog_1) key USR_NAME, (i_usrlog_2) key IP_ADDR 
+set order to 1
+sele LOGS
+append blank
+if rlock(2)
+   repl D_REG   with date()
+   repl T_REG   with time()
+   repl IP_ADDR with cIp
+   repl D_REG   with date()
+   repl T_REG   with time()
+   repl CLASS   with "ACCESS"
+   repl USR_NAME with cIp
+   unlock
+endif
+
+
+//-- 3 - TABLE FOR USERS 
+//
+t_users   := cDir + "usr.dbf"
+i_users_1 := cDir + "usr_name.MTX"
+i_users_2 := cDir + "usr_by_mail.MTX"
+if not file(t_users)
+   ainit( "aField","D_REG","USR_ID","USR_NAME","USR_GRP","USR_ROLE","USR_PSW","REMIND","FNAME","SURNAME","EMAIL","EXP_DATE","IS_LOGGED","TIME_LOG","LAST_LOG","USR_PAGE")
+   ainit( "aType","D","C","C","C","C","C","C","C","C","C","D","L","C","D","C")
+   ainit( "aSize",8,5,16,22,22,22,100,50,50,50,8,1,10,8,35)
+   ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+   create (t_users) from aField, aType, aSize, aDec
+endif
+use (t_users) in 0 alias USERLIST index (i_users_1) key USR_NAME unique,(i_users_2) key EMAIL 
+set order to 0
+if reccount()=0
+   append blank
+   repl USR_ID with "00001"
+   repl USR_NAME with "admin"
+   repl USR_PSW  with "admin"
+   repl D_REG with date()
+   repl USR_GRP with "999"
+   repl FNAME with "Site admin"
+   repl SURNAME with "Local"
+   repl EMAIL with "admin@localhost"
+endif
+
+
+********************************************** START LOGIN PROCEDURE *******************************
+
+//-- INCOMING WEBVARS (BARE MINIMUM TO REDUCE ATTACK FOOTPRINT)
+//
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+
+//-- PERFORMING BACKGROUNG ACTIONS
+//
+select USERLIST
+do case
+***********************************************************************************************
+case cAction == "SAVE"
+***********************************************************************************************
+nRec := val(MSPFieldValue("VAR_RECNO"))
+sele USERLIST
+if nRec > 0 .and. nRec <= lastrec()
+   saveRec(nRec)
+endif
+cAction := "LOGIN"
+***********************************************************************************************
+endcase
+***********************************************************************************************
+%>
+<!----------------------------------- * START OF USER INTERFACE //----------------------------------------->
+<body bgcolor="#C0C0C0" background="../img/stucco.jpg">
+<%
+do case
+*==============================================================================================
+case empty(cAction) or cAction="LOGIN"
+*----------------------------------------------------------------------------------------------
+cNick := MSPFieldValue("VAR_NICK")
+%>
+<div align="center" class="content">
+<!---- login form start //---->
+<form name="login_form" action="<%=cSelf%>" method="post" style="border:solid 1px black; background-color: #FFFFFF;width:85%;" onSubmit="javascript:return checkForm(this);">
+<div style="position:relative; left:0; width:85%;">
+<br>
+<img border="0" src="login_bw.gif">
+<br>
+<font size="3"><b>User Login</b></font><br>
+User <input type="text" name="EF_USERNAME" value="<%=cNick%>" size="12" title="Input your username">&nbsp;&nbsp;
+Password <input type="password" name="EF_PASSWORD"  value="" size="12" title="Input your password (case sensitive)">
+<input type="hidden" name="VAR_ACTION" value="DO_LOG">
+<p><input type="submit" name="PB_OK" value="Do Login"></p>
+<p>New user?&nbsp;&nbsp;&nbsp; <br>
+<a href="<%=cSelf%>?VAR_ACTION=GET_NICK"><font color="#008000">Register from here</font></a><br>
+or<br>
+<a target="_top" href="<%=cBackLink%>"><font color="#000080">Go back to home page</font></a></p>
+<p>&nbsp;</p>
+</div>
+</form>
+<!--- login form end //--->
+<%
+sele USERLIST
+if reccount()=1
+   go 1
+   if zz(USR_NAME) = "admin" and zz(USR_PSW) = "admin"
+      ? "<h3>Warning</h3>Your DBFree site is not configured yet." html
+      ? "Connect as <b>admin</b> with password <b>admin</b>" html
+   endif
+endif 
+%>
+</div>
+<% 
+*----------------------------------------------------------------------------------------------
+case cAction="LIST"
+*----------------------------------------------------------------------------------------------
+//-- WARNING: this function is only for faciliting the developing cycle and
+//-- should be removed in the final version and before to expose the site to internet 
+//
+sele USERLIST
+%>
+<div align="center" class="content">
+<p align="center"></p><b><font size="3">List of Users</font></b> (debug only)
+<table width="100%" border="0" cellspacing="1" cellpadding="3" bgcolor="#999999">
+<tr>
+<td width="5%" bgcolor="#C0C0C0">#</td>
+<td bgcolor="#FFFFFF">Username</td> 
+<td bgcolor="#FFFFFF">Real name</td>
+<td bgcolor="#FFFFFF">E-Mail</td>
+</tr>
+<%
+go top
+do while ! eof()
+   %>
+   <tr>
+   <td width="5%" bgcolor="#C0C0C0">Rec.<%=str(recno(),4,0,"0")%></td>
+   <td bgcolor="#FFFFFF"><a href="<%=cSelf%>?VAR_ACTION=DISPLAY&VAR_RECNO=<%=wstr(recno())%>" title="Password is:<%=USR_PSW%>"><%=USR_NAME%></a></td> 
+   <td bgcolor="#FFFFFF"><%=capital(FNAME)%> <%=capital(SURNAME)%></td>
+   <td bgcolor="#FFFFFF"><%=EMAIL%></td>
+   </tr>
+   <%
+   skip
+enddo
+%>
+</table>
+</div>
+<%
+*----------------------------------------------------------------------------------------------
+case cAction="DISPLAY"
+*----------------------------------------------------------------------------------------------
+nRec := val(MSPFieldValue("VAR_RECNO"))
+sele USERLIST
+if (nRec > 0 .and. nRec <= lastrec())
+   go nRec
+   %>
+   <div align="center" class="content">
+   <h3>Your profile</h3>
+   <%=editRec(cSelf)%>
+   </div>
+   <%
+endif
+
+*----------------------------------------------------------------------------------------------
+case cAction="LOGOUT"
+*----------------------------------------------------------------------------------------------
+cUserKey xcUsrName
+select USERLIST
+set order to 1
+seek xUser
+if found()
+   if rlock(1)
+      repl TIME_LOG with time()
+      repl IS_LOGGED with .f.
+   endif
+else
+   ? "ERROR: user not found!"
+endif
+%>
+<div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<h3>OK. You're logged out</h3>
+<img border="0" src="logout_bw.gif"><a target="_top" href="<%=cBackLink%>">
+</a>
+<p><a target="_top" href="<%=cBackLink%>">Back to Home page</a></p>
+<p>&nbsp;</p>
+<script language="javascript">top.frm1.location='void.htm';top.frm4.location='void.htm';</script>
+</div>
+</div>
+<%
+*----------------------------------------------------------------------------------------------
+case cAction == "DO_LOG"
+*----------------------------------------------------------------------------------------------
+*##############################################################################################
+%>
+<script language="javascript">
+top.frm1.location='void.htm';
+top.frm4.location='void.htm';
+</script>
+<div align="center" class="content">
+<%
+cUserKey alltrim(MSPFieldValue("EF_USERNAME"))
+select USERLIST
+lAuthenticated :=.f.
+if empty(xUser)
+   %><h3>Must enter a valid username!</h3><a href="<%=cSelf%>">Back</a><%
+   return
+endif
+
+set order to 1
+seek xUser
+if found()
+   cInsertedPsw := MSPFieldValue("EF_PASSWORD")
+   if cInsertedPsw == alltrim(USERLIST->USR_PSW)
+      lAuthenticated :=.t.
+      if rlock(1)
+         repl TIME_LOG with time()
+         repl IS_LOGGED with .t.
+         repl LAST_LOG with date()
+         unlock
+      endif
+      xcUsrId   := USERLIST->USR_ID
+      xcUsrName := USERLIST->USR_NAME
+      xcUsrGrp  := USERLIST->USR_GRP
+      xcUsrRole := USERLIST->USR_ROLE
+      save all like x* to (xMemFile)
+      %>
+      <!----------------------------------- LOGIN OK -------------------------------------- //-->
+      <div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+      
+      <form action="<%=cWelcomePage%>" target="<%=cDestFrm%>" method="post">      
+      <h3>Welcome <%=capital(zz(FNAME))%>!</h3>
+      <p><img border="0" src="login_ok_bw.gif"><br>
+		<br>
+      <input type="submit" value="ENTER THE SITE">
+      <input type="hidden" value="<%=xcSeed%>" name="XY">
+      <input type="hidden" value="<%=cMenuLeft%>" name="VAR_MENU_LEFT">
+      <input type="hidden" value="<%=cMenuRight%>" name="VAR_MENU_RIGHT">
+      </form>
+      </div>
+      <!----------------------------------- PROFILE -------------------------------------- //-->
+		<p><a href="edit_profile.msp?X=<%=xMemFile%>&VAR_RECNO=<%=zz(recno())%>">Edit your profile</a>
+		<br>
+		or
+		<br>
+		<a href="<%=cSelf%>?VAR_ACTION=LOGOUT&VAR_USR_NAME=<%=xUser%>">
+		LOGOUT</a><br>
+      	<font size="1">(Please avoid to brutally close browser's window!)</font></p>
+   <% else %>
+   <h3><br>Password is wrong!</h3><img border="0" src="login_err_bw.gif">
+   <p><a href="<%=cSelf%>?VAR_ACTION=REMIND_PSW&VAR_USR_NAME=<%=xUser%>">Forgot your password?</a><br>
+	<br>
+	<a href="<%=cSelf%>?VAR_ACTION=LOGIN">Retry</a></p>
+   <%   
+   endif
+else
+   %><h3><br>Username [<%=xUser%>] not found!</h3>
+     <a href="<%=cSelf%>?VAR_ACTION=LOGIN">Retry</a> or 
+     <a href="<%=cSelf%>?VAR_ACTION=GET_NICK">Register as new user</a><%
+endif
+%></div><%
+*----------------------------------------------------------------------------------------------
+case cAction == "GET_NICK"
+*----------------------------------------------------------------------------------------------
+sele USERLIST
+cToday := date()
+cIp := getenv("REMOTE_ADDR")
+%>
+<div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<h3>&nbsp;</h3>
+<h3>Register as new user</h3>
+<form name="new_nick" method="post" action="<%=cSelf%>">
+	</b>Choose the username you wish to use for future connections<br>
+	<br>
+	<input type="text" name="EF_USERNAME" value="" size="16" title="Choose your username">
+	<input type="submit" value="Proceed" name="PB_OK"> 
+	<input type="hidden" name="VAR_ACTION" value="CHK_NICK">
+</form>
+<a href="<%=cSelf%>">Abort</a>
+<p></p>
+</div></div>
+<%
+*----------------------------------------------------------------------------------------------
+case cAction == "CHK_NICK"
+*----------------------------------------------------------------------------------------------
+%><div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<%
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+sele USERLIST
+if empty(cUsername)
+   %><h3>&nbsp;</h3>
+<h3>Please insert the username you wish to use!</h3>
+     <a href="<%=cSelf%>?VAR_ACTION=GET_NICK">Retry</a></p>
+   <%
+   return
+endif 
+sele USERLIST
+set order to 1
+seek cUsername
+if found()
+   %>
+   <p>&nbsp;</p><h3>Sorry!</h3>This username is already in use by someone else.<p>
+   <a href="<%=cSelf%>?VAR_ACTION=GET_NICK">Choose another </a>or
+	<a href="<%=cSelf%>?VAR_ACTION=LOGIN">Abort registyratopn</a></p><%
+else
+   %>
+   <p>&nbsp;</p><h3>Ok!</h3>Username is available.<p>
+   <a href="<%=cSelf%>?VAR_ACTION=ADD_USR&VAR_NICK=<%=cUsername%>">Proceed with registration</a></p>
+	<a href="../go.msp">Abort</a></p>
+	<p>&nbsp;</p>	
+	<%
+endif //found
+%></div></div><%
+*----------------------------------------------------------------------------------------------
+case cAction == "ADD_USR"
+*----------------------------------------------------------------------------------------------
+sele USERLIST
+cToday := date()
+cIp    := getenv("REMOTE_ADDR")
+cNick  := MSPFieldValue("VAR_NICK")
+%>
+<div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<h3>&nbsp;</h3>
+<h3>Registering as new user</h3>
+<form name="new_user" method="post" action="<%=cSelf%>">
+<input type="hidden" name="VAR_NICK" value="<%=cNick%>">
+<table border="0">
+	<!-- MSTableType="nolayout" -->
+	<tr>
+		<td align="right">Choose a nickname</td>
+		<td>
+	<input type="text" name="EF_USERNAME" value="<%=cNick%>" size="16" title="Choose your username"></td>
+	</tr>
+	<tr>
+		<td align="right">Choose your password</td>
+		<td>
+	<input type="text" name="EF_PASSWORD"  value="<%=MSPFieldValue("EF_PASSWORD")%>" size="12" title="Choose the password you want to use (remember it is case sensitive)"></td>
+	</tr>
+	<tr>
+		<td colspan="2" align="center">Insert a reminder in case you forget your password</td>
+	</tr>
+	<tr>
+		<td colspan="2" align="center">
+	<input type="text" name="EF_REMIND"  value="<%=MSPFieldValue("EF_REMIND")%>" size="65" title="Insert a reminder for your password (optional)"></td>
+		</tr>
+	<tr>
+		<td align="right">First Name:</td>
+		<td> <input type="text" name="EF_FNAME"  value="<%=MSPFieldValue("EF_FNAME")%>" size="35" title="Input you name (optional)"></td>
+	</tr>
+	<tr>
+		<td align="right">Last Name:</td>
+		<td> <input type="text" name="EF_SURNAME"  value="<%=MSPFieldValue("EF_SURNAME")%>" size="35" title="Input your surname (optional)"></td>
+	</tr>
+	<tr>
+		<td align="right">E-Mail address</td>
+		<td>
+		<input type="text" name="EF_EMAIL1"  value="" size="50" title="Input your E-Mail" onblur="validateMail(this.form.EF_EMAIL1);showDiv('email2');">
+	<font size="1" color="red">*<%=iif(lMailEnabled,"Mandatory","Optional")%></font>
+	</td>
+	</tr>
+	<tr>
+		<td align="right">Re-enter E-Mail</td>
+		<td><input type="text" id="email2" name="EF_EMAIL"  value="" size="50" title="Input your again E-mail" onblur="validateMail(this.form.EF_EMAIL);" style="display:none;"></td>
+	</tr>
+	<tr>
+		<td align="right">&nbsp;</td>
+		<td>&nbsp;</td>
+	</tr>
+</table>
+   <hr>	
+	<input type="hidden" name="VAR_ACTION" value="SAVE_USR">
+	<input type="submit" value="Confirm and register" name="PB_OK">&nbsp;&nbsp;&nbsp;<a href="<%=cSelf%>">Abort</a>
+</form>
+<p>Your IP address is [<%=cIp%>]
+</div>
+</div>
+<%
+*----------------------------------------------------------------------------------------------
+case cAction == "SAVE_USR"
+*----------------------------------------------------------------------------------------------
+%><div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<%
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+cMail1 := MSPFieldValue("VAR_EMAIL1")
+cMail2 := MSPFieldValue("VAR_EMAIL")
+
+sele USERLIST
+if empty(cUsername).or. empty(cPassword)
+   %>
+   <h3>&nbsp;</h3>
+<h3>Some field has not be filled!</h3>
+   You must supply all necessary informations to register succesfully.<p>
+   <a href="<%=cSelf%>">Abort registration</a>  |  <a href="<%=cSelf%>?VAR_ACTION=ADD_USR&<%=passVars(aVars)%>">Go back and correct</a>
+   <%
+   return
+endif
+
+//-- CHECKING EMAIL (ONLY IF ENABLED) 
+if lMailEnabled
+   if upper(cMail1)== upper(cMail2)
+      %>
+      <h3>Email address you entered don't match each other!</h3>
+      <a href="<%=cSelf%>">Abort</a>  |  <a href="<%=cSelf%>?VAR_ACTION=ADD_USR&<%=passVars(aVars)%>">Change Email address</a>
+      <%
+      return
+   endif 
+endif
+
+sele USERLIST
+set order to 1
+seek cUsername
+if found()
+   %><h3>Sorry!</h3>This name is already in use.<p>
+<a href="<%=cSelf%>?VAR_ACTION=ADD_USR">Choose another.</a></p><%
+else
+   append blank
+   nUsrId := recno()
+   go nUsrId
+   if rlock(2)
+      repl USERLIST->USR_ID with wstr(nUsrID)
+      repl USERLIST->USR_NAME with cUsername
+      repl USERLIST->USR_ID with str(recno(),5,0,"0")
+      repl USERLIST->USR_GRP with "GUESTS"
+      repl USERLIST->USR_ROLE with "10"
+      repl USERLIST->USR_PSW with cpassword
+      repl USERLIST->REMIND with cRemind
+      repl USERLIST->FNAME with cFname
+      repl USERLIST->SURNAME with cSurname
+      repl USERLIST->EMAIL with cEmail
+      repl USERLIST->D_REG with date()
+      repl USERLIST->EXP_DATE with date()+365
+      repl USERLIST->IS_LOGGED with .t.
+      repl USERLIST->USR_PAGE with cWelcomePage
+      unlock
+      if cOption = "REPL"
+         ? "Changes has been saved" html
+      else
+         %>
+         <p></p>
+         <font size="3"><b>Registration completed succesfully!</b></font>
+         <p>Now you can <a href="<%=cSelf%>?VAR_ACTION=LOGIN&VAR_NICK=<%=cUsername%>">login</a> 
+         <br>using you new account [<%=cUsername%>] with password [<%=cpassword%>]
+         <p></p>
+         <%
+      endif //option
+   endif //rlock
+endif //found
+%></div></div><%
+*----------------------------------------------------------------------------------------------
+case cAction == "REMIND_PSW"
+*----------------------------------------------------------------------------------------------
+%><div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<%
+cUserKey MSPFieldValue("VAR_USR_NAME")
+sele USERLIST
+if empty(xUser)
+   %><h3>&nbsp;</h3>
+<h3>You must insert your username!</h3><%
+else
+   set order to 1
+   seek xUser 
+   if found()
+      %>
+      <p>This is the reminder for your password:</p>
+      <input type="text" value="<%=USERLIST->REMIND%>">
+      <p><a href="<%=cSelf%>?VAR_ACTION=LOGIN&VAR_NICK=<%=xUser%>">Retry login</a>
+      <p><a href="<%=cSelf%>?VAR_ACTION=SEND_PSW&VAR_USR_NAME=<%=xUser%>">Send me my 
+		password by mail</a>
+      <%
+   endif
+endif
+%><p></p></div></div><%
+*----------------------------------------------------------------------------------------------
+case cAction == "SEND_PSW"
+*----------------------------------------------------------------------------------------------
+%><div align="center" class="content">
+<div style="border:solid 1px black; background-color: #FFFFFF;width:85%;text-align:center;">
+<%
+if not lMailEnabled
+   %>
+   <div align="center">
+   <h3>&nbsp;</h3>
+	<h3>Sorry!</h3>The administrator of this site did not allowed Email Password Retrieving.
+   <p><a href="<%=cSelf%>">Go Back</a>
+   </div>
+   <%
+else
+   cMailFolder := curDosDir()+"mailsender\"
+   if not file(cMailfolder)
+      md(cMailFolder)
+   endif
+   
+   //- -checking for BMAIL
+   declare aFlst[3]
+   cMsg := ""
+   lOk :=.t.
+   aFlst[1] := cMailFolder + "blat.exe"
+   aFlst[2] := cMailFolder + "blat.dll"
+   aFlst[3] := cMailFolder + "blat.lib"
+   for iii=1 to len(aFlst)
+      if not file(aFlst[iii])
+         lOk :=.f.
+         cMsg += "ERROR a required component is missing:<b>" + aFlst[iii]+"</b><br>"
+      endif
+   next
+
+   //-- account configuration file
+   if not file(cMailFolder + "blat.cfg")
+      cMsg += CR_LF + "ATTENTION: Mail account still needs to be configured by server administrator!"
+      cTxt := "-server smtp.dbfree.org" + CR_LF
+      cTxt += "-f nobody@dbfree.org" + CR_LF
+      cTxt += "-u nobody@dbfree.org" + CR_LF
+      cTxt += "-pw myPswrd"
+      memowrit(cMailFolder + "blat.cfg",cTxt)
+   endif
+
+   //-- encountered errors
+   if not lOk
+      ? "BLAT Working folder is: " + curDosDir() html
+      ? cMsg html
+      ? "<h3>Password recovery by mail is not installed or is misconfigured!</h3>" html
+      return
+   endif
+
+   //-- retrieving password to send
+   cUserKey MSPFieldValue("VAR_USR_NAME")
+   sele USERLIST
+   set order to 1
+   seek xUser 
+   if found()
+      cPsw      := alltrim(USR_PSW)
+      cEmail   := alltrim(EMAIL)
+      cUsrId   := alltrim(USR_ID)
+   	cBatch   := cMailFolder + cUsrId + ".cmd"
+   	cSubject := "Your password for login to our site"
+   	cBodyMsg := "This message is to remind your password, that is: " + cPsw
+   	cFileMsg := cMailFolder + cUsrId + ".msg"
+   	
+   	//-- file for body text
+   	cBodyHead := {{You receive this message because you asked for password recovery procedure of our web site WWW.DBFREE.ORG.}}
+   	cBodyFoot := {{Please do not reply to this mail.}}
+   	cMsg := cBodyHead+CR_LF+cBodyMsg+CR_LF+cBodyFoot
+      memowrit(cFileMsg,(cMsg))
+   
+      //-- building the batch
+      cStr :=""
+      cStr += left(cMailFolder,2) + CR_LF
+      cStr += "cd " + cMailFolder + CR_LF
+      *cStr += 'blat.exe -body "' + cBodyMsg + '"'
+      cStr += 'blat.exe ' + cFileMSg
+      cStr += " -of blat.cfg "
+      cStr += "-to " + cEmail + " "
+      cStr += "-subject " + '"' + cSubject + '"' + " "
+      cStr += "-debug"  
+      memowrit(cBatch, cStr)
+      %>
+      <div style="display:none">
+      <% 
+      run (cBatch) 
+      %>
+      </div>
+   <%   
+   lResult :=.t.
+   	if lResult
+   	   %>
+   	   <h3>Password Recovery System</h3>
+   	   Your password has been sent to [<%=cEmail%>]<br>
+   	   Wait about 10 minutes before to check your mailbox.
+   	   <p>
+   	    (debug) Batch file for recovery is [<a href="/core/edit_text.msp?VAR_FILE=<%=cBatch%>"><%=cBatch%></a>]
+   	   <%
+   	endif
+   else
+      ? "An error has occurred retrieving user data for [" + cEmail + "] = [" + USR_NAME + "]"
+   endif
+endif //- lMailEnabled
+%>
+<p></p></div></div>
+<%
+*----------------------------------------------------------------------------------------------
+case cAction="REPORT"
+*----------------------------------------------------------------------------------------------
+use (t_usrlog) index (cIdx2) key IP_ADDR 
+go top
+do while not eof()
+   ? IP_ADDR | " R:" | D_REG | " L:" | LAST_ACC html
+   skip
+enddo
+use
+
+*----------------------------------------------------------------------------------------------
+endcase
+*==============================================================================================
+%>
+<!----------------------------------- *debug info //----------------------------------------->
+<div align="center" id="debug" class="infobox" style="display:none">
+Database [<%=cDir%>] - Table [<%=filename(t_usrlog)%>:<%=zz(reccount())%>]</font>
+</div>
+<!----------------------------------- *footer --------------------------------------- //-->
+</body>
+</html>
+
+<%
+*-------------------------------------------------------------------------------
+function editRec( cUrl, aFieldsToDisplay)
+*-------------------------------------------------------------------------------
+//-- AUTOMATICALLY PRODUCE A FORM TAKING FIELDS FROM CURRENT RECORD
+//   cUrl: the target file to call submitting the form (defalt self)
+//   aFieldsToDisplay: array of fields to display (default all)
+//
+local nFields, cOut, aArr
+cOut := ""
+cOut += "<!------------------- start auto generation of edit form for parameters=" + wstr(pcount()) + "//--------------->" +CR_LF
+cOut += [<form name="form_] + str(recno(),6,0,"0") + [" action="] + cUrl + ["  method="post">]  + CR_LF
+
+//-- if passed 2 parameters the second is the array containing field names to display
+//   so we parse this array and build a form field for each element
+//
+if pcount()=2
+   if type(aFieldsToDisplay)="A"
+      if len(aFieldsToDisplay) > 0
+         for nnn = 1 to len(aFieldsToDisplay)
+             if aFieldsToDisplay[nnn,1] <> "PB" .and. .not. empty(aFieldsToDisplay[nnn,2])
+                if upper(aFieldsToDisplay[nnn,1]) <> "VAR_ACTION"
+                   cOut += '<input type="hidden" name="' + aFieldsToDisplay[nnn,1]+'" value="' + aFieldsToDisplay[nnn,2]+ '">'  + CR_LF
+                endif
+             endif
+         next
+      endif
+   endif
+endif
+
+//-- retrieving the total fields of current record
+nFields := fcount()
+
+//-- building a table to host all the fields and their values
+cOut += [<table border="0" cellspacing="0" bgcolor="#C0C0C0">] + CR_LF
+cOut +=  [<tr><th>Field</th><th>Fieldname</th><th>Input value</th></tr>] + CR_LF
+for iii = 1 to nFields
+   cLabel := fieldname(iii)
+   mVal   := fieldcont(fieldname(iii))
+   if type(mVal) = "C" .or. type(mVal) = "M"
+      mVal := alltrim(mVal)
+   elseif type(mVal) = "N"
+      mVal := ltrim(str(mVal))
+   elseif type(mVal) = "L"
+      mVal := iif(mVal,"Y","N")
+   endif
+   cOut +=  [<tr>]  + CR_LF
+   cOut +=  [<td>] + ltrim(str(iii)) + [</td>] + CR_LF
+   cOut +=  [<td align="right">] + capital(cLabel) + [&nbsp;</td>] + CR_LF
+   cOut +=  [<td align="left"><input type="text" name="EF_] + fchar(cLabel) + [" value="] + fchar(mVal) + ["></td>] + CR_LF
+   cOut +=  [</tr>]  + CR_LF
+next
+cOut += [</table>]  + CR_LF
+
+//-- if parameters were passed we made up a form to submit, so we need to put some button on it
+//   adding addictional parameters as well
+//
+if pcount()>0
+   cOut += [<input type="hidden" name="VAR_ACTION" value="SAVE">]
+   cOut += [<input type="hidden" name="VAR_RECNO" value="] + wstr(recno()) + [">]
+   cOut += [<input type="submit" name="PB_OK" value="Save Changes">]
+endif
+
+cOut += [</form>]  + CR_LF         
+cOut += "<!------------------- end auto generation of edit form //--------------->" +CR_LF
+
+return cOut
+
+*-------------------------------------------------------------------------------
+function saveRec(nRec)
+*-------------------------------------------------------------------------------
+//-- AUTOMATICALLY SAVES WEB VARS GENERATED BY EditRec() INTO CORRESPONDING FIELDS
+//   INTO A SPECIFIED RECORD
+//
+if pcount()>0 .and. nRec > 0 .and. nRec <= lastrec()
+   go nRec
+
+   //--- we build an array of two fields (columns) to store temp values
+   declare aValues[2,1]
+ 
+   //-- now we loop into incoming variables (e.g. the fields of the previous form)
+   //   and consider only those starting with prefix EF_ (entryfield) like those
+   //   we wisely named that way to identify them
+   nnn :=1
+   for iii= 1 to MSPFieldCount()
+      if MSPFieldName(iii) = "EF_"
+         //-- this is for debug: shows the incoming vars
+         *? str(nnn) + MSPFieldName(iii) html
+         //-- we fill the array
+         aRedim(aValues[2],nnn)
+         cFld := strTran(MSPFieldName(iii),"EF_","")
+         mVal := MSPFieldValue(iii)
+         aValues[1,nnn] := cFld
+         aValues[2,nnn] := mVal
+         nnn++
+      endif
+   next
+
+   //-- now that we collected changed values from the form we write them in the record
+   //   in the same exact order we retrieved them when we built the form  
+   if rlock(2)
+      for iii = 1 to len(aValues[2])
+         cFld  := aValues[1,iii]
+         mVal  := aValues[2,iii]
+         if not empty(mVal)
+            cOldCont := fieldcont(cFld)
+            cType := type(cOldCont)
+            *? cFld  + " ("+cType +") == [" +mVal + "]"
+            do case
+            case cType = "N"
+               mVal := val(mVal)
+            case cType = "D"
+               mVal := ctod(mVal)
+            case cType = "L"
+               mVal := iif(upper(mVal)$"YS1",.t.,.f.)
+            endcase
+            repl &cFld with mVal
+         endif
+      next
+      unlock
+      ? "Record has been updated" 
+   else
+      ? "ERROR: could not lock record " + str(nRec) html
+   endif
+else
+   ? "ERROR: di not receive the number of the record to go to" html
+endif
+return
+
+*----------------------------------------------------------------------------
+function chkMsg()
+*----------------------------------------------------------------------------
+//-- message system is not implemented in this version
+return ""
+
+****************************************
+function passKey()
+****************************************
+local cTxt
+cTxt :=""
+cTxt += '<input type="hidden" name="VAR_USR_NAME" value="' + cUsrName +'">'
+cTxt += '<input type="hidden" name="VAR_USR_GRP" value="' + cUsrGrp +'">'
+cTxt += '<input type="hidden" name="VAR_USR_ROLE" value="' + cUsrRole +'">'
+return cTxt
+%>

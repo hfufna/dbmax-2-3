@@ -1,0 +1,277 @@
+<!doctype html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+xAllEdit := MSPFieldValue("ALLOW")
+cDbPath := setDb("reference")
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VAR_OPTION")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb  := MSPFieldValue("VAR_SETDB")
+cDbRoot := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+//-- 10 RECORD HANDLING
+cSetDb := MSPFieldValue("VAR_SETDB")
+cTable := MSPFieldValue("VAR_TABLE")
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+
+//-- MISC
+CR_LF := chr(13)+chr(10)
+*************************************************************DBFREE-2-23*
+cDbPath := setDb("reference")
+cTxtPath := curDir()
+lAllowEdit := iif(empty(MSPFieldValue("XALLOW")),.f.,.t.)
+
+%>
+<!---  <%=pagename()%>  -- <%=libInfo()%> -- <%=xcLib%>//-->
+<!--- end 12 //--->
+<!-- 13 //-->
+<%
+//-- LOOKING FOR TABLES IN DB PATH
+//
+cDb   := cDBpath + "EXAMPLES.DBF"
+cMdx  := cDBpath + "EXAMPLES_BY_ELEM.MTX"
+
+//-- if not existing let's create them
+if not file(cDb)
+  ainit( "aField","POS","ELEMENT","TITLE","TXT_FILE","DESCR","SECTION","GROUP","CLASS")
+  ainit( "aType","N","C","C","C","M","C","C","C")
+  ainit( "aSize",2,35,80,50,10,20,20,20)
+  ainit( "aDec",0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  use (cDb) index (cMdx) key ELEMENT
+  use
+endif
+
+use (cDb) in 0 index (cMdx) key ELEMENT 
+set order to 1
+%>
+<!--- end 13 //--->
+<body>
+
+<%
+//-- showing how many examples for this language element
+cElement := MSPFieldValue("VAR_ELEMENT")
+
+cQuery := ""
+if not empty(cElement)
+cQuery := "ELEMENT='" + cElement + "'"
+   set filter to &cQuery
+   go top
+endif
+count to nTot
+%>
+<h2><%=cElement%></h2>
+<%=nTot%> examples found for <%=dbFilter()%>
+<%
+if lAllowEdit .and..not. empty(cElement)
+   %>
+   <hr>
+   <a href="<%=cSelf%>?VAR_ACTION=XAPPEND&VAR_ELEMENT=<%=MspEncode(cElement)%>">
+   Add new example for element [<%=cElement%>]</a>
+   <hr>
+   <%
+endif
+%>
+<!--- 14 //--->
+<%
+do case
+*==================================================================================
+case cAction = "XAPPEND"
+*----------------------------------------------------------------------------------
+append blank
+nRecno := recno()
+go nRecno
+if rlock(2)
+   repl POS with nTot+1
+   repl ELEMENT with cElement
+   repl title with "Example of using " + cElement
+   repl TXT_FILE with cTxtPath + "\" + convert(cElement) + str(POS,2,0,"0") + ".txt"
+endif
+cAction := "DISPLAY"
+
+*----------------------------------------------------------------------------------
+case cAction = "XSAVE"
+*----------------------------------------------------------------------------------
+saveRecord(nRecno,aVars)
+cAction := "LIST"
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<!--- end 14 //--->
+<!---------------------------- start of MaxObject section #11  foreground actions //-------------------------->
+<%
+do case
+*==================================================================================
+case empty(cAction) .or. cAction="LIST"
+*----------------------------------------------------------------------------------
+%>
+<table width="100%" class="t_tbl">
+<%
+rrr :=0
+go top
+do while not eof()
+   rrr++
+   cFile := zz(TXT_FILE)
+   %>
+   <tr>
+      <td class="t_row" width="30px"><%=zz(POS)%>
+   </td>
+   <td class="t_row">
+      <% if file(cFile)%>
+      <a href="<%=cFile%>">See example <%=zz(POS)%></a>
+      <% else %>
+      <a href="<%=cSelf%>?VAR_ACTION=DISPLAY&VAR_RECNO=<%=zz(recno())%>&VAR_ELEMENT=<%=cElement%>"><%=zz(TITLE)%></a>
+      <% endif %>
+   </td>
+   </tr>
+   <%
+   skip
+enddo
+%>
+</table>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "DISPLAY"
+*----------------------------------------------------------------------------------
+go nRecno
+if cOption="XEDIT"
+endif
+%>
+<form action="<%=cSelf%>" method="post" class="webform">
+<table border="0" class="table1">
+
+<tr>
+   <td class="td1"><font color="#FFFFFF">1</font></td>
+   <td  class="td1" align="right"><font color="#666666">POS&nbsp;(N)10</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_POS" value="<%=zz(POS)%>" size=10>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">2</font></td>
+   <td  class="td1" align="right"><font color="#666666">ELEMENT&nbsp;(C)35</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_ELEMENT" value="<%=zz(ELEMENT)%>" size=35>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">3</font></td>
+   <td  class="td1" align="right"><font color="#666666">TITLE&nbsp;(C)80</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_TITLE" value="<%=zz(TITLE)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">4</font></td>
+   <td  class="td1" align="right"><font color="#666666">TXT_FILE&nbsp;(C)50</font></td>
+   <td align="left" class="td1">
+   <%
+   if not file(zz(TXT_FILE))
+      memowrit(zz(TXT_FILE),"*-- Example file ")
+   endif
+   %>
+    <a href="/core/edit_text.msp?VAR_FILE=<%=zz(TXT_FILE)%>" title="Editing file <%=zz(TXT_FILE)%>">Modify</a>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">5</font></td>
+   <td  class="td1" align="right"><font color="#666666">DESCR&nbsp;(M)41</font></td>
+   <td align="left" class="td1">
+    <textarea name="EF_DESCR" rows=4 cols=40><%=zz(DESCR)%></textarea>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">6</font></td>
+   <td  class="td1" align="right"><font color="#666666">SECTION&nbsp;(C)20</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_SECTION" value="<%=zz(SECTION)%>" size=20>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">7</font></td>
+   <td  class="td1" align="right"><font color="#666666">GROUP&nbsp;(C)20</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_GROUP" value="<%=zz(GROUP)%>" size=20>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">8</font></td>
+   <td  class="td1" align="right"><font color="#666666">CLASS&nbsp;(C)20</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_CLASS" value="<%=zz(CLASS)%>" size=20>
+    </td>
+</tr>
+      
+</table>
+<hr>
+<input type="hidden" name="VAR_ACTION" value="XSAVE">
+<input type="hidden" name="VAR_OPTION" value="">
+<input type="reset" name="PB_ESC" value="Reset form">&nbsp;
+<input type="submit" name="PB_OK" value="Send to server">
+</form>  
+<%
+*----------------------------------------------------------------------------------
+otherwise
+*----------------------------------------------------------------------------------
+   ? "Action code [" + cAction + "] not recognized."
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<!---------------------------- end of foreground actions //-------------------------->
+</body>
+
+</html>
+<%
+*****************************
+function convert(cTxt)
+*****************************
+cTxt := strTran(cTxt,"(","")
+cTxt := strTran(cTxt,")","")
+cTxt := strTran(cTxt," ","")
+return cTxt
+%>

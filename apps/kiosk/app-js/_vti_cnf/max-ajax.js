@@ -1,0 +1,9 @@
+vti_encoding:SR|utf8-nl
+vti_author:SR|HP-AMDX4\\admin
+vti_modifiedby:SR|HP-AMDX4\\admin
+vti_timelastmodified:TR|31 Oct 2013 18:44:01 -0000
+vti_timecreated:TR|31 Oct 2013 18:44:01 -0000
+vti_cacheddtm:TX|31 Oct 2013 18:44:01 -0000
+vti_filesize:IR|692
+vti_extenderversion:SR|6.0.2.8161
+vti_backlinkinfo:VX|

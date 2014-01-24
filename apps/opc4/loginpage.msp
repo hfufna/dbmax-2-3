@@ -1,0 +1,119 @@
+<html>
+<%
+xAppId := "opc4"
+lDebug :=.f.
+********************************************* DBMAX-2-3-5 MASTER HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+****************************************
+CR_LF := chr(13)+chr(10)
+
+*********************************************
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+
+//-- SEARCH SYSTEM
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+//-- INITIALIZING LOGIN MEMORY SYSTEM 
+cSeed := makeseed()
+xMemDir := getMemPath(xAppId,.t.)
+if not isDir(xMemDir)
+   md(xMemDir)
+endif 
+            
+//-- INITIALIZING SESSION VARS
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+
+xMemory   := getMemFile(cSeed)
+xGlobals  := webRoot() + "\globals.mem"
+xStarter  := pagename()
+xDateTime := timestamp()
+            
+//-- INITIALIZING SPECIFIC SESSION VARS
+xUser     := ""
+xPsw      := ""
+xHome     := pagename()
+xBack     := pagename()
+            
+//-- SAVING ALL TO SESSION FILE TO PASS TO NEXT PAGES
+save all like x* to (xMemory)
+
+********************************************** END MASTER HEADER
+
+set dbtype to dbase
+%>
+<%=appInfo()%>
+<%
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+***********************************************
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<%
+do case
+*************************************
+case empty(cAction)
+*************************************
+%>
+<%=include("tpl/banner.htm")%>
+<div class="row" style="margin-top:100px;">
+<div class="col-sm-2 col-md-3 col-lg-4">
+</div>
+<div class="col-sm-8 col-md-6 col-lg-4">
+<h3 align="center">Accedi al sistema OPC4</h3>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form">
+   <div class="input-group">
+     <span class="input-group-addon">Username</span>
+     <input type="text" class="form-control" placeholder="Inserisci il tuo nome utente" id="" name="EF_USERNAME">
+   </div>
+   <br>
+   <div class="input-group">
+     <span class="input-group-addon">Password</span>
+     <input type="text" class="form-control" placeholder="Inserisci la tua password" id="" name="EF_USERPSW">
+   </div>
+   <br>
+<input type="hidden" name="VA" value="DL">
+<input class="btn btn-primary" type="submit" name="PB_OK" value="Accedi al sito">
+</form>
+<!--- form end //--->
+</div>
+<div class="col-sm-2 col-md-3 col-lg-4">
+</div>
+<%
+*************************************
+case cAction = "DL"
+*************************************
+%>
+<%=include("tpl/navbar.htm")%>
+<div class="badge"><%=cSeed%></div>
+<a class="btn btn-sm btn-primary" href="menu.msp?XY=<%=cSeed%>&VU=">Menu OPC4</a>
+<%
+*************************************
+endcase
+*************************************
+%>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+</body>
+
+</html>

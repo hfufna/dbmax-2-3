@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+         DBFREE 3.0 
+         Basic template for MaxScript 2.3 standard script page (classic mode)
+         Written by G.Napolitano (www.dbfree.org) - October 2012
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>MaxScript Active Page</title>
+</head>
+
+<style type="text/css">
+a {color:white;text-decoration:none;}
+a:visited {color:white;}
+a:hover {text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<%
+************************************************************ DBFree HEADER_3.0.1.1
+//-- 1 LIBRARY 
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- 2 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 3 SESSION HANDLING VIA MEMORY FILE
+cSeed    := MSPFieldValue("XY")
+cIp      := getenv("REMOTE_ADDR")
+xMemFile := mspconfigvar("DATADIR")+"\_mem\login\"+strTran(cIp,".","_")+"_" + cSeed + ".mem"
+restore from (xMemFile) additive
+
+//-- 4 STANDARD MAXOBJECT WEBVARS
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := MSPFieldValue("VAR_ACTION")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cSelf   := pageName()
+
+*
+*  DONT FORGET TO ALWAYS PASS THE WEBVAR XY AND ITS SEED!
+*
+************************************************************ END HEADER
+CR_LF := chr(13)+chr(10)
+%><!---  <%=pagename()%> //-->
+<body>
+<% 
+//--SETTING DB PATH FIXED (OVERRIDES ANY PARAMETER PASSED)
+//  This is a security feature
+//
+cDir := setDb("noticeboard2")
+
+//-- OPENING TABLE OF USER MENUS
+//
+cTable   := cDir + "usr.dbf"
+cIndex1  := cDir + "users_by_name.MTX"
+cIndex2  := cDir + "users_by_email.MTX"
+
+//-- OPENING TABLES AND INDEXES
+//   if indexes not existing will be created
+//
+use (cTable) index (cIndex1) key USR_NAME unique,(cIndex2) key EMAIL 
+set order to 1
+
+//-- SEEKING USER
+seek xcUsrName
+if found()
+   nRecno := recno()
+else
+   ? "<h3>ERROR: Could not find user!</h3>Try rebuilding the indexes." html
+   return
+endif
+
+nRecno      := val(MSPFieldValue("VAR_RECNO"))
+dD_reg      := ctod(MSPFieldValue("EF_D_REG"))
+cUsr_id     := MSPFieldValue("EF_USR_ID")
+cUsr_name   := MSPFieldValue("EF_USR_NAME")
+cUsr_grp    := MSPFieldValue("EF_USR_GRP")
+cUsr_role   := MSPFieldValue("EF_USR_ROLE")
+cUsr_psw    := MSPFieldValue("EF_USR_PSW")
+cRemind     := MSPFieldValue("EF_REMIND")
+cFname      := MSPFieldValue("EF_FNAME")
+cSurname    := MSPFieldValue("EF_SURNAME")
+cEmail      := MSPFieldValue("EF_EMAIL")
+dExp_date   := ctod(MSPFieldValue("EF_EXP_DATE"))
+lIs_logged  := iif(MSPFieldValue("EF_IS_LOGGED")="S",.t.,.f.)
+cTime_log   := MSPFieldValue("EF_TIME_LOG")
+dLast_log   := ctod(MSPFieldValue("EF_LAST_LOG"))
+cUsr_page   := MSPFieldValue("EF_USR_PAGE")
+
+do case
+*==================================================================================
+case cAction = "SAVE"
+*----------------------------------------------------------------------------------
+if nRecno > 0 .and. nRecno <= lastrec()
+   go nRecno
+
+   //--- we build an array of two fields (columns) to store temp values
+   declare aValues[2,1]
+ 
+   //-- now we loop into incoming variables (e.g. the fields of the previous form)
+   //   and consider only those starting with prefix EF_ (entryfield) like those
+   //   we wisely named that way to identify them
+   nnn :=1
+   for iii= 1 to MSPFieldCount()
+      if MSPFieldName(iii) = "EF_"
+         //-- this is for debug: shows the incoming vars
+         *? str(nnn) + MSPFieldName(iii) html
+         //-- we fill the array
+         aRedim(aValues[2],nnn)
+         cFld := strTran(MSPFieldName(iii),"EF_","")
+         mVal := MSPFieldValue(iii)
+         aValues[1,nnn] := cFld
+         aValues[2,nnn] := mVal
+         nnn++
+      endif
+   next
+
+   //-- now that we collected changed values from the form we write them in the record
+   //   in the same exact order we retrieved them when we built the form  
+   if rlock(2)
+      for iii = 1 to len(aValues[2])
+         cFld  := aValues[1,iii]
+         mVal  := aValues[2,iii]
+         if not empty(mVal)
+            cOldCont := fieldcont(cFld)
+            cType := type(cOldCont)
+            *? cFld  + " ("+cType +") == [" +mVal + "]"
+            do case
+            case cType = "N"
+               mVal := val(mVal)
+            case cType = "D"
+               mVal := ctod(mVal)
+            case cType = "L"
+               mVal := iif(upper(mVal)$"YS1",.t.,.f.)
+            endcase
+            repl &cFld with mVal
+         endif
+      next
+      unlock
+   else
+      ? "ERROR: could not lock record " + str(nRecno) html
+   endif
+else
+   ? "ERROR: di not receive the number of the record to go to" html
+endif
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<body>
+<h3>Edit your profile</h3>
+<form method="post" action="<%=cSelf%>">
+	<table border="0" id="table1" width="100%">
+		<tr>
+			<th bgColor="#E2E2E2" align="left">&nbsp;</th>
+			<th bgColor="#E2E2E2" align="left">
+	<input value="Save changes" type="submit" name="PB_OK"></th>
+	<input type="hidden" name="VAR_ACTION" value="SAVE">
+	<input type="hidden" name="VAR_RECNO" value="<%=zz(recno())%>">
+	<input type="hidden" name="EF_USR_ID" value="<%=zz(USR_ID)%>" >
+		</tr>
+			 
+		<tr>
+			<td bgColor="#FFFFFF" align="right"><font color="#666666">User Name</font></td>
+			<td bgColor="#FFFFFF" align="left">
+			<input readonly value="<%=zz(USR_NAME)%>" size="16" name="EF_USR_NAME"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">Current user group</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(USR_GRP)%>" size="9" name="EF_USR_GRP"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">Current user role</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(USR_ROLE)%>" size="5" name="EF_USR_ROLE"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">Current password</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(USR_PSW)%>" size="9" name="EF_USR_PSW"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">Reminder phrase</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(REMIND)%>" size="67" name="EF_REMIND"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">FirstName</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(FNAME)%>" size="40" name="EF_FNAME"> 
+			</td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">Surname</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(SURNAME)%>" size="18" name="EF_SURNAME"> </td>
+		</tr>
+		<tr>
+			<td bgColor="#FFF4DF" align="right">E-Mail</td>
+			<td bgColor="#FFF4DF" align="left">
+			<input value="<%=zz(EMAIL)%>" size="40" name="EF_EMAIL"> 
+			</td>
+		</tr>
+		</table>
+	<hr>
+	<%=passFields(aVars)%>
+</form>
+<div style="position:absolute; width:100%; bottom:0; left:0;">
+</div>
+</body>
+</html>

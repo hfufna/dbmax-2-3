@@ -1,0 +1,242 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOX DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- local variables
+cMsg := "" + MSPFieldValue("VAR_ACTION")
+
+//-- LOCAL VARIABLES
+cMsg := ""
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable+"&VAR_DBTYPE="+cDbType
+cDbLabel := dirName(cDir)
+cDbLabel := WordRight(cDbLabel,"\",1)
+%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<head><base target="frm2"></head>
+<body style="margin-top:-40px;background-color:#000000;">
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+do case
+*----------------------------------------------------------------------------------
+case empty(cAction)
+*----------------------------------------------------------------------------------
+%>
+<script language="javascript">top.frm2.location='dbe_display_stru.msp?XY=<%=cSeed%>&<%=dblslash(cParmStr)%>';</script>
+
+<table border="0" width="100%" id="table1" cellspacing="0" cellpadding="4">
+   <tr>
+      <td ><a class="btn btn-sm btn-default" target="_self" href="dbe_list_tables.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cTable%>&VAR_DIR=<%=cDir%>&VAR_DBTYPE=<%=cDbType%>">Back</a></td>
+      <td align="right" width="40%" nowrap>&nbsp;</td>
+   </tr>
+   <tr>
+      <td colspan="2" bgcolor="#990000">
+      <a href="dbe_display_stru.msp?XY=<%=cSeed%>&<%=cParmStr%>" target="frm2"><img border="0" src="img/d81_table_ico.gif" width="23" height="18"></a>
+      <a href="dbe_browse.msp?XY=<%=cSeed%>&<%=cParmStr%>"><font color="#FFFFFF"><%=filebone(cTable)%> </font></a>
+      <% if not empty(cDbType) %>
+            [<%=left(cDbType,1)%>]
+      <% endif %>
+    </td>
+    </tr>   
+	<tr>
+	   <td colspan="2" height="6"></td>
+	</tr>
+</table>
+<table border="0" id="table1" cellspacing="0" cellpadding="2" width="100%">	
+	<tr>
+		<td bgcolor="#01322C" colspan="2"><font color="#FFCC00">Manage data</font></td>
+	</tr>
+	<tr>
+		<td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+		<td bgcolor="#000000"><a href="dbe_copy_table.msp?XY=<%=cSeed%>&<%=cParmStr%>">Copy to another table</a></td>
+	</tr>
+	<tr>
+		<td bgcolor="#000000" width="22"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+		<td bgcolor="#000000"><a href="dbe_export_table.msp?XY=<%=cSeed%>&<%=cParmStr%>">Copy 
+		to an export file</a></td>
+	</tr>
+	<tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><a href="dbe_void_table.msp?XY=<%=cSeed%>&<%=cParmStr%>">Void the table 
+		content</a></td>
+   	</tr>
+	<tr>
+		<td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+		<td bgcolor="#000000"><a href="dbe_append_table.msp?XY=<%=cSeed%>&<%=cParmStr%>">Import from a table</a></td>
+	</tr>
+	<tr>
+		<td colspan="2" height="6"></td>
+	</tr>
+	<tr>
+		<td bgcolor="#01322C" colspan="2"><font color="#FFCC00">Manage the table</font></td>
+	</tr>
+
+	<tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><a href="dbe_modistru.msp?XY=<%=cSeed%>&<%=cParmStr%>">Modify structure</a></td>
+      </tr>
+	<tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><a href="dbe_delete_table.msp?XY=<%=cSeed%>&<%=cParmStr%>">Delete table from DB</a></td>
+   	</tr>
+	<tr>
+		<td colspan="2" height="6"></td>
+	</tr>
+	<tr>
+		<td bgcolor="#01322C" colspan="2"><font color="#FFCC00">Generate code</font></td>
+	</tr>
+   <tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><a href="dbe_codegen_rebuild.msp?XY=<%=cSeed%>&<%=cParmStr%>">for building the table</a></td>
+   </tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><a href="dbe_codegen_form.msp?XY=<%=cSeed%>&<%=cParmStr%>">for a web form</a></td>
+   </tr>
+	<tr>
+      <td bgcolor="#000000"><img border="0" src="img/d81_toolsmall_ico.gif" width="15" height="15"></td>
+      <td bgcolor="#000000"><font color="#808080">for a master-slave link</font></td>
+   	</tr>
+	<tr>
+		<td colspan="2" height="6"></td>
+	</tr>
+	</table>
+<p>
+<%
+*----------------------------------------------------------------------------------
+endcase
+*----------------------------------------------------------------------------------
+%>
+<%=container(0)%>
+</body>
+<!----------------------------------- END BODY -------------------------------------- //-->
+</html>
+<%
+****************************
+function dirName(cDbLabel)
+****************************
+if right(cDbLabel,1)="\"
+   cDbLabel := trimRight(cDbLabel,1)
+endif
+cDbLabel := wordRight(cDbLabel,"\",1)
+return cDbLabel
+%>

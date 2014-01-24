@@ -1,0 +1,256 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "diario"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nMonthDays := max(MSPFieldCount(),1)
+declare aVars[ nMonthDays,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+//-- INCOMING WEBVARS
+nMonth := val(MspFieldValue("VAR_MONTH"))
+nWeek  := val(MspFieldValue("VAR_WEEK"))
+
+
+cTable10  := cDir + "GIORNI.DBF"
+cIndex10  := cDir + "GIORNI.MTX"
+use (cTable10) in 0 alias GIORNI index (cIndex10)
+set filter to USER=upper(xUser)
+go top
+
+cTable1  := cDir + "DETTAGLI.DBF"
+cIndex1  := cDir + "DETTAGLI.MTX"
+cIndex2  := cDir + "DETTAGLI-D.MTX"
+use (cTable1) in 0 alias DETTAGLI index (cIndex1),(cIndex2)
+
+
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h2>
+<%=capital(xUser)%>'s Diary <a href="view_month.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nMonth)%>"><u><%=zaMonths[nMonth]%></u></a>
+<a href="view_year.msp?XY=<%=cSeed%>&VAR_YEAR=<%=zz(znYear)%>"><%=znYear%></a> 
+<a class="btn btn-sm btn-warning" href="build_view.msp?XY=<%=cSeed%>&VAR_YEAR=<%=zz(znYear)%>&VAR_MONTH=<%=zz(nMonth)%>">Riepilogo</a>
+<a class="btn btn-sm btn-primary pull-right" href="view_year.msp?XY=<%=cSeed%>&VAR_YEAR=<%=zz(znYear)%>">Calendario <%=znYear%></a>
+</h2>
+
+<%
+select DETTAGLI
+set order to 2
+go top
+if nWeek = 0
+   set filter to MESE=nMonth .and. USER=upper(xUser)
+else
+   set filter to MESE=nMonth and SETTIM=nWeek .and. USER=upper(xUser)
+endif
+go top
+%>
+<div class="row">
+<%
+//-- page to show when clicking on month
+cLink1 := "view_day.msp?XY="+cSeed
+cLink2 := "view_month.msp?XY="+cSeed
+
+nTotDays   := 0
+dFirst     := ctod("01/" + zz(nMonth) + "/" + zz(znYear))
+dToday     := dFirst + nTotDays
+nWeek      := week(dFirst)
+nMonthDays := daysOfMonth(nMonth)  %>
+
+<div align="center">
+
+<table border="0" id="tbmonth" style="width:90%" cellspacing="5" cellpadding="2">
+<tr>
+<td colspan="2" align="right" bgcolor="#C3DAF9">
+<% if nMonth >1 %>
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nMonth-1)%>" class="btn sm btn-default"><%=zaMonths[nMonth-1]%></a>
+<% endif %></td>
+<td colspan="3" align="center" bgcolor="#C3DAF9">
+<!----------- * link to month display page //---------------->
+<a href="<%=cLink2%>&VAR_MONTH=<%=zz(nMonth)%>"><font size="3" color="navy"><%=zaMonths[nMonth]%> <%=znYear%></b></font></a>
+</td>
+<td colspan="2" bgcolor="#C3DAF9" align="left">
+<% if nMonth <12 %>
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nMonth+1)%>" class="btn sm btn-default"><%=zaMonths[nMonth+1]%></a>
+<% endif %>
+</td>
+</tr>
+<!-- dayweek column labels //-->
+<tr><% for iii=1 to len(zaWeekDays) %><td><%=zaWeekDays[iii]%></td><% next %></tr><tr>
+<!-- columns with days //-->
+<%
+//-- cells to skip to get correct alignement 
+//   under the dayweek column label
+//
+nSkip    := dow(dToday)  //-- empty cells to insert
+if nSkip > 1
+   for ccc=1 to nSkip-1
+   %>
+   <td>&nbsp;</td>
+   <%
+   next
+endif
+rrr := nSkip-1
+//-- place a day link for each remaining column
+for ccc=1 to nMonthDays
+   cClr := "#C0C0C0"
+   cBgr := "#FFFFFF"
+   dToday := dFirst + nTotDays
+   
+   select GIORNI
+   seek dToday
+   if found()
+      if not empty(TITOLO)
+         cClr := "black"
+      endif
+      if ("FE" $ upper(zz(LAVORO)).or.dow(dToday)=1.or.dow(dToday)=7 )
+         cBgr := "#F3F3F3"
+      endif
+      if ("MA" $ upper(LAVORO) .or. "MA" $ upper(SALUTE))
+         cClr := "teal"
+         cBgr := "#FFFFCC"
+      endif
+      if "ME" $ upper(SALUTE)
+         cClr := "orange"
+      endif
+      if not empty(SESSO)
+         cBgr := "#FEA584"
+      endif
+   endif
+   cMsgLuogo  := zz(LUOGO)
+   cMsgLavoro := zz(LAVORO)
+   cMsgSalute := zz(SALUTE)
+   cMsgSesso  := zz(SESSO)
+   cMsgPersone:= zz(PERSONE)
+   cReport    := zz(TITOLO) + CR_LF + zz(REPORT)
+   cTitolo    := zz(TITOLO)
+   
+   select DETTAGLI
+   rrr++
+   nTotDays++
+   ainit("aList","")
+   seek dToday
+   cTitle := ""
+   if found()   //-- ci sono dati per questo giorno
+      *cClr := "gray"
+      do while DATA=dToday
+         eee := agrow(aList)
+         aList[eee] := zz(ORA) + " " + zz(SFERA)
+         do case
+         case SFERA ="Intra"
+            *cClr := "teal"
+         case SFERA ="Sess"
+            *cClr := "#EF0021"
+         endcase
+         skip
+     enddo
+   endif
+   asort(aList)  
+   for uuu=1 to len(aList)
+      cTitle += aList[uuu]+chr(141)
+   next   
+   
+   if dToday = date()
+      cBgr := "yellow"
+   endif
+   if "boddi" $ lower(cMsgPersone)
+      cBgr := "lime"
+   if not empty(cMsgSesso)
+      cBgr := "#FEA584"
+      cClrt := "white"
+   endif
+   endif
+   %>
+   <!----------- * //---------------->
+   <td align="right" width="12%" bgcolor="<%=cBgr%>" style="border:solid 1px gray; min-width:90px;max-width:12%;">
+   <a title="<%=zz(cReport)%>" href="<%=cLink1%>&VAR_MONTH=<%=zz(nMonth )%>&VAR_DAY=<%=dToday%>">
+   <font size="1" color="gray"><%=itDow(dToday)%></font>
+   <span class="badge" style="background-color:#EFEFEF;"><font size="5" color="<%=cClr%>"><b><%=zz(day(dToday))%></b></font></a></span>
+   <div class="panel"><font size="1">:: <%=cTitolo%></font></div>
+   
+   <table>
+   <% if not empty(cMsgLuogo) %>
+      <tr><td style="padding: 1px 1px 1px 1px;margin: 0px 0px 0px 0px;"><font size="1" color="maroon"><%=cMsgLuogo%></font></td></tr>
+   <% endif%>
+   <% if not empty(cMsgLavoro) %>
+      <tr><td style="padding: 1px 1px 1px 1px;margin: 0px 0px 0px 0px;"><font size="1" color="black"><%=cMsgLavoro%></font></td></tr>
+   <% endif%>
+   <% if not empty(cMsgSalute) %>
+      <tr><td style="padding: 1px 1px 1px 1px;margin: 0px 0px 0px 0px;"><font size="1" color="navy"><%=cMsgSalute%></font></td></tr>
+   <% endif%>
+   <% if not empty(cMsgSesso) %>
+      <tr><td style="padding: 1px 1px 1px 1px;margin: 0px 0px 0px 0px;"><span style="background-color:red; color:white;"><font size="1"><%=cMsgSesso%></span></font></td></tr>
+   <% endif%>
+   <% if not empty(cMsgPersone) %>
+      <tr><td style="padding: 1px 1px 1px 1px;margin: 0px 0px 0px 0px;"><font size="1" color="green"><%=cMsgPersone%></font></td></tr>
+   <% endif%>
+   </table>
+   </td>
+   <!----------- * //---------------->
+   <%
+   //-- counter for days placed over seventh column
+   if rrr > 6
+      %></tr><tr><%
+      rrr := 0
+      nWeek++
+   endif
+next 
+%>
+</table>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal3.htm")%>
+</body>
+</html>

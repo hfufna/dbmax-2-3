@@ -1,0 +1,526 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+//-- 1 LIBRARY - loading DBFree external library function
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xRoot := strTran(xRoot,"/","\")
+xcLib   := xRoot + "\lib\dbmax25.max"
+set maxlib to &xcLib
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VAR_OPTION")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb  := MSPFieldValue("VAR_SETDB")
+cDbRoot := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+//-- MISC
+CR_LF := chr(13)+chr(10)
+
+************************************************************
+lAllowEdit := iif(empty(MSPFieldValue("XALLOW")),.f.,.t.)
+
+cDbPath := setDb("reference")
+
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+
+//-- standard DBFree MTX indexes
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not open"
+   return
+endif
+set order to 0
+go top
+
+//-- incoming webVars
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+nRecno := iif(nRecno=0,1,nRecno)
+if nRecno > lastrec()
+   nRecno := lastrec()  
+endif
+
+cGroup   := upper(MSPFieldValue("VAR_GROUP"))
+cGroup   := trimRight(cGroup,1)
+cSection := upper(MSPFieldValue("VAR_SECTION"))
+cSection := trimRight(cSection,1)
+
+do case
+*==================================================================================
+case cAction = "GORECNO"
+*----------------------------------------------------------------------------------
+//-- 
+if nRecno >0
+   go nRecno
+   lAllowEdit := .f.
+   cAction := "DISPLAY"
+elseif nRecno = 0
+   lAllowEdit := .f.
+   nRecno = 1
+endif
+*----------------------------------------------------------------------------------
+case cAction = "SAVE"
+*----------------------------------------------------------------------------------
+saveRec( nRecno)
+go nRecno
+cAction := "DISPLAY"
+*----------------------------------------------------------------------------------
+case cAction = "APPEND"
+*----------------------------------------------------------------------------------
+append blank
+nRecno := recno()
+cAction := "EDIT"
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+
+
+//-- setting global filter
+//
+set order to 1
+cQuery := ""
+
+if cGroup = "A"  //-- stands for ALL
+   cGroup := ""
+else
+   cQuery := "upper(GROUP)='" + cGroup + "'"
+endif
+
+if not empty(cSection)
+   cQuery += ".AND. upper(SECTION)='" + cSection + "'"
+endif
+
+if left(cQuery,5) = ".AND."
+   cQuery := trimLeft(cQuery,5)
+endif
+
+if ! empty(cQuery)
+   set filter to &cQuery
+endif
+
+go top
+count to nTot
+go nRecno
+
+
+//-- navigator
+do case
+*===========================
+case cAction = "GOTOP"
+*---------------------------
+	go top
+	nRecno := recno()
+	cAction := "DISPLAY"
+*---------------------------
+case cAction = "GOBOTT"
+*---------------------------
+	go bottom
+	nRecno := recno()
+	cAction := "DISPLAY"
+*---------------------------
+case cAction = "GONEXT"
+*---------------------------
+    go nRecno
+	skip
+	cAction := "DISPLAY"
+*---------------------------
+case cAction = "GOPREV"
+*---------------------------
+    go nRecno
+	skip-1
+	cAction := "DISPLAY"
+*---------------------------
+endcase
+*===========================
+%>
+<!---------------------------- end of  background operations //-------------------------->
+<%=include("/parts/html/header.htm")%>
+<!-- ---------------------------------------------------------- * HTML START ----------------------------------------//-->
+<body style="margin-top:-40px;"><%=container()%>
+
+<div class="general">
+<b>MaxScript Reference [<%=cAction%>]: <%=cGroup%></b> <%=nTot%> 
+elements found into current section (<%=cSection%>).<br>
+<hr>
+<!---------------------------- start of MaxObject section #11  foreground actions //-------------------------->
+<%
+do case
+*==================================================================================
+case empty(cAction).or. cAction = "LIST"
+*----------------------------------------------------------------------------------
+rrr :=0
+go top
+do while not eof()
+   rrr++
+   cDiv := "div_" + zz(rrr)
+   %>
+   <div class="browse">
+   <a href="<%=cSelf%>?VAR_ACTION=DISPLAY&VAR_RECNO=<%=zz(recno())%>" title="<%=zz(GROUP)%> <%=zz(SECTION)%>">
+   <b>
+   <% if empty(ELEMENT) %>
+       <%=zz(rrr)%>
+   <% else %>
+       <% zz(ELEMENT)%>
+   <% endif %>
+   </b></a> Ref.#<%=zz(recno())%>
+   </div>
+   <%
+   skip
+enddo
+*----------------------------------------------------------------------------------
+case cAction = "SEARCH"
+*----------------------------------------------------------------------------------
+//-- for searching
+cKeyWord := upper(MSPFieldValue("VAR_KEYWORD"))
+cKeyField := MSPFieldValue("VAR_KEYFIELD")
+if empty(cKeyField)
+   cKeyField := "ELEMENT"
+endif
+?
+rrr :=0
+go top
+do while not eof()
+   if (empty(cKeyWord) .or. cKeyWord $ upper(fieldcont(cKeyField)))
+      nRecno := recno()
+      rrr++
+      cDiv := "div_" + wstr(rrr)
+      cTitle := zz(SINTAX) + CR_LF + chr(10) + removeTags(DESCR)
+      cTitle := ""
+      %>
+      <div class="rec">
+      <%=wstr(rrr)%> - <a href="<%=cSelf%>?VAR_ACTION=DISPLAY&VAR_RECNO=<%=wstr(recno())%><%=webVars2url(aVars,"VAR_RECNO")%>" 
+      title="<%=cTitle%>">
+      <b><%=zz(ELEMENT)%></b>
+		
+      </a>
+      </div>
+      <%
+   endif
+   skip
+enddo
+
+do case
+case rrr = 1
+    //-- direct jump to record
+    go nRecno
+    do doDisplay
+case rrr = 0
+   %>
+   Sorry. No match found for [<%=cKeyWord%>].<br> 
+   <%
+   //-- not found: can add a new one
+   if lAllowEdit
+   %>
+   <a href="<%=cSelf%>?VAR_ACTION=APPEND&ALLOW=<%=iif(lAllowEdit,"OK","")%>">Click here</a> to add a new blank record
+   <%
+   endif
+otherwise
+   ? "Searching for [" + cKeyWord +"] into [" + cKeyField + "] reported " + zz(rrr) + " results."
+endcase
+*----------------------------------------------------------------------------------
+case cAction = "DISPLAY"
+*----------------------------------------------------------------------------------
+%>
+<!----------------------------------- *FORM NAVIGATOR //----------------------------------------->
+<form name="form2" action="<%=cSelf%>" method="post" class="rec">
+   <%=webVars2fields(aVars,"VAR_RECNO ALLOW")%>
+   <input type="hidden" name="VAR_RECNO" value="<%=recno()%>">
+   <input type="hidden" name="ALLOW" value="<%=iif(lAllowEdit,"OK","")%>">
+   <input type="button" name="PB_GOTOP" value="First" onclick="document.form2.VAR_ACTION.value='GOTOP';submit();">
+   <input type="button" name="PB_GOPREV" value="Prev" onclick="document.form2.VAR_ACTION.value='GOPREV';submit();">
+   <input type="button" name="PB_GONEXT" value="Next" onclick="document.form2.VAR_ACTION.value='GONEXT';submit();">
+   <input type="button" name="PB_GOBOTT" value="Last" onclick="document.form2.VAR_ACTION.value='GOBOTT';submit();">
+   <input type="hidden" name="VAR_ACTION" value="<%=cAction%>">
+</form><hr style="border:solid 1 black">
+<%
+if not empty(ELEMENT)
+   do doDisplay
+endif
+*----------------------------------------------------------------------------------
+case cAction = "XEDIT"
+*----------------------------------------------------------------------------------
+go nRecNo
+nCols    := 80
+%>
+<form action="<%=cSelf%>" name="form1">
+   <div class="rec"><div class="elm">
+      <input name="EF_ELEMENT" type="text" value="<%=alltrim(ELEMENT)%>" 
+      size="<%=max(len(alltrim(ELEMENT))+2,12)%>" 
+      style="background-color: #FFFFFF; color: #000000; font-size: 16; font-weight: bold;">
+      <select name="EF_GROUP" size="1">
+      <option><%=alltrim(GROUP)%></option>
+      <option>Command</option>
+      <option>Function</option>
+      <option>Operator</option>
+      <option>ErrorCode</option>
+		<option>Directive</option>
+      <option>UDF</option>
+      <option>Javascript</option>
+		<option>Script</option>
+		<option>Code Snippets</option>
+      <option></option>
+      </select>
+ 
+      <select name="EF_SECTION" size="1">
+      <option><%=alltrim(SECTION)%></option>
+      <option>String</option>
+	   <option>Numeric</option>
+	   <option>Arrays</option>
+	   <option>Date</option>
+	   <option>Database</option>
+	   <option>File</option>
+	   <option>ErrorCode</option>
+	   <option>Operator</option>
+	   <option>WebVar</option>
+	   <option>Program_Flow</option>
+	   <option>Specific_Task</option>
+      <option></option>
+      </select>
+      
+      <select name="EF_LIBRARY" size="1">
+      <option><%=alltrim(LIBRARY)%></option>
+      <option>MaxScript built-in</option>
+      <option>DBFree built-in</option>
+      <option>Lib Arrays</option>
+      <option>Lib Strings</option>
+      <option>Lib Dates</option>
+      <option>Lib Dbf</option>
+      <option>Lib Html</option>
+      <option>Lib Files</option>
+      <option>Lib Sessions</option>
+      <option>Lib Extended</option>
+      <option>Code collection</option>
+      <option></option>
+      </select>
+      
+        <input type="submit" name="PB_OK1" value="Save changes">
+
+      </div>
+     
+      <br>Descr<br><div class="descr">
+      
+      <textarea name="EF_DESCR" cols="<%=nCols%>" rows="<%=max(mlcount(DESCR),4)%>"><%=alltrim(DESCR)%></textarea></div>
+      
+      <br>Sintax:<br><div class="sintax">
+      <textarea name="EF_SINTAX" cols="<%=nCols%>" rows="<%=max(mlcount(SINTAX),4)%>"><%=alltrim(SINTAX)%></textarea></div>
+      
+      <br>Parameters:<br><div class="param">
+      <textarea name="EF_PARAM" cols="<%=nCols%>" rows="<%=max(mlcount(PARAM),5)%>"><%=alltrim(PARAM)%></textarea></div>
+
+      
+      <br>Example:<br><div class="example">
+      <textarea name="EF_EXAMP" cols="<%=nCols%>" rows="<%=max(mlcount(EXAMP),5)%>"><%=alltrim(EXAMP)%></textarea></div>
+      
+      <br>See also:<br><div class="seealso">
+      <textarea name="EF_SEE_ALSO" cols="<%=nCols%>" rows="<%=zz(len(SEE_ALSO)/nCols,4)%>"><%=alltrim(SEE_ALSO)%></textarea></div>
+  </div>
+  <input type="submit" name="PB_OK2" value="Save changes">
+  <input type="hidden" name="ALLOW" value="<%=iif(lAllowEdit,"OK","")%>">
+  <input type="hidden" name="VAR_ACTION" value="SAVE">
+  <input type="hidden" name="VAR_GROUP" value="<%=cGroup%>">
+  <input type="hidden" name="VAR_RECNO" value="<%=wstr(recno())%>">   
+</form>   
+<%
+otherwise
+*----------------------------------------------------------------------------------
+   ? "Action code [" + cAction + "] not recognized."
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<!---------------------------- end of foreground actions //-------------------------->
+</div>
+<!-- ---------------------------------------------------------- * HTML END ----------------------------------------//-->
+<%=container(0)%>
+</body>
+<p align="center"><font size="1">Online Reference build 2010-10-19.001</font>
+</html>
+<%
+********************************************************
+function saveRec( nRec)
+********************************************************
+go nRec
+if nRec > 0 .and. nRec <= lastrec()
+   //--- we build an array of two fields (columns) to store temp values
+   declare aValues[2,1]
+ 
+   //-- now we loop into incoming variables (e.g. the fields of the previous form)
+   //   and consider only those starting with prefix EF_ (entryfield) like those
+   //   we wisely named that way to identify them
+   nnn :=1
+   for iii= 1 to MSPFieldCount()
+      if MSPFieldName(iii) = "EF_"
+         //-- this is for debug: shows the incoming vars
+         *? str(nnn) + MSPFieldName(iii) html
+         //-- we fill the array
+         aRedim(aValues[2],nnn)
+         cFld := strTran(MSPFieldName(iii),"EF_","")
+         mVal := MSPFieldValue(iii)
+         aValues[1,nnn] := cFld
+         aValues[2,nnn] := mVal
+         nnn++
+      endif
+   next
+
+   //-- now that we collected changed values from the form we write them in the record
+   //   in the same exact order we retrieved them when we built the form  
+   if rlock(2)
+      for iii = 1 to len(aValues[2])
+         cFld  := aValues[1,iii]
+         mVal  := aValues[2,iii]
+         if not empty(mVal)
+            cOldCont := fieldcont(cFld)
+            cType := type(cOldCont)
+            *? "REPLACING ["+cFld +"] WITH [" +mVal + "] FIELDTYPE ["+ cType +"]"
+            do case
+            case cType = "N"
+               mVal := val(mVal)
+            case cType = "D"
+               mVal := ctod(mVal)
+            case cType = "L"
+               mVal := iif(mVal$"SYJO",.t.,.f.)
+            endcase
+            repl &cFld with mVal
+         endif
+      next
+      unlock
+      cOption := ""
+      cMsg    := "SAVED! Refresh List"
+   else
+      ? "ERROR: could not lock record " + str(nRec) html
+   endif
+else
+   ? "ERROR: di not receive the number of the record to go to" html
+   cAction :=""   
+endif
+
+**********************************
+procedure doDisplay()
+**********************************
+%>
+   <div class="rec">
+   <form action="<%=cSelf%>" name="form<%=wstr(recno())%>">
+      <font color="green">
+      <div class="elm"><span style="background-color: #FFFFFF; color: #000000; font-size: 16; font-weight: bold;"><%=zz(ELEMENT)%></span>
+      <font size="1" color="green"><%=zz(SECTION)%> <%=zz(GROUP)%></font>
+      <font size="1" color="gray">(<%=zz(LIBRARY)%>)</font>
+      <font size="1" color="red">Ref#(<%=zz(recno())%>)</font>
+      </div>
+      <div class="descr"><%=zz(DESCR)%></div> 
+      <% if not empty(SINTAX) %>
+            <br>Sintax:<br>
+            <div class="sintax"><pre><%=zz(SINTAX)%></pre></div>
+      <% endif %>
+      <% if not empty(PARAM) %>
+            <br>Parameters:<br>
+            <div class="param"><pre><%=zz(PARAM)%></pre></div>
+      <% endif %>
+      <% if not empty(EXAMP) %>
+            <br>Example:<br>
+            <div class="example"><pre><%=zz(EXAMP)%></pre></div>
+      <% endif %>
+      <% if not empty(SEE_ALSO) %>
+            <br>See also:<br>
+            <% cLnk := strToLinks(SEE_ALSO,",",0) %>
+            <div class="seealso"><%=cLnk%></div>
+      <% endif %>
+      <hr>
+      <a href="samples.msp?VAR_ELEMENT=<%=urlSafe(ELEMENT)%>">More examples</a>
+  <% if lAllowEdit %> 
+     <br><input type="submit" name="VAR_ACTION" value="EDIT">
+  <% endif %>
+  <input type="hidden" name="ALLOW" value="<%=iif(lAllowEdit,"OK","")%>">
+  <input type="hidden" name="VAR_RECNO" value="<%=wstr(recno())%>">   
+  <input type="hidden" name="VAR_GROUP" value="<%=cGroup%>">  
+  </font>   
+   </form>
+  </div>
+<%
+return
+
+***************************************************
+function strToLinks( cStr, cSep)
+***************************************************
+local nLen,iii,ccc,eee
+cOut :=""
+nLen := len(cStr)
+aOut := ""
+if empty(cSep)
+   cSep := ","
+endif
+
+eee := 0
+nnn := 0
+if nLen > 0
+   do while len(cStr) > 0 or nnn < 100
+      nnn++
+      nPos := at(cSep,cStr)
+      ccc := subs(cStr,1,nPos-1)
+      eee++
+      cOut += [<a href="] + cSelf + [?VAR_ACTION=SEARCH&VAR_KEYWORD=]+ zz(ccc) +[">] + ccc + [</a>&nbsp;&nbsp;]
+      cStr := subs(cStr,nPos+1,nLen)
+      if nPos = 0
+         exit
+      endif
+   enddo
+endif
+return cOut
+
+***********************
+function urlSafe(cTxt)
+***********************
+cTxt := zz(cTxt)
+cTxt := mspencode(cTxt)
+return cTxt
+
+***********************
+function removeTags(cTxt)
+***********************
+cTxt := strTran(lower(cTxt),"<br>","")
+cTxt := strTran(lower(cTxt),"<hr>","")
+cTxt := strTran(lower(cTxt),"<b>","")
+cTxt := strTran(lower(cTxt),"</b>","")
+cTxt := strTran(lower(cTxt),"<i>","")
+cTxt := strTran(lower(cTxt),"</i>","")
+cTxt := strTran(lower(cTxt),"<p>","")
+return cTxt
+%>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="tablet7.css">
+<title>TELECOMANDE WI-FI</title>
+<style type="text/css">
+td {color:maroon;}
+</style>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- CERCA APPARATO
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+
+   return
+endif
+******************************************* OK **
+
+*####################################################
+//-- DIMENSIONA ELEMENTI
+cLarghTab  := zz(int(xnWW/xnTavs))
+cAltPuls   := int(xnHH/12)   //-- solo per il menu
+cAltPuls   := zz(range(cAltPuls,45,90))
+*
+cLarghIcoTav   := zz(int(xnWW/4*0.6))
+cLarghIcoProd  := zz(int(xnWW/7))
+
+
+//-- INCOMING WEBVARS
+cTav  := MSPFieldValue("VAR_TAV")
+cMenu := MSPFieldValue("VAR_MENU")
+if empty(cTav)
+   ? "ERRORE!"
+   ? "Manca il tavolo!"
+   return
+endif
+%>
+<head><title>COMANDA PER <%=cTav%></title></head>
+<%
+cIdStr := "VAR_TAV="+cTav+"&VAR_MENU="+cMenu
+
+//-- apre la tabella n.4 (prodotti)
+dbOpen(xDB,"4")
+
+%>
+<body>
+<table cellspacing="0" cellpadding="0" border="0" width="100%">
+	<tr bgcolor="#990000">
+	<td>
+	<td align="left">
+	<font color="white"><%=cTav%></font>
+	<font color="white"><img border="0" src="../../images/ico_tav.gif" width="53" height="52"></font></td><td align="right">
+	<a href="comanda.msp?VAR_TAV=<%=cTav%>&<%=cIdStr%>"><img src="../../images/pw9_indietro.gif" height="<%=cAltPuls%>"></a>
+	<a href="comanda.msp?VAR_TAV=<%=cTav%>&<%=cIdStr%>"><img src="../../images/pw9_comanda-ss.gif" height="<%=cAltPuls%>"></a>
+	<font size="2">TAV <%=cTav%>&nbsp;</font>  	
+	</td>
+	</tr>
+</table>
+<%
+do case
+*******************************
+case empty(cAction)
+*******************************
+sele prodotti
+set filter to GRP_PROD = cMenu
+go top
+rrr := 0
+%>
+<table width="100%" height="100%" cellpadding="4" border="0" bgcolor="#FFCC99">
+<%
+do while not eof()
+   cLink := "VAR_CODPROD="+zz(ID_PROD)+"&VAR_DESCR="+rtrim(DESCR_PROD)+"&VAR_PRZ="+zz(PRZ_UN)+"&VAR_MENU="+zz(GRP_PROD)+"&VAR_DEST="+zz(DEF_DEST)
+   %>
+   <tr bgcolor="#FFFFCC">
+   <td><a href="comanda.msp?VAR_ACTION=SAVEROW&<%=cIdStr%>&<%=cLink%>"><div><img border="0" src="../../images/pw9_pbordina.gif" height="<%=cAltPuls%>">
+   <font style="color:maroon;font-size:1.2em;"><%=rtrim(DESCR_PROD)%></font></div></a></td>
+   <td>Quanti?</td>
+   </tr>
+   <%
+   skip
+   rrr++
+enddo
+%>
+</table>
+<% if rrr=0 %>Non ci sono prodotti di questo tipo (<%=cMenu%>) nel menu!<br><% endif %>
+<%
+*******************************
+endcase
+*******************************
+%>
+<a href="comanda.msp?VAR_TAV=<%=cTav%>&<%=cIdStr%>"><img src="../../images/pw9_comanda.gif" height="<%=cAltPuls%>"></a>
+<!----------------------------------- *--------------------------------------- //-->
+<hr><font color="lime" size="2">Op:<%=xcIdOp%> Sal:<%=xcIdSala%></font>
+<font color="#C0C0C0" size="2"><%=pageName()%> Term:<%=xcDevId%> <%=xnWW%>x<%=xnHH%> <%=xcScreen%></font>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+
+</body>
+</html>

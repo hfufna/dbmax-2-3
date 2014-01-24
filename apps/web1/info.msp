@@ -1,0 +1,118 @@
+<html>
+<head>
+    <meta http-equiv="Pragma" CONTENT="no-cache">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+    <META HTTP-EQUIV="EXPIRES" CONTENT="0">
+    <link rel="stylesheet" type="text/css" href="app-css/bootstrap.css">
+</head>
+<%
+lDebug :=.f.
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+//-- LOADING APP GLOBALS FROM MEMORY FILE
+/////////////////////////////////////////
+xGlobals := webRoot() + "\globals.mem"
+restore from (xGlobals) additive
+
+
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<body>
+<div class="container">
+<!-------- PAYLOAD START -------------- //-->
+<body>
+<h2><%=getenv("SERVER_SOFTWARE")%> <small>+ <%=libVer()%></small></h2>
+<table>
+<%
+cPubDir := upDir(documentRoot())
+cCoreDir := upDir(cPubDir)+"local"
+
+Private aValues[22]
+	ainit("aValues" , ;;
+		  "GATEWAY_INTERFACE"   ,
+		  "SERVER_NAME"         ,
+		  "SERVER_SOFTWARE"     ,
+		  "SERVER_PROTOCOL"     ,
+		  "SERVER_PORT"         ,
+		  "REQUEST_METHOD"      ,
+		  "PATH_INFO"           ,
+		  "PATH_TRANSLATED"     ,
+		  "SCRIPT_NAME"         ,
+		  "DOCUMENT_ROOT"       ,
+		  "QUERY_STRING"        ,
+		  "REMOTE_HOST"         ,
+		  "REMOTE_ADDR"         ,
+		  "AUTH_TYPE"           ,
+		  "REMOTE_USER"         ,
+		  "REMOTE_IDENT"        ,
+		  "CONTENT_TYPE"        ,
+		  "CONTENT_LENGTH"      ,
+		  "HTTP_FROM"           ,
+		  "HTTP_ACCEPT"         ,
+		  "HTTP_USER_AGENT"     ,
+		  "HTTP_REFERER"        )
+	      ;.
+
+	
+for iii = 1 to alen( aValues ) 
+   cResult := getenv(aValues[iii])
+   if not empty(cResult)
+      %>  
+      <tr> 
+         <td><font size="1"><%=iii%> - <%=aValues[iii]%></font></td>
+         <td bgcolor="#EBEBEB"><%=cResult%> </td>
+      </tr>
+   <% 
+   endif
+next 
+
+//-- build a list of environment variables to get
+ainit("aString" , ;;
+   "COMPUTERNAME",
+   "USERPROFILE",
+   "ProgramFiles(x86)",
+   "WINDIR",
+	"ComSpec",
+	"FP_NO_HOST_CHECK",
+	"NUMBER_OF_PROCESSORS",
+	"OS",
+	"SYSTEMROOT",
+	"Path",
+	"PATHEXT",
+	"PROCESSOR_ARCHITECTURE",
+	"PROCESSOR_IDENTIFIER",
+	"PROCESSOR_LEVEL",
+	"PROCESSOR_REVISION",
+	"TEMP",
+	"TMP",
+	"windir")
+	;.
+
+
+//-- retrieving values for variables
+for iii=1 to len(aString)
+   cResult := getenv(aString[iii])
+   if not empty(cResult)
+   %>
+   <tr>
+   <td><font size="1"><%=aString[iii]%></font></td><td bgcolor="#EBEBEB"><%=cResult%></td>
+   </tr>
+   <%
+   endif
+next
+%>
+</table>
+<!-------- PAYLOAD END -------------- //-->
+</div>
+</body>
+</html>

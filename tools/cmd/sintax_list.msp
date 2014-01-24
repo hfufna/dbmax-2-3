@@ -1,0 +1,413 @@
+
+
+
+
+
+
+<style type="text/css">
+.browse1 {
+  background-color: #EAF6F2;
+}
+.browse0 {
+  background-color: #E8E8E8;
+}
+</style>
+</head>
+<!----------------------------------- JAVASCRIPT -------------------------------------- //-->
+<script language="javascript">
+<!--
+function copyCode(ccc){
+var vvv = transform(ccc,"°°",'"');
+aa=document.getElementById('currExample');
+bb=top.document.getElementById('xcode');
+bb.value=vvv;
+//alert(vvv);
+alert('PRESS RUN BUTTON TO TEST THE NEW CODE');
+}
+
+function transform(strText,cchar,crepl){
+var strReplaceAll = strText ;
+var intIndexOfMatch = strReplaceAll.indexOf( cchar );
+ 
+// Loop over the string value replacing out each matching
+// substring.
+while (intIndexOfMatch != -1)
+   {
+   // Relace out the current instance.
+   strReplaceAll = strReplaceAll.replace( cchar, crepl )
+ 
+   // Get the index of any next matching substring.
+   intIndexOfMatch = strReplaceAll.indexOf(cchar );
+   }
+return strReplaceAll;
+}
+
+function fnDoCopy(){
+ textRange = document.body.createTextRange();
+ textRange.moveToElementText(listTable);
+ textRange.execCommand("Copy");
+ window.open("outputFile.xls","printing");
+}
+
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+//-->
+</script>
+<%
+**************************************** DBFree HEADER -2-995
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+cSelf    := pageName()
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+
+//-- 11 MAXOBJECT HANDLING
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+nRec     := val(MSPFieldValue("VAR_REC"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER 2-995
+%>
+<!----------------------------------- <%=pageName()%> -- <%=pageFile()%> ------------------------------------ //-->
+<%
+//-- CHECKING USER
+cIp := getenv("REMOTE_ADDR")
+lUsrLocal :=.f.
+ainit("aAllowed","192.168","172.16","10.0","127.0.0.1")
+for iii=1 to alen(aAllowed)
+   if left(cIp,len(aAllowed[iii])) = aAllowed[iii]
+      lUsrLocal :=.t.
+   endif
+next
+
+//-- INCOMING WEBVARS
+//
+cGroup     := upper(MSPFieldValue("VAR_GROUP"))
+cGroup     := trimRight(cGroup,1)
+cSection   := upper(MSPFieldValue("VAR_SECTION"))
+cSection   := trimRight(cSection,1)
+lAllowEdit := iif(empty(MSPFieldValue("XALLOW")),.f.,.t.)
+cKeyWord   := MSPFieldValue("VAR_KEYWORD")
+
+//-- OPENING TABLES AND INDEXES
+//
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+if not file(cDb)
+  ainit( "aField","EL_ID","ELEMENT","GROUP","SECTION","LIBRARY","SOURCE","SINTAX","DESCR","PARAM","EXAMP","SEE_ALSO","MORE_EX")
+  ainit( "aType","C","C","C","C","C","M","M","M","M","M","M","M")
+  ainit( "aSize",5,80,35,35,35,10,10,10,10,10,10,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not open"
+   return
+endif
+set order to 1
+go top
+
+//-- MOVING THE CURSOR
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+nRecno := max(1,nRecno)
+if nRecno > lastrec()
+   nRecno := lastrec()-1
+endif
+lAllowEdit := .f.
+
+
+//-- setting up a query to act as global filter
+//
+cQuery := ""
+if cGroup = "A"  //-- stands for ALL
+   cGroup := ""
+else
+   cQuery := "upper(GROUP)='" + cGroup + "'"
+endif
+
+if not empty(cSection)
+   cQuery += ".AND. upper(SECTION)='" + cSection + "'"
+endif
+if left(cQuery,5) = ".AND."
+   cQuery := trimLeft(cQuery,5)
+endif
+if ! empty(cQuery)
+   set filter to &cQuery
+endif
+go top
+count to nTot
+
+
+//-- BACKGROUND OPERATION
+//
+do case
+*===========================
+case cAction = "GOTOP"
+*---------------------------
+	go top
+	nRecno := recno()
+	cAction := "XDISPLAY"
+*---------------------------
+case cAction = "GOBOTT"
+*---------------------------
+	go bottom
+	nRecno := recno()
+	cAction := "XDISPLAY"
+	
+*---------------------------
+case cAction = "XSEARCH"
+*---------------------------
+	cAction := ""
+	go top
+	do while not eof()
+	   if upper(cKeyWord) $ upper(ELEMENT)
+	     	cAction := "XDISPLAY"
+	     	nRecno := recno()
+	      exit
+	   endif
+	   skip
+   enddo	
+*---------------------------
+case cAction = "GONEXT"
+*---------------------------
+   go nRecno
+	skip
+	cAction := "XDISPLAY"
+*---------------------------
+case cAction = "GOPREV"
+*---------------------------
+   go nRecno
+	skip-1
+	cAction := "XDISPLAY"
+*---------------------------
+   otherwise
+*---------------------------
+   go nRecno
+*---------------------------
+endcase
+*===========================
+%>
+<!----------------------------------- START OF HTML CODE -------------------------------------- //-->
+<body>
+<a href="sintax_form.msp">Search</a>&nbsp;|&nbsp;  
+<a href="<%=cSelf%>?VAR_ACTION=XLIST&VAR_RECNO=<%=zz(recno())%>">Browse</a>&nbsp;|&nbsp;
+<a href="#1" onclick="parent.toggleDiv('div_sintax');">Hide</a></td>
+<br>
+<hr>
+<%
+//-- FOREGROUND OPERATIONS
+//
+do case
+*==================================================================================
+case empty(cAction).or. cAction = "XLIST"
+*----------------------------------------------------------------------------------
+%>
+<table>
+<%rrr :=0
+if nRecno >1
+   go nRecno
+else
+   go top
+endif
+do while not eof()
+   cDiv := "div_" + zz(rrr)
+   %>
+   <% if not empty(ELEMENT)
+       rrr++ %>
+       <tr class="browse<%=zz(mod(rrr,2))%>">
+       <td><%=zz(rrr)%></td><td><a href="<%=cSelf%>?VAR_ACTION=XDISPLAY&VAR_RECNO=<%=zz(recno())%>" title="<%=zz(SINTAX)%>"><%=zz(ELEMENT)%></a></td>
+       <td><font size="1"><%=capital(GROUP)%></font></td>
+       <td><font size="1"><%=zz(SECTION)%></font></td>
+       <td><font size="1">#<%=zz(recno())%></font></td>
+       </tr>
+   <% endif %>
+   <%
+   skip
+enddo
+%>
+</table>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "XDISPLAY"
+*----------------------------------------------------------------------------------
+%>
+<!----------------------------------- *FORM FOR TABLE NAVIGATION //----------------------------------------->
+<form name="form2" action="<%=cSelf%>" method="post" class="boxmenu">
+   <input type="hidden" name="VAR_RECNO" value="<%=recno()%>">
+   <input type="button" name="PB_GOTOP" value="First" onclick="document.form2.VAR_ACTION.value='GOTOP';submit();" title="Go to first element">
+   <input type="button" name="PB_GOPREV" value="Prev" onclick="document.form2.VAR_ACTION.value='GOPREV';submit();" title="Go to element #<%=zz(recno()-1)%>">
+   <input type="button" name="PB_GONEXT" value="Next" onclick="document.form2.VAR_ACTION.value='GONEXT';submit();" title="Go to element #<%=zz(recno()+1)%>">
+   <input type="button" name="PB_GOBOTT" value="Last" onclick="document.form2.VAR_ACTION.value='GOBOTT';submit();" title="Go to last element">
+   <input type="hidden" name="VAR_ACTION" value="<%=cAction%>">
+</form>
+<hr>
+<!----------------------------------- *RECORD DISPLAY //----------------------------------------->
+<div class="box">
+      <div class="elm"><span style="background-color: #FFFFFF; color: #000000; font-size: 16; font-weight: bold;"><%=zz(ELEMENT)%></span><br>
+      <font size="1" color="green">#<%=zz(recno())%> <%=zz(SECTION)%> <%=zz(GROUP)%></font>
+      <font size="1" color="gray">(<%=zz(LIBRARY)%>)</font>
+      </div>
+      <div class="descr"><%=zz(DESCR)%></div> 
+      <font color="green">
+      <% if not empty(SINTAX) %>
+            <br>Sintax:
+            <pre class="sintax"><font color="maroon"><%=zz(SINTAX)%></font></pre>
+      <% endif %>
+      <% if not empty(EXAMP)
+            cTmp1 := noBrakets(EXAMP)
+            cTmp2 := strtran(cTmp1,'&&','//--')
+            cTmp2 := strtran(cTmp2,"'",'°')
+            cTmp2 := strtran(cTmp2,'"','°°')
+            cTmp2 := strtran(cTmp2,CR_LF,'\n')
+            %>
+            <br>Example:
+            <input type="button" name="PB_COPY" onclick="javascript:copyCode('<%=cTmp2%>');" value="Paste to window">
+            <br>
+            <textarea id="currExample" class="example" style="width:100%; min-height:250px;min-width:240px;background-color:#065ea7;color:white;"><%=cTmp1%></textarea>
+      <% endif %>
+      <% if not empty(SEE_ALSO) %>
+      		<br><a href="javascript:toggleDiv('div_see')">See also</a><br>
+      		<% cLnk := strToLinks(SEE_ALSO,",",0) %>
+      		<div id="div_see" class="seealso" style="display:none;"><%=cLnk%></div>
+      <% endif %>
+      <hr>
+      <a target="_blank" href="sintax_display.msp?VAR_RECNO=<%=zz(recno())%>">Show all details</a><br>
+      <input type="hidden" name="VAR_RECNO" value="<%=zz(recno())%>">   
+  </font>   
+  <% 
+  ckey := zz(ELEMENT)
+  *saveHistory(cKey) 
+  %>
+</div>
+<p align="center">
+<%
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<div align="center"><font size="1" color="#808080">Actually using [<%=cDb%>]</div>
+</body>
+<%
+//-- warning
+set filter to
+go top
+if reccount() < 1
+   %><h3>Attention!</h3>Your Reference database is empty.<br>In order to this module to work
+   you need to load the appropriate file (<%=cDb%>) in this location: [<%=cDbPath%>]
+   <br>You can download an update file from <a href="http://www.dbfree.org/updates">www.dbfree.org</a>
+   <%
+endif
+%></html><!----------------------------------- END OF HTML -------------------------------------- //--><%
+***************************************************
+function strToLinks( cStr, cSep)
+***************************************************
+local nLen,iii,ccc,eee
+cOut :=""
+nLen := len(cStr)
+aOut := ""
+if empty(cSep)
+   cSep := ","
+endif
+
+eee := 0
+nnn := 0
+if nLen > 0
+   do while len(cStr) > 0 or nnn < 100
+      nnn++
+      nPos := at(cSep,cStr)
+      ccc := subs(cStr,1,nPos-1)
+      eee++
+      cOut += [<a href="] + cSelf + [?VAR_ACTION=XSEARCH&VAR_KEYWORD=]+ zz(ccc) +[">] + ccc + [</a>&nbsp;&nbsp;]
+      cStr := subs(cStr,nPos+1,nLen)
+      if nPos = 0
+         exit
+      endif
+   enddo
+endif
+return cOut
+
+*****************************
+procedure saveHistory(cElem)
+*****************************
+local cTxt, cCont, cFile
+cFile:= curDosDir() + "\history.txt"
+if file(cFile)
+   cTxt := memoread(cFile)
+   cTxt := cTxt + CR_LF + cElem
+else
+   cTxt := cElem 
+endif
+   memowrit(cFile, cTxt)
+return ""
+
+
+***********************
+function urlSafe(cTxt)
+***********************
+cTxt := zz(cTxt)
+cTxt := mspencode(cTxt)
+return cTxt
+
+***********************
+function removeTags(cTxt)
+***********************
+cTxt := strTran(lower(cTxt),"<br>","")
+cTxt := strTran(lower(cTxt),"<hr>","")
+cTxt := strTran(lower(cTxt),"<b>","")
+cTxt := strTran(lower(cTxt),"</b>","")
+cTxt := strTran(lower(cTxt),"<i>","")
+cTxt := strTran(lower(cTxt),"</i>","")
+cTxt := strTran(lower(cTxt),"<p>","")
+return cTxt
+
+***************************
+function noBrakets(cTxt)
+***************************
+local cOp, cCl, cStr
+cStr := cTxt
+cStr := strTran(cStr,"<","&lt;")
+cStr := strTran(cStr,">","&gt;")
+return(cStr)
+%><!----------------------------------- eof -------------------------------------- //-->

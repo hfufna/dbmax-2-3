@@ -1,0 +1,281 @@
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<html>
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<script language="javascript" src="/js/max-ajax.js"></script>
+<link rel="stylesheet" type="text/css" href="../../screen.css">
+<style type="text/css">ul {margin-top:-1;}</style>
+</head>
+
+<style type="text/css">
+ul {margin-top:-1;}
+.normal {background-color:#C0C0C0; }
+.hilite {background-color:red;}
+</style>
+
+<script language="javascript">
+var flag=1;
+
+function changeMe(cId, cColor){
+var aa = document.getElementById(cId);
+aa.setAttribute("bgColor",cColor);
+}
+function hredim(cFrameset,cDefStr){
+dd = document.getElementById('form_nav');
+alert(dd);
+dd.cols=cDefStr;
+}
+function vredim(cFrameset,cDefStr){
+dd = top.getElementById(cFrameset);
+dd.rows=cDefStr;
+}
+</script>
+
+<script language="javascript">
+var cc1 = '#F2F2F2';
+var cc2 = 'red';
+function showdet(cId,cDesc,cRowId){
+   bb = document.getElementById(cRowId);
+   bb.setAttribute('bgColor',cc2);
+   aa = document.getElementById('ifrm1');
+   aa.src='ricetta.msp?VAR_ID_PROD=' + cId + '&VAR_DESC_PROD=' + cDesc + '&VAR_RID=' + cRowId;
+   if (aa.style.display == 'none')  { aa.style.display='block'; }
+}
+</script>
+
+<script type="text/javascript">
+    function DisplayFormValues()
+    {
+        var str = '';
+        var elem = document.getElementById('frmMain').elements;
+        for(var i = 0; i < elem.length; i++)
+        {
+            str += "<b>Type:</b>" + elem[i].type + "&nbsp&nbsp";
+            str += "<b>Name:</b>" + elem[i].name + "&nbsp;&nbsp;";
+            str += "<b>Value:</b><i>" + elem[i].value + "</i>&nbsp;&nbsp;";
+            str += "<BR>";
+        } 
+        document.getElementById('lblValues').innerHTML = str;
+    }
+</script>
+<%
+*************************************************** TELCO HEADER-0-1
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+freeslot()
+
+
+//-- WEBVARS STACK
+declare aVars[ max(MSPFieldCount(),1),2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- GLOBAL VARS SYSTEM
+cMemPath :=MspConfigVar("DATADIR")+"\mem\"
+if not file(cMemPath)
+   md(cMemPath)
+endif
+xMem := MSPFieldValue("X")
+xcSelf := pageName()+"?X="+xMem
+if empty(xMem)
+   xMem := cMemPath + zz(seconds())
+   xcSelf := pageName()+"?X="+xMem
+   save all like x* to (xMem)
+endif
+if file(xMem)
+   restore from xMem additive
+endif
+
+*************************************************** END HEADER
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VAR_OPTION")
+cSelf   := pageName()
+
+set decimals to 0
+set century on
+set date to italian
+set hour to 24
+cSelf := pageName()
+set deleted on
+
+CR_LF := chr(13)+chr(10)
+c1 := "#F2F2F2"  //--- colore normale
+c2 := "#FFFF00"  //-- selezione corrente
+c3 := "#FFCCCC"  //-- selezionato
+
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+************************************************* 
+//-- AJAX INCOMING WEBVARS
+nFld      := val(MSPFieldValue("V_FLD"))  //-- Field to update
+nAjRec    := val(MSPFieldValue("V_REC"))  //-- record to move to
+cAjaxVar  := MSPFieldValue("AJX")         //-- value to write
+lAjaxRun  := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- SETTING DATABASE TO USE
+cDbPath := setDb("costi")
+cDb := cDbPath + "prodotti.dbf"
+cXb := cDbPath + "prodotti.mtx"
+
+//-- OPENING FILES
+if not file(cXb)
+   use (cDb)
+   cDefKey := fieldname(1)
+   index on (&cDefKey) to (cXb)
+endif 
+
+use (cDb) index (cXb) alias MASTER
+select master
+nRows  := 20
+nRec := val(MSPFieldValue("VAR_REC"))
+do case
+case not empty(MSPFieldValue("PB_PREV"))
+   nRec -= nRows
+case not empty(MSPFieldValue("PB_NEXT"))
+   nRec += nRows
+endcase
+nRec := iif(nRec<=0,1,nRec)
+nRec := iif(nRec>lastrec(),lastrec(),nRec)
+
+//-- BACKGROUND ACTION
+cAction := upper(cAction)
+do case
+************************
+case cAction = "AGG"
+************************
+   append blank
+   if rlock(1)
+      repl ID_PROD with str(recno(),4,0,"0")
+      unlock
+      nRec := recno()
+   endif
+   cAction := ""
+************************
+endcase
+************************
+
+
+//-- AJAX ACTUATOR (EMBEDDED)
+cValCbEdit  := iif(empty(MSPFieldValue("CB_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCbEdit),"readonly","")
+
+*****************************
+if lAjaxRun 
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+*****************************
+%>
+<body>
+<table border="0" width="100%" bgcolor="#006699">
+	<tr>
+		<td><font color="#FFFFFF">PRODOTTI <%=ID_PROD%> <%=zz(nRec)%>-<%=zz(nRec+nRows-1)%>/<%=zz(lastrec())%></font></td>
+	</tr>
+</table>
+<!----------------------------------- IFRAME -------------------------------------- //-->
+<iframe id="ifrm1" src="" style="position:fixed;display:none;top:10%;left:5%;height:80%;width:90%;border:solid 4px red; background-color:#ECF5FF;"></iframe>
+<!----------------------------------- NAVIGATOR FORM -------------------------------------- //-->
+<form name="form_nav" action="<%=cSelf%>" method="post" style="background-color:#FFCC00;">
+   <input type="hidden" name="X" value="<%=xMem%>">
+   <input type="hidden" name="VAR_REC" value="<%=nRec%>">
+   <input type="submit" name="PB_TOP" value="|&lt;" onclick="form_nav.VAR_REC.value='1'">
+   <input type="submit" name="PB_PREV" value="&lt;&lt;" onclick="form_nav.VAR_REC.value=<%=zz(nRec)%>">
+   <input type="submit" name="PB_NEXT" value="&gt;&gt;" onclick="form_nav.VAR_REC.value=<%=zz(nRec)%>">
+   <input type="submit" name="PB_BOTT" value="&gt;|" onclick="form_nav.VAR_REC.value=<%=zz(lastrec())%>">
+   <input type="checkbox" <%=cValCbEdit%> name="CB_EDIT"  onclick="form_nav.submit();">Edita
+   <input type="submit" name="VAR_ACTION" value="Aggiungi">
+   <input type="submit" name="VAR_ACTION" value="Cerca">
+   <input type="submit" name="VAR_ACTION" value="Elimina">
+   <select name="VAR_FILTER"><option></option></select>
+</form>
+<!----------------------------------- RECORDS GRID -------------------------------------- //-->
+<% nFlds := aFields()%>
+<table cellspacing="0" cellpadding="0" width="100%" style="margin-top:-13;">
+<tr bgcolor="<%=c1%>">
+<td></td>
+<%
+for iii=1 to nFlds
+   %><td><font color="#FFFFFF"><%=fieldname(iii)%></font></td><%
+next
+%></tr><%
+rrr := 0
+go nRec
+do while not eof()
+   rrr++
+   nRec := recno()
+   displRec(nRec,rrr)
+   skip
+   if rrr > nRows-1
+      exit
+   endif
+enddo
+%>
+</table>
+<!----------------------------------- END GRID -------------------------------------- //-->
+<%
+save all like x* to (xMem)
+%>
+</body>
+<!----------------------------------- *comment --------------------------------------- //-->
+<script language="javascript">
+var items = startElem.getElementsByTagName("*");
+for (var i = items.length; i--;) {
+    //do stuff
+    document.write(i)
+}</script>
+</html>
+<%
+**************************************************
+procedure displRec(nThisRec, nRowNum)
+**************************************************
+//-- ATTENTION: cIsReadOnly sets if editing is allowed and must be declared from the caller
+//
+local nFld, cAjIdentifier, cAjHook
+cRid := "R"+zz(nRowNum)
+%>
+<!----------------------------------- *Record <%=zz(nThisRec)%>--------------------------------------- //-->
+<tr bgcolor='<%=c1%>' id="<%=cRid%>" onclick="top.frm2.location='dettagli.msp?VAR_ID_PROD=<%=zz(ID_PROD)%>&VAR_DESC_PROD=<%=zz(DESC_PROD)%>';">
+
+<td><input type="button" value="<%=zz(recno())%>" 
+            onclick="showdet('<%=zz(ID_PROD)%>','<%=zz(DESC_PROD)%>','<%=cRid%>');"></td>
+<%
+for nFld=1 to afields()
+   cAjIdentifier := "div_" + zz(nThisRec)+"-"+zz(nFld)
+   cAjHook := "&V_REC="+zz(nThisRec)+"&V_FLD="+zz(nFld)
+   %>
+   <td>
+   <div id="<%=cAjIdentifier%>"></div>
+   <input type="text" style="border:none" <%=cIsReadOnly%>
+   name="EF_<%=fieldname(nFld)%>" 
+   value="<%=zz(fieldval(nFld))%>" 
+   size="<%=zz(fieldsize(nFld))%>"
+   title="Field: <%=fieldname(nFld)%>"   
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjHook%>','<%=cAjIdentifier%>');">
+   </td>
+   <%
+next
+%></tr><%
+return
+%>

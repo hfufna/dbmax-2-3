@@ -1,0 +1,114 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "fedifraga"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable1  := cDir + "DETTAGLI.DBF"
+cIndex1  := cDir + "DETTAGLI.MTX"
+cIndex2  := cDir + "DETTAGLI-D.MTX"
+use (cTable1) in 0 alias DETTAGLI index (cIndex1),(cIndex2)
+set order to 2
+
+//-- INCOMING WEBVARS
+nDay     := val(MspFieldValue("VAR_DAY"))
+
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h2>Tutti i <%=zaDays[nDay]%> del <a href="start.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>"><%=znYear%></a> 
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=2">Lun</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=3">Mar</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=4">Mer</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=5">Gio</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=6">Ven</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=7">Sab</a>
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=1">Dom</a>
+</h2>
+
+<%
+do case
+****************************************************************************************
+case empty(cAction)
+****************************************************************************************
+set filter to dow(DATA)=nDay
+go top
+%>
+<table class="table">
+<%
+do while not eof()
+   %>
+   <tr>
+   <td><a href="view_day.msp?XY=<%=cSeed%>&VAR_DAY=<%=zz(DATA)%>"><%=day(DATA)%> <%=itmonth(DATA)%></a></td>
+   <td><%=ORA%></td>
+   <td><%=POSIZIONE%></td>
+   </tr>
+   <%
+   skip
+enddo
+%>
+</table>
+<%
+******************************************************************************************
+endcase
+******************************************************************************************
+%>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+</html>

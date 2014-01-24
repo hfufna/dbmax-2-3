@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="../tablet8.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<a target="_top" href="/index.msp"><h3>RICHIEDI AUTORIZZAZIONE</h3></a>' html
+   return
+endif
+
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e in seguito riprovare"
+
+   return
+endif
+******************************************* OK **
+//-- apre la tabella tavoli
+dbOpen(xDB,"2")
+
+//-- apre la tabella comande
+dbOpen(xDB,"3")
+
+//-- TIMER SET
+nMins    := 0
+nSecs    := 30
+nTimeSet := nMins*60+nSecs*1000
+%>
+<script language="javascript">var int=self.setInterval("clock()",'<%=zz(nTimeSet)%>');
+function clock()  {  window.location.reload(true);  }
+</script>
+<%
+//-- BACKGROUND ACTIONS
+
+%>
+<body>
+<form name="form1">
+<!----------------------------------- *BANNER --------------------------------------- //-->
+<table border="0" width="100%" cellspacing="5" cellpadding="5">
+<tr bgcolor="#000000">
+ <td><a target="_top" href="../index.htm">SALA</a> <input type="text" name="EF_COM_TOT" value="" style="background-color:black; color:lime; border:none; width:30px;">
+ comande pronte</td>
+ <td bgcolor="#0066CC" width="5%">
+      BAR</td>
+ <td bgcolor="#FF8C1A" width="5%">
+   CUCINA</td>
+ <td bgcolor="#FF3300" width="5%">
+      FORNO</td>
+ <td>
+   <%=nSecs%>s
+   </td>
+ <td>
+   Agg:<font color="orange"><%=left(time(),5)%></font>
+   </td>
+</tr>
+</table>
+<!----------------------------------- *GRID --------------------------------------- //-->
+<%
+//-- WEBVARS PER IL FILTRO
+sele comande
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+select comande
+set filter to STAT_COM = "PRO"
+go top
+cCond := "PRO"
+cQuery := "STAT_COM='"+cCond+"'"
+
+if not empty(cKeyFld)
+   cQuery := cKeyFld + "=" + "'" + cKeyVal + "'"
+endif
+%>
+<table border="1" cellpadding="2" width="100%" style="border-collapse: collapse">
+
+<%
+rrr :=0
+go top
+do while not eof()
+   if &cQuery
+      rrr++
+      cColor := ""
+      do case
+      case DEF_DEST="BAR"
+         cColor :="#0066CC"
+      case DEF_DEST="CUC"
+         cColor :="#FF3300"
+      case DEF_DEST="FOR"
+         cColor :="#FF8C1A"
+      endcase
+      %> 
+      <tr bgcolor="<%=cColor%>">
+      <td><%=capital(ID_OP)%></td>
+      <td><%=ID_TAV%></td>
+      <td><%=subs(timeDiff(T_SEND,time()),4,2)%>m</td>
+      <td><%=STAT_COM%></td>
+      <td><font color="yellow"><%=DESC_PROD%></font></td>
+      <td><%=GRP_PROD%></td>
+      <%
+   endif
+   skip
+   %></tr><%
+enddo
+%>
+</table>
+<script language="javascript">document.form1.EF_COM_TOT.value='<%=zz(rrr)%>';</script>
+</form>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+<hr>
+<font color="#C0C0C0" size="2"><%=pageName()%> Term:<%=xcDevId%></font>
+
+</body>
+</html>
+<%
+******************************
+function timeDiff(cStr1,cStr2)
+******************************
+local nHour,cVal1,cVal2
+if not left(upper(cStr1),2) $ "AMPM"
+   nHour := val(left(cStr1,2)) 
+   cStr1 := cStr1 +" "+iif(nHour>=12,"pm","am")
+endif
+
+if not left(upper(cStr2),2) $ "AMPM"
+   nHour := val(left(cStr2,2)) 
+   cStr2 := cStr2 +" "+iif(nHour>=12,"pm","am")
+endif
+return elaptime(cStr1,cStr2)
+%>

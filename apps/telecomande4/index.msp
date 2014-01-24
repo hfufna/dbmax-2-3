@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="default.css">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<script language="javascript">
+var cNavCodeName = navigator.appCodeName;
+var cNavName = navigator.appName;
+var cNavVersion = navigator.appVersion;
+var cNavCookies = navigator.cookieEnabled;
+var cNavPlatform = navigator.platform;
+var cNavUserAgent = navigator.userAgent;
+var cNavScreenSize = screen.availWidth + "X" + screen.availHeight ;
+</script>
+<%
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cRecno  := MSPFieldValue("VAR_RECNO")
+cSelf   := pageName()
+
+//-- WEBVARS STACK
+declare aVars[ max(MSPFieldCount(),1),2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+*--------------------------------------------OK
+set date to italian
+set decimals to 2
+set hour to 24
+%>
+<!----------------------------------- <%=cSelf%> --------------------------------------- //-->
+<body>
+<h2><a href="javascript:document.location.reload();"><font color="#FFCC00">TELECOMANDE Wi-Fi</font></a></h2>
+<%
+//-- codice cliente (uso con sedi multiple)
+kCodCli := MspFieldValue("CODCLI")
+if empty(kCodCli)
+   kCodCli := "TEST"
+endif
+
+//--  NOMI DEI FILE DI APPOGGIO DA USARE
+//
+cDbPath  := setDb("telecomande")
+cIniFile := cDbPath + "telecomande.ini"
+
+//-- file ini del programma (una volta sola)
+if not file(cIniFile)
+   zcSession := " "
+   cTxt := "# " + CR_LF
+   cTxt += "sessionecassa=" + zcSession + CR_LF
+   cTxt += "codcliente=" + kCodCli + CR_LF
+   cTxt += "txtCliente1=PIZZERIA DEMO" + CR_LF
+   cTxt += "txtCliente2=Via Roma,200" + CR_LF
+   cTxt += "txtCliente3=59100 PRATO" + CR_LF
+   cTxt += "txtCliente4=P.Iva:00001122334 CF:00001122334" + CR_LF
+   cTxt += "txtCliente5=Tel.0574 636363" + CR_LF
+   memowrit(cIniFile,cTxt) 
+endif
+
+//-- elementi per identificare il terminale
+//   (intercambiabili a seconda delle configurazioni fisiche)
+//
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+
+//-- nome e cartella dei file di memoria
+xMemDir :=cDbPath+"mem\"
+if not file(xMemDir)
+   md(xMemDir)
+endif
+
+//-- si decide cosa usare per l'identificazione
+cDevId   := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+
+//-- se il file di memoria esiste si legge
+if file(xMemFile)
+   restore from (xMemFile) additive
+else
+   //-- altrimenti si crea da zero
+   xlDetect := .f.
+   xcCodCli := kCodCli
+   xcShowAll:=.t.
+   xcHome   := pagename()
+   xRoot   := pagefile()
+   xcDevId  := cDevId
+   xcScreen := "Standard"
+   xcIniFile:= cIniFile
+   xnWW := 400
+   xnHH := 600
+   xnTavs := int(xnWW/100)
+   *
+   xcTxtCliente1 := readIniVar(cIniFile,"txtCliente1")
+   xcTxtCliente2 := readIniVar(cIniFile,"txtCliente2")
+   xcTxtCliente3 := readIniVar(cIniFile,"txtCliente3")
+   xcTxtCliente4 := readIniVar(cIniFile,"txtCliente4")
+   xcTxtCliente5 := readIniVar(cIniFile,"txtCliente5")
+   *
+   xcRuolo  := ""
+   xcIdOp   := ""
+   xcIdSala := ""
+   xcIdStr  := ""
+
+   *
+   declare xDB[6,3]
+   xDB[1,1] := "APPARATI.dbf"
+   xDB[1,2] := "APPARATI.mtx"
+   xDB[1,3] := "APPARATI"
+   *   
+   xDB[2,1] := "TAVOLI.dbf"
+   xDB[2,2] := "TAVOLI.mtx"
+   xDB[2,3] := "TAVOLI"
+   *
+   xDB[3,1] := "COMANDE.dbf"
+   xDB[3,2] := "COMANDE.mtx"
+   xDB[3,3] := "COMANDE"
+   *
+   xDB[4,1] := "PRODOTTI.dbf"
+   xDB[4,2] := "PRODOTTI.mtx"
+   xDB[4,3] := "PRODOTTI"
+   *
+   xDB[5,1] := "CASSA.dbf"
+   xDB[5,2] := "CASSA.mtx"
+   xDB[5,3] := "CASSA"
+   *    
+   xDB[6,1] := "ORDINI.dbf"
+   xDB[6,2] := "ORDINI.mtx"
+   xDB[6,3] := "ORDINI"
+   *   
+   //-- SALVA IMPOSTAZIONI DI QUESTO DISPOSITIVO
+   save all like x* to (xMemFile)
+   
+   //-- forza lettura browser
+   cAction := "DETECT"   
+endif
+
+//#######################################################################
+//-- CONTROLLO E GENERAZIONE TABELLE
+//
+do InitDb
+
+do case
+*=====================================
+case empty(cAction)
+*=====================================
+%>
+<h1>Attendere...</h1>
+<form name="form_detect" action="<%=cSelf%>" method="post">
+<div style="display:none">
+   Caratteristiche del tuo tablet:<br>
+   <input type="text" name="EF_NAVCODENAME" value="">
+   <input type="text" name="EF_NAVNAME" value="">
+   <input type="text" name="EF_NAVVERSION" value="">
+   <input type="text" name="EF_NAVCOOKIES" value="">
+   <input type="text" name="EF_NAVPLATFORM" value="">
+   <input type="text" name="EF_NAVUSERAGENT" value="">
+   <br>
+   Size     <input type="text" name="EF_NAVSCREENSIZE" value=""><br>
+   innerW   <input type="text" name="EF_INNER_WW" value=""><br>
+   innerH   <input type="text" name="EF_INNER_HH" value=""><br>
+   av.height<input type="text" name="EF_AVAIL_WW" value=""><br>
+   av.width <input type="text" name="EF_AVAIL_HH" value=""><br>
+   R.w/h    <input type="text" name="EF_R_WW" value=""><br>
+   R.h/w    <input type="text" name="EF_R_HH" value=""><br>
+   <input type="text" name="VAR_ACTION" value="UPDATE">
+   <input type="submit" name="PB_OK" value="UTILIZZA QUESTE IMPOSTAZIONI">
+</div>
+
+<!-- automatically submitting the web form for evaluation //-->
+<script language="javascript">
+   document.form_detect.EF_NAVCODENAME.value = cNavCodeName ;
+   document.form_detect.EF_NAVNAME.value = cNavName ;
+   document.form_detect.EF_NAVVERSION.value = cNavVersion ;
+   document.form_detect.EF_NAVCOOKIES.value = cNavCookies ;
+   document.form_detect.EF_NAVPLATFORM.value = cNavPlatform ;
+   document.form_detect.EF_NAVUSERAGENT.value = cNavUserAgent ;
+   document.form_detect.EF_NAVSCREENSIZE.value = cNavScreenSize ;
+   document.form_detect.EF_INNER_WW.value = window.innerWidth ;
+   document.form_detect.EF_INNER_HH.value = window.innerHeight ;
+   document.form_detect.EF_AVAIL_WW.value = screen.availWidth ;
+   document.form_detect.EF_AVAIL_HH.value = screen.availHeight ;
+   document.form_detect.EF_R_WW.value = screen.width/screen.height;
+   document.form_detect.EF_R_HH.value = screen.height/screen.width ;
+   document.form_detect.submit();
+</script>
+</form>
+<%
+*=======================
+case cAction="UPDATE"
+*=======================
+// RECUPERO DATI RELATIVI AL BROWSER DAL FORM
+//
+   xcNavCodeName   := MSPFieldValue("EF_NAVCODENAME")
+   xcNavName       := MSPFieldValue("EF_NAVNAME")
+   xcNavVersion    := MSPFieldValue("EF_NAVVERSION")
+   xcNavCookies    := MSPFieldValue("EF_NAVCOOKIES")
+   xcNavPlatform   := MSPFieldValue("EF_NAVPLATFORM")
+   xcNavUserAgent  := MSPFieldValue("EF_NAVUSERAGENT")
+   xcNavScreenSize := MSPFieldValue("EF_NAVSCREENSIZE")
+   xcServerName    := getenv("SERVER_NAME")
+   xcRemoteAddr    := getenv("REMOTE_ADDR")
+   xnInnerWW       := val(MSPFieldValue("EF_INNER_WW"))
+   xnInnerHH       := val(MSPFieldValue("EF_INNER_HH"))
+   xnAvailWW       := val(MSPFieldValue("EF_AVAIL_WW"))
+   xnAvailHH       := val(MSPFieldValue("EF_AVAIL_HH"))
+   xnRWW           := val(MSPFieldValue("EF_R_WW"))
+   xnRHH           := val(MSPFieldValue("EF_R_HH"))
+   xnWW := iif(xnAvailWW < xnInnerWW, xnAvailWW, xnInnerWW )
+   xnHH := iif(xnAvailHH < xnInnerHH, xnAvailHH, xnInnerHH )
+   xcScreen := iif(xnWW>xnHH,"LANDSCAPE","PORTRAIT")
+
+//#######################################################################
+//-- RICERCA DEL DEVICE USANDO IL SUO IDENTIFICATIVO e aggiornamento dati
+//
+cDb := cDbPath + "apparati.dbf"
+cNx := cDbPath + "apparati.mtx"
+use (cDb) index (cNx)
+seek cDevId
+if not found()   
+   append blank
+   if rlock(2)
+      repl COD_CLI  with xcCodCli   
+      repl DEV_ID   with cDevId
+      repl DEV_IP   with getenv("REMOTE_ADDR")
+      repl WSIZE    with zz(xnWW)
+      repl HSIZE    with zz(xnHH)
+      unlock
+   else
+      ? "ERRORE NELLA REGISTRAZIONE DEL TERMINALE"
+      return
+   endif
+else
+   if rlock(2)
+      repl WSIZE    with zz(xnWW)
+      repl HSIZE    with zz(xnHH)
+      unlock
+   endif
+endif
+
+***************************************
+** AGGIORNAMENTO FILE DI MEMORIA
+save all like x* to (xMemFile)
+%>
+<div id="output"></div>
+<!----------------------------------- *DISPLAY ORIENTATION --------------------------------------- //-->
+<script>
+if(typeof(Storage)!=="undefined")
+  {
+  localStorage.jnWW=window.innerWidth;
+  localStorage.jnHH=window.innerHeight;
+  document.getElementById("output").innerHTML=localStorage.jnWW + "x" + localStorage.jnHH + " (" + screen.availWidth + "x" + screen.availHeight + ")";
+  }
+else
+  {
+  document.getElementById("output").innerHTML="Sorry, your browser does not support web storage...";
+  }
+  
+var nRatio = window.innerWidth/window.innerHeight;
+if(nRatio > 1)
+  { 
+  localStorage.jnAlt=(window.innerWidth-40)/2;
+  if(window.innerWidth<400)
+  {document.location='portrait.htm';}
+  else 
+  {document.location='landscape.htm';} 
+  }
+else
+  { 
+  localStorage.jnAlt=(window.innerWidth-100)/6;
+  document.location='portrait.htm'; 
+  }
+</script>
+<%
+*=======================
+endcase
+*=======================
+%>
+</body>
+</html>
+<%
+*****************************************
+procedure initDb
+*****************************************
+cDb := cDBpath + "COMANDE.DBF"
+cXb := cDBpath + "COMANDE.MTX"
+if not file(cDb)
+  ainit( "aField","COD_CLI","ID_COM","ID_OP","ID_TAV","ID_SALA","GRP_PROD","COD_PROD","DESC_PROD","DEF_DEST","QNT","PRZ_UN","STAT_COM","T_SEND","T_CONS","T_DONE","T_REG","POS_AP","TTIME","D_REG","NSESSIONE")
+  ainit( "aType","C","C","C","C","C","C","C","C","C","N","N","C","C","C","C","C","N","N","D","C")
+  ainit( "aSize",12,10,14,6,10,15,10,80,5,10,7,15,10,10,10,10,3,3,3,8,15)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+if not file(cXb)
+  use (cDb) in 0 alias TEMP index (cXb) key GRP_PROD+DESC_PROD
+  use
+endif
+***
+cDb  := cDBpath + "APPARATI.DBF"
+cXb  := cDBpath + "APPARATI.MTX"
+if not file(cDb)
+  ainit( "aField","DEV_ID","DEV_IP","ID_RUOLO","ID_OP","ID_SALA","DEV_DESC","WSIZE","HSIZE","CSTYLE","COD_CLI","PG_TOGO")
+  ainit( "aType","C","C","C","C","C","C","C","C","C","C","C")
+  ainit( "aSize",20,15,15,15,10,35,5,5,15,12,40)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+if not file(cXb)
+  use (cDb) in 0 alias TEMP index (cXb) key DEV_ID
+  use
+endif
+***
+cDb  := cDBpath + "PRODOTTI.DBF"
+cXb  := cDBpath + "PRODOTTI.MTX"
+if not file(cDb)
+  ainit( "aField","COD_CLI","ID_PROD","DESCR_PROD","DESCR_COMM","GRP_PROD","SOTTOGRP","DEF_DEST","PRZ_UN","POSS_VAR","MAGG_VAR")
+  ainit( "aType","C","C","C","M","C","C","C","N","C","N")
+  ainit( "aSize",12,10,80,10,10,10,10,4,1,4)
+  ainit( "aDec",0,0,0,0,0,0,0,2,0,2)
+  create (cDb) from aField, aType, aSize, aDec
+  use (cDb) in 0 alias TEMP excl
+  
+  cFile := cDbPath+"PROD_BACKUP.dbf"
+  if file(cFile)  
+     append from (cFile)
+  else
+   nnn := 0
+   rrr := 0
+   for vvv=1 to 5
+     nnn++
+     for iii=1 to 10
+        append blank
+        rrr++
+        if rlock(2)
+           repl COD_CLI    with xcCodCli
+           repl ID_PROD with zz(rrr)
+           repl DESCR_PROD with "Prodotto " + zz(rrr)
+           repl DESCR_PROD with "Gruppo " + zz(vvv)
+           repl PRZ_UN with 5.5
+           unlock
+        endif
+     next
+   next
+  endif
+  use
+endif
+if not file(cXb)
+  use (cDb) in 0 alias TEMP index (cXb) key DESCR_PROD
+  use
+endif
+***
+cDb  := cDBpath + "TAVOLI.DBF"
+cXb  := cDBpath + "TAVOLI.MTX"
+if not file(cDb)
+  ainit( "aField","ID_TAV","ID_SALA","ID_OP","STAT_TAV","TOT_CNT","NUM_COM","COPERTI","T_START","T_END","L_UPD","T_TOT","D_REG","L1","L2","L3","L4","L5","NSESSIONE","ROTAZ","COD_CLI")
+  ainit( "aType","C","C","C","C","N","N","N","C","C","C","C","D","C","C","C","C","C","C","N","C")
+  ainit( "aSize",5,5,15,10,7,3,3,10,10,10,10,8,3,3,3,3,3,15,2,12)
+  ainit( "aDec",0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  *? "Rebuilt table " + cDb
+endif
+if not file(cXb)
+  use (cDb) in 0 alias TEMP index (cXb) key ID_SALA
+  nnn := 0
+  rrr := 0
+  for vvv=1 to 5
+     nnn++
+     for iii=1 to 10
+        append blank
+        rrr++
+        if rlock(2)
+           repl COD_CLI with kCodCli
+           repl ID_TAV  with "T"+str(rrr,2,0,"0")
+           repl ID_SALA with zz(nnn)
+           unlock
+        endif x
+     next
+  next
+  use
+endif
+***
+cDb  := cDBpath + "CASSA.DBF"
+cXb  := cDBpath + "CASSA.MTX"
+if not file(cDb)
+ ainit( "aField","COD_CLI","NSESSIONE","COD_OP","ID_OP","ID_SALA","ID_TAV","D_REG","T_AP","T_CHIUS","IMP_TOT","IMP_CONT","IMP_REST","DES_EPAY","IMP_EPAY","DES_TKT1","IMP_TKT1","DES_TKT2","IMP_TKT2","RIF_FATT","VAL_CONT","VAL_VERS","RIPORTO","RATA")
+  ainit( "aType","C","C","C","C","C","C","D","C","C","N","N","N","C","N","C","N","C","N","C","N","N","N","N")
+  ainit( "aSize",12,10,10,15,10,25,8,10,10,7,7,15,7,15,7,15,7,15,7,20,8,8,8,8)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,2,2,0,2,0,2,0,2,0,2,0,2,2,2,2)
+  create (cDb) from aField, aType, aSize, aDec
+  use (cDb) in 0 alias TEMP index (cXb) key NSESSIONE
+  use
+endif
+***
+cDb  := cDBpath + "gruppi.DBF"
+cXb  := cDBpath + "gruppi.MTX"
+if not file(cDb)
+  ainit( "aField","COD_CLI","GRP_PROD","DESCR_GRP","SOTTOGRP")
+  ainit( "aType","C","C","C","C")
+  ainit( "aSize",12,10,10,10)
+  ainit( "aDec",0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+***
+cDb  := cDBpath + "ORDINI.DBF"
+cXb  := cDBpath + "ORDINI.MTX"
+if not file(cDb)
+  ainit( "aField","ID_TAV","ID_SALA","ID_OP","STAT_TAV","TOT_CNT","NUM_COM","COPERTI","T_START","T_END","L_UPD","T_TOT","D_REG","L1","L2","L3","L4","L5","NSESSIONE","ROTAZ","COD_CLI")
+  ainit( "aType","C","C","C","C","N","N","N","C","C","C","C","D","C","C","C","C","C","C","N","C")
+  ainit( "aSize",5,5,15,10,7,3,3,10,10,10,10,8,3,3,3,3,3,15,2,12)
+  ainit( "aDec",0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  *? "Rebuilt table " + cDb
+endif
+if not file(cXb)
+  use (cDb) in 0 alias TEMP index (cXb) key ID_SALA
+  nnn := 0
+  rrr := 0
+  for iii=1 to 10
+     append blank
+     rrr++
+     if rlock(2)
+        repl COD_CLI with kCodCli
+        repl ID_TAV  with "A"+str(rrr,2,0,"0")
+        repl ID_SALA with "0"
+        unlock
+     endif
+  next
+  use
+endif
+***
+return
+%>

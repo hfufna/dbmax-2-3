@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<%
+lDebug :=.t.
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOADING APP GLOBALS FROM MEMORY FILE
+/////////////////////////////////////////
+xGlobals := webRoot() + "\globals.mem"
+restore from (xGlobals) additive
+
+//-- SESSION HANDLING  USING SEEDS (A SEPARATE FILE FOR EACH USER)
+//
+cSeed := MSPFieldValue("XY")
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<div class="container">
+
+            <div class="input-group" style="width:340px;text-align:center;margin:0 auto; margin.top:10px;">
+            <input type="text" class="form-control input-lg" title="Type your telephone number" placeholder="Telefono" name="EF_TELEF">
+              <span class="input-group-btn">
+              <input class="btn btn-lg btn-primary" type="submit" value="Search">
+              </span>
+            </div>
+          </form>
+</div>          
+</body>
+<!-- HTML FOOTER //-->
+</div><!-- container //-->
+<%=include("/parts/html/footer.htm")%>
+</html>

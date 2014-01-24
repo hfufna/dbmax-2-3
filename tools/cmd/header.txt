@@ -1,0 +1,77 @@
+<!----------------------------------- *PART HTML-HEADER --------------------------------------- //-->
+<!DOCTYPE html>
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 HEADER FOR CMD TOOL
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 02 -- GETTING SESSION VARS
+cSeed := zz(ip2num(getenv("REMOTE_ADDR")))
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   save all like * to (cMemFile)
+endif
+
+//-- 012 -- GETTING CARGO VARS
+xCargoFile := zz(ip2num(getenv("REMOTE_ADDR")))+".cargo"
+if not empty(xCargoFile) 
+   if file(xCargoFile)
+      restore from (xCargoFile) additive
+   else
+      save all to (xCargoFile)
+      *return   
+   endif
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- DEFAULT REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- 020 -- DEFAULT DATABASE SETTINGS
+if type(xDbSet)="C" and not empty(xDbSet)
+   cDir := setDb(xDbSet)
+else
+   cDir := setDb("cmd")
+endif
+if type(xDbType)="C" and not empty(xDbType)
+   if not upper(xDbType) $ "MAX XBASE"
+      set dbtype to xDbType
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER FOR CMD
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<%=include("/parts/html/header.htm")%>
+<!-- HTML HEADER <%=libVer()%> //-->
+<!----------------------------------- *END HTML-HEADER --------------------------------------- //-->
+<%=container()%>

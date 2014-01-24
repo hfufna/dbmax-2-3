@@ -1,0 +1,6 @@
+<%
+? "WebVars:" | len(aVars)
+for iii=1 to len(aVars)
+   ? " Var [" | aVars[iii,1] | "]=[" | aVars[iii,2] | "]"
+next
+%>

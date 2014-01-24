@@ -1,0 +1,314 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+DBFREE DEMO AND TUTORIALS 2013
+
+********************************************************
+SURVEY MAKER DEMO  v.0.0.1 - February 2013
+Written from Hannes "Fuffy" Dalgreen for MaxScript 2.1
+********************************************************
+
+Module name.......: EDIT.msp
+Purpose...........: Produces a combined view of the survey and the questions part of it.
+                    Questions can be added or removed from here using the actuator page QUESTION.msp
+
+//-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="../../../default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>DBFreeActive Page</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+a {color:navy;text-decoration:underline;}
+a:visited {color:navy;}
+a:hover {color:red;text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+.rcorner {position:fixed; top:5; right:10;}
+.srtext {background-color:#FFFFFF;border:none;width:80%;padding:5 5 5 5;font-size:2em;}
+.srtitle {background-color:#FFFFCC;border:none;width:80%;padding:5 5 5 5;font-size:1.3em;}
+</style>
+<!----------------------------------- javascripts -------------------------------------- //-->
+<%
+//-- APPLICATION ID
+xAppId := "survey"
+**************************************** DBFree 2-22-MINI-HEADER
+//-- SERVER DETECTOR AND LIBRARY LOADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK HANDLER
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  ? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set century on
+set decimals to 0
+nRowsPerPage := 4
+
+//-- STANDARD WEBVARS
+cSelf   := pageName()
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+
+//-- INCOMING WEBVARS
+cTable     := MSPFieldValue("VAR_TABLE")
+cSurveyId := MSPFieldValue("VAR_SR_ID")
+nRecno    := val(MSPFieldValue("VAR_RECNO"))
+
+
+//-- DATABASE TO USE
+cDir := setDb(xAppId)
+
+//-- TABLES TO USE
+
+*** 1
+cTable  := cDir + "SURVEY.DBF"
+cIndex  := cDir + "SURVEY.MTX"
+use (cTable) in 0 alias SURVEY index (cIndex) key D_CREA
+set order to 0
+
+*** 2
+cTable  := cDir + "QUESTIONS.DBF"
+cIndex  := cDir + "QUESTIONS.MTX"
+use (cTable) in 0 alias QUESTIONS index (cIndex) key SURVEY_ID
+
+cTable := ""
+cIndex := ""
+
+//-- using button labels as code for actions
+cAction := upper(cAction)
+
+do case
+***********************
+case cAction = "SAVE"
+***********************
+
+saveRecord(nRecno,aVars)
+
+***********************
+case cAction = "ADD"
+***********************
+select questions
+count for SURVEY_ID = cSurveyId to nProgr
+
+append blank
+if rlock(2)
+   repl SURVEY_ID with cSurveyId
+   repl Q_ID with cSurveyId + "-" + zz(recno())
+   repl POS_ORD with nProgr
+   repl POS_PAGE with int(nProgr/nRowsPerPage)
+   repl SHORT_Q with "Question #"+zz(recno())
+   unlock
+endif
+
+cAction := ""
+***********************
+endcase
+***********************
+%>
+<!----------------------------------- HTML BODY -------------------------------------- //-->
+<body>
+<font size="4">Editing survey [<%=SURVEY_ID%>]</font></b><a href="../init.msp" class="rcorner">Back</a><hr>
+<%
+select survey
+****************
+locate for SURVEY_ID = cSurveyId
+cQuestion := alltrim(TITLE)
+cDescript := alltrim(FULL_DESC)
+%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+<input type="hidden" name="VAR_RECNO" value="<%=zz(recno())%>">
+<input type="hidden" name="VAR_SR_ID" value="<%=cSurveyId%>">
+<input type="hidden" name="VAR_DESC" value="<%=MSPEncode(TITLE+"<hr>"+FULL_DESC)%>">
+
+<!-- buttons and links //-->
+<input type="submit" name="VAR_ACTION" value="Save changes">
+&nbsp;&nbsp;|&nbsp;&nbsp; 
+<a href="../views/views_browse.msp">Back to list</a>
+<input type="submit" name="VAR_ACTION" value="Add New Question" style="position:fixed;right:10;">
+
+<!-- title and description editable //-->
+<input name="EF_TITLE"     value="<%=cQuestion%>" class="srtext">
+<input name="EF_FULL_DESC" value="<%=cDescript%>" size="80" class="srtitle">
+
+<table border="0" cellpadding="3">
+<!-- grid header //-->
+<tr bgcolor="#F3F3F3">
+   <td>Order</td>
+   <td>Text of the question</td>
+   <td>Answers you choose to offer to user</td>
+   <td>Types</td>
+</tr>
+<%
+select questions
+****************
+set filter to SURVEY_ID = cSurveyId
+rrr := 0
+go top
+do while not eof()
+   cParmLink := "VAR_Q_ID=" | zz(Q_ID) | "&VAR_DESC=" | MSPEncode(cDescript)
+   %>
+   <!-- grid row //-->
+   <tr bgcolor="#FFFFCC">
+      <!-- column 1 - ordinal position entryfield//-->
+      <td width="3%"> <%=zz(POS_ORD)%> </td>
+      <!-- column 2 - question short text entryfield//-->
+      <td> <a href="question.msp?<%=cParmLink%>"><%=alltrim(SHORT_Q)%></a> </td>
+      <!-- column 3 - show the current available answer options  //-->
+      <td> <%=showOptions(A_TYPE,NOREPLY)%> </td>
+      <!-- column 4 //-->
+      <td>[]</td>
+   <!-- end row //-->
+   </tr>
+   <%
+   sele questions
+   skip
+   rrr++
+enddo
+%>
+</table>
+<%
+//-- if no records put warning message
+if rrr = 0
+   ? "No questions have been added yet to this survey"
+endif
+%>
+<hr>
+</form>
+<!--- form end //--->
+
+<!----------------------------------- debug only -------------------------------------- //-->
+<div style="position:fixed; width:100%; height:13px; background-color:#C0C0C0; bottom:0; left:0; font-size:10; color: black; text-align:right;"><%=pagename()%></div>
+</body>
+</html>
+<%
+***************************************
+function showOptions(cAnswType, noAnsw)
+***************************************
+local cOpt :=""
+if pcount()=1
+   cOpt := '<input type="radio" name="EF_NN">No answer'
+endif
+do case
+case cAnswType = "YESNO"
+   %>
+   <input type="radio" name="EF_YES">Yes
+   <input type="radio" name="EF_NO">No
+   <%=cOpt%>
+   <%
+case cAnswType = "MUCH"
+   %>
+   <input type="radio" name="EF_MUCH5">Very bad
+   <input type="radio" name="EF_MUCH4">Good
+   <input type="radio" name="EF_MUCH3">Nor good nor bad
+   <input type="radio" name="EF_MUCH2">Bad
+   <input type="radio" name="EF_MUCH1">Very bad
+   <%=cOpt%>
+   <%
+case cAnswType = "MAYBE"
+   %>
+   <input type="radio" name="EF_YES">Yes
+   <input type="radio" name="EF_NO">No
+   <input type="radio" name="EF_NO">Maybe
+   <%=cOpt%>
+   <%
+case cAnswType = "SCORE"
+   for iii=1 to 10
+      %><input type="radio" name="EF_SC<%=zz(iii)%>"><%=zz(iii)%>&nbsp;<%
+   next
+   %>
+   <%=cOpt%>
+   <%
+case cAnswType = "SATISF"
+   %>
+   <input type="radio" name="EF_SAT6">Very satisfied<br>
+   <input type="radio" name="EF_SAT5">Satisfied<br>
+   <input type="radio" name="EF_SAT4">Somewhat satisfied<br>
+   <input type="radio" name="EF_SAT3">No opinion<br>
+   <input type="radio" name="EF_SAT2">Somewhat unsatisfied<br>
+   <input type="radio" name="EF_SAT1">Unsatisfied<br>
+   <input type="radio" name="EF_SAT0">Absolutely unsatisfied<br>
+   <%=cOpt%>
+   <%
+case cAnswType = "MAYBE"
+   %>
+   <input type="radio" name="EF_MAY6">Very satisfied<br>
+   <input type="radio" name="EF_MAY5">Satisfied<br>
+   <input type="radio" name="EF_MAY4">Somewhat satisfied<br>
+   <input type="radio" name="EF_MAY3">No opinion<br>
+   <input type="radio" name="EF_MAY2">Somewhat unsatisfied<br>
+   <input type="radio" name="EF_MAY1">Unsatisfied<br>
+   <input type="radio" name="EF_MAY0">Absolutely unsatisfied<br>
+   <%=cOpt%>
+   <%
+case cAnswType = "PROB5"
+   %>
+   <input type="radio" name="EF_LIKE4">Surely<br>
+   <input type="radio" name="EF_LIKE3">Very likely<br>
+   <input type="radio" name="EF_LIKE2">Likely<br>
+   <input type="radio" name="EF_LIKE1">Unlikely<br>
+   <input type="radio" name="EF_LIKE0">Absolutely no<br>
+   <%=cOpt%>
+   <%   
+case cAnswType = "DID"
+   %>
+   <input type="radio" name="EF_DID4">Yes<br>
+   <input type="radio" name="EF_DID3">Somewhat<br>
+   <input type="radio" name="EF_DID2">Heard of<br>
+   <input type="radio" name="EF_DID1">Don't remember<br>
+   <input type="radio" name="EF_DID0">Never<br>
+   <%=cOpt%>
+   <%
+case cAnswType = "PROB10"
+   %>
+   <input type="radio" name="EF_PROB10">100%<br>
+   <input type="radio" name="EF_PROB9">90%<br>
+   <input type="radio" name="EF_PROB8">80%<br>
+   <input type="radio" name="EF_PROB7">70%<br>
+   <input type="radio" name="EF_PROB6">60%<br>
+   <input type="radio" name="EF_PROB5">50%<br>
+   <input type="radio" name="EF_PROB4">40%<br>
+   <input type="radio" name="EF_PROB3">30%<br>
+   <input type="radio" name="EF_PROB2">20%<br>
+   <input type="radio" name="EF_PROB1">10%<br>
+   <input type="radio" name="EF_PROB0">0%<br>
+   <%
+case cAnswType = "OFTEN"
+   %>
+   <input type="radio" name="EF_ANY8">Always<br>
+   <input type="radio" name="EF_ANY7">Periodically<br>
+   <input type="radio" name="EF_ANY6">Very often<br>
+   <input type="radio" name="EF_ANY5">Often<br>
+   <input type="radio" name="EF_ANY4">Sometimes<br>
+   <input type="radio" name="EF_ANY3">Once only<br>
+   <input type="radio" name="EF_ANY2">Occasionally<br>
+   <input type="radio" name="EF_ANY1">Very seldom<br>
+   <input type="radio" name="EF_ANY0">Never<br>
+   <%=cOpt%><%
+endcase
+return ""
+
+%>

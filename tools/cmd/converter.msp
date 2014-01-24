@@ -1,0 +1,79 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+CR_LF := chr(13)+chr(10)
+****************************************
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+cDbPath  := MspConfigVar("DATADIR")
+
+xcRunDir := curDosDir()
+cSaveDir := updir(xcRunDir)+"userfiles\"
+//-- INTERFACE SETTINGS
+xnBoxHeight  := "90"
+xnSintWidth  := "46"
+xnSintHeight := "89"
+
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<%
+do case
+*--------------------------------------------
+case empty(cAction)
+*--------------------------------------------
+   %>
+<form name="form_load" action="<%=cSelf%>" method="post" style="form1">
+<h3>Load code from file</h3>
+<input type="text" name="EF_FILENAME" size="35" readonly>
+<input type="hidden" name="VAR_ACTION" value="LOADFILE">
+<input type="hidden" name="VAR_OPTION" value="">
+<%
+$extended
+cMask := cSaveDir + "*.mspx"
+? "List of " + cMask
+nFiles = adir( cMask, aName, aSize, aDate, aTime, aAttr )
+for iii = 1 to nFiles
+   cThis := lower(aName[iii])
+   cLink := strTran(cThis,"\","\\")
+   %>
+   <br><input type="submit" name="PB_OK" value=">>" onclick="form_load.EF_FILENAME.value='<%=cLink%>';"><%=filename(cThis)%>
+   <%
+next
+%>
+<hr><p align="center"><a href="javascript:toggleDiv('div_load');">Hide window</a>
+</form>
+   <%
+*--------------------------------------------
+case cAction="LOADFILE"
+*--------------------------------------------
+cFile := MSPFieldValue("EF_FILENAME")
+if file(cFile)
+   cMsg := "LOADING FILE " + cFile
+   cCode := mspdecode(memoread(cFile))
+endif   
+%>
+<h3><%=cFile%></h3>
+<!----------------------------------- BLACKBOARD BOX -------------------------------------- //-->
+<textarea id="xcode" name="EF_CODE" 
+style="position:relative;width:100%;height:<%=xnBoxHeight%>%;min-height:400;background-color:#C0C0C0;color:maroon;padding:5 5 5 5;border:solid 1px #000000;"><%=cCode%></textarea>
+</form>
+<%
+*--------------------------------------------
+endcase
+*--------------------------------------------
+%>
+</body>
+</html>
+

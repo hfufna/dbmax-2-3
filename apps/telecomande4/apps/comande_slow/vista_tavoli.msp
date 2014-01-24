@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="tablet7.css">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<style type="text/css">
+   .info {text-size:10px; color:orange;;}
+</style>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- CERCA APPARATO 
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+   return
+endif
+******************************************* OK **
+
+//-- TIMER SET
+nMins    := 0
+nSecs    := 55
+nTimeSet := nMins*60+nSecs*1000
+%>
+<script language="javascript">var int=self.setInterval("clock()",'<%=zz(nTimeSet)%>');
+function clock()  {  window.location.reload(true);  }
+</script>
+<%
+
+//-- COLORI PER LO SFONDO DEL TAVOLO
+cBoxColor := ""
+cTxtColor := "#FFFFFF"
+
+*#########################################################################
+
+//-- DIMENSIONA ELEMENTI
+nTavPerRiga := 4                       //-- tavoli per riga
+nIconSize   := xnWW/nTavPerRiga*0.75   //-- dimensione icona tavolo
+nLargCella  := xnWW/nTavPerRiga*0.7
+*
+cLarghIcoTav   := zz(nIconSize)
+cLarghIcoProd  := zz(int(xnWW/7))
+
+//-- apre le comande e cerca se ci sono comande pronte
+dbOpen(xDB,"3")
+
+//-- apre la tabella tavoli
+dbOpen(xDB,"2")
+sele TAVOLI
+set filter to alltrim(ID_SALA) == alltrim(xcIdSala)
+%>
+
+<!----------------------------------- *HTML STARTY --------------------------------------- //-->
+<body>
+<div id="main" style="width:<%=zz(xnWW)%>px; height:<%=zz(xnHH)%>px;">
+<!----------------------------------- riga rossa -------------------------------------- //-->
+<table cellpadding="0" cellspacing="0" cellpadding="0" width="<%=zz(xnWW-20)%>" bgcolor="#000000">
+<tr><td colspan="<%=nTavPerRiga%>" bgcolor="#990000" align="center">
+<img border="0" src="../../images/ico_tavoli-s.gif" style="height:1.5em;">
+<font style="font-size:1.5em;">S<%=xcIdSala%></font>
+<img border="0" src="../../images/ico_pax.gif"><font color="#FFFFFF"><%=capital(xcIdOp)%>
+</td></tr>
+<!----------------------------------- tavoli su <%=nTavPerRiga%> colonne -------------------------------------- //-->
+<tr height="100px" valign="top">
+<%
+//-- dispone tutti i tavoli in righe e colonne
+rrr :=0
+go top
+do while not eof()
+   cBakColor := ""
+   cBoxColor  := "#000000"
+   cCurrTav   := ID_TAV
+   cTavStatus := STAT_TAV
+   do TavSetColor
+   rrr++
+   %>
+   <td bgcolor="<%=cBakColor%>" width="<%=zz(nLargCella)%>" align="center" style="border:solid 3px <%=cBoxColor%>;">
+   <!--- LINK START //-->
+   <a href="gestisci_tavolo.msp?VAR_TAV=<%=zz(ID_TAV)%>">
+      <table border="0" width="100%">
+	      <tr bgcolor="<%=cBoxColor%>">
+		   <td><font color="<%=cTxtColor%>"><b><%=zz(ID_TAV)%></b></font><font size="1" color="#FFFFFF"> <%=STAT_TAV%></font></td>
+	      </tr>
+	      <tr>
+		   <td><img src="../../images/ico_pax.gif" style="height:1em;"><span style="font-size:1em; color:#FFFFFF">&nbsp;<%=zz(COPERTI)%></span> 
+		   <font size="1" color="#FFFFFF"><%=zz(ID_OP)%> <%=CtimeDiff(T_START,time())%></font>
+		   </td>
+	      </tr>
+	   </table>
+      <% if STAT_TAV="OCC"%>
+         <img src="../../images/pw9_icotav_occ.gif" width="<%=cLarghIcoTav%>">
+      <% else %>
+         <img src="../../images/pw9_icotav_lib.gif" width="<%=cLarghIcoTav%>">
+      <% endif %>
+   </a>
+   <!--- LINK END //-->
+   </td>
+   <%
+   *--- salto riga quando raggiunto max tavoli per riga
+   if rrr >= nTavPerRiga
+      rrr := 0
+      %>
+      </tr><!-- <%=rrr%>//--><tr>
+      <%
+   endif
+   skip
+enddo
+%>
+</table>
+<!----------------------------------- legenda -------------------------------------- //-->
+<table border="0" cellspacing="5" cellpadding="0" width="<%=zz(xnWW)%>">
+<tr>
+<td bgcolor="#FFFF00" align="center"><b><font size="2" color="#FF0000">Ordinazione!</font></b></td>
+<td bgcolor="#FF6600" align="center"><b><font size="2">CONSEGNARE!</font></b></td>
+<td bgcolor="#990000" align="center"><font size="2" color="#FFFFFF">&nbsp;OK&nbsp;</font></td>
+<td bgcolor="#510051" align="center"><font size="2" color="#FFFFFF">Conto</font></td>
+<td bgcolor="#003300" align="center"><font size="2">Libero</font></td>
+<td bgcolor="#00004F" align="center"><font size="2">Prenotato</font></td>
+</tr>
+</table>
+<!----------------------------------- info di debug -------------------------------------- //-->
+<font color="lime" size="2">Op:<%=xcIdOp%> Sal:<%=xcIdSala%></font>
+<font color="#C0C0C0" size="2"><%=pageName()%> Term:<%=xcDevId%> <%=xnWW%>x<%=xnHH%> (<%=xnAvailWW%>x<%=xnAvailHH%>) <%=nTavPerRiga%></font>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+</div>
+</body>
+
+</html>
+<%
+*****************************************
+function doChkStatus(cIdTav, cPrevColor)
+*****************************************
+local cFlagColor
+cFlagColor := cPrevColor
+sele comande
+set filter to ID_TAV = cIdTav
+nPronte := 0
+go top
+do while not eof()
+   if left(STAT_COM,3) = "PRO"
+      nPronte++
+      cFlagColor := "orange"
+   endif
+   skip
+enddo
+sele tavoli
+return cFlagColor
+
+*****************************************
+procedure TavSetColor
+*****************************************
+//-- lavora sulle variabili soprastanti
+//   cCurrTav,cBoxColor,cTxtColor,cBakColor
+
+//-- DETERMINA IL COLORE DI BASE DEL TAVOLO
+sele tavoli
+cKey := left(STAT_TAV,3)
+do case
+case cKey = "OCC"   //-- tavolo occupato
+   cBoxColor := "#990000"
+case cKey = "LIB"   //-- tavolo apparecchiato
+   cBoxColor := "#003300"
+case cKey = "CNT"   //-- richiesta conto in corso
+   cBoxColor := "#510051"
+case cKey = "PRE"   //-- prenotato
+   cBoxColor := "#00004F"
+endcase
+
+//-- CONTROLLA SE CI SONO COMANDE PER IL TAVOLO
+//   E MODIFICA IL COLORE DELLO SFONDO
+sele comande
+set filter to ID_TAV = cCurrTav
+nPronte := 0
+nComTav := 0
+cTxtColor := "white"
+go top
+do while not eof()
+   nComTav++
+   cStat := left(STAT_COM,3) 
+   do case
+   case cStat = "PRO"   //-- roba pronta da consegnare al tavolo
+      cBoxColor := "#FF6600"
+      cBakColor := "#FF5500"
+   case cStat = "SOS"   //-- comande ancora da confermare
+      cBoxColor := "yellow"
+      cTxtColor := "red"
+   endcase
+   skip
+enddo
+if cKey = "OCC" and nComTav = 0  //-- tavolo occupato ma nessuna comanda
+   cBoxColor := "yellow"
+endif
+
+sele tavoli
+return 
+
+**************************************************
+function CtimeDiff(cTime1,cTime2)
+**************************************************
+local c1,c2,h1,h2,m1,m2
+c1 := zz(cTime1)
+c2 := zz(cTime2)
+h1 := val(left(c1,2))
+h2 := val(left(c2,2))
+m1 := val(subs(c1,4,2))
+m2 := val(subs(c2,4,2))
+if h2<h1
+   h2 += 24
+endif
+nnn := (h2*60+m2)-(h1*60+m1)
+return zz(int(nnn/60))+":"+zz(mod(nnn,60))%>

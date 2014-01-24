@@ -1,0 +1,301 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="cassa.css">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<script type="text/javascript">
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+</script>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<a target="_top" href="/index.msp"><h3>RICHIEDI AUTORIZZAZIONE</h3></a>' html
+   return
+endif
+
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- INCOMING WEBVARS
+
+//-- filtra sale
+cQuery := MSPFieldValue("VAR_QUERY")
+
+
+//-- TIMER PRESET
+nMins    := 0
+nSecs    := 30
+nTimeSet := nMins*60+nSecs*1000
+
+//-- PERSONAL SETTINGS
+
+xnCols := iif(type(xnCols)="U",9,xnCols)
+xnTimeout:= iif(type(xnTimeout)="U",30,xnTimeout)
+xnSale:= iif(type(xnSale)="U"," ",xnSale)
+
+if cOption="UPDATE"
+   //-- modifica colonne di tavoli
+   xnCols := val(MSPFieldValue("VAR_COLS"))
+   xnCols := min(xnCols,15)
+
+   //-- modifica del timer
+   xnTimeOut := val(MSPFieldValue("VAR_TIMEOUT"))
+   xnTimeOut:=min(xnTimeOut,100)
+   nTimeSet := xnTimeout*1000
+
+   //-- modifica stringa sale preferite
+   xnSale := MSPFieldValue("VAR_SALE")
+   
+   save all like x* to (xMemFile)
+endif
+
+%>
+<script language="javascript">var int=self.setInterval("clock()",'<%=zz(nTimeSet)%>');
+function clock()
+  {
+  window.location.reload(true);
+  }
+</script>
+
+<%
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+
+   return
+endif
+******************************************* OK **
+
+//-- APRE LE TABELLE CHE SERVONO
+//-- tabella cassa
+dbOpen(xDB,"5")
+sele cassa
+count for COD_OP="CONTO" to nTavOcc 
+
+//-- tabella tavoli
+dbOpen(xDB,"2")
+sele tavoli
+sum all COPERTI to nCopAtt
+count to nTavOcc for STAT_TAV="OCC"
+
+%>
+<script language="javascript">
+top.frm1.formx.SF_COM_TOT.value='<%=zz(nCopAtt)%>';
+top.frm1.formx.SF_TAV_OCC.value='<%=zz(nTavOcc)%>';
+</script>
+
+<body onload="window.title='CASSA';">
+<form name="form1" action="<%=cSelf%>">
+<!----------------------------------- *BANNER --------------------------------------- //-->
+<table border="0" width="100%" cellspacing="5" cellpadding="5">
+	<tr><td bgcolor="#990000">Situazione tavoli <%=time()%></td>
+	<td bgcolor="#990000">
+	<%
+	//-- elenco sale
+   sele tavoli
+   go top
+   cKey := "0"
+   do while not eof()
+      if ID_SALA <> cKey
+         cKey := ID_SALA
+         %><a href="<%=cSelf%>?VAR_QUERY=ID_SALA='<%=zz(ID_SALA)%>'">SL<%=zz(ID_SALA)%></a> |<%
+      endif
+      skip
+   enddo   
+   %>
+   <a href="<%=cSelf%>?VAR_QUERY=">Tutte</a>&nbsp;&nbsp;
+   <a href="<%=cSelf%>?VAR_QUERY=">LIB</a> | 
+   <a href="<%=cSelf%>?VAR_QUERY=">CNT</a>
+	</td>
+	<td bgcolor="#990000">
+	<a href="javascript:toggleDiv('div_1');">Opzioni</a>
+ 	<!-------- inner form OPZIONI ----- //-->
+	<div id="div_1" style="display:none;">
+	Refresh(sec):  <input type="text" size="2"   name="VAR_TIMEOUT" value="<%=zz(xnTimeout)%>">&nbsp;&nbsp;
+	Colonne:<input type="text" size="2" name="VAR_COLS" value="<%=zz(xnCols)%>">
+	Sale:<input type="text" size="2" name="VAR_SALE" value="<%=zz(xnSale)%>">
+	<input type="submit" value="Cambia" onclick="toggleDiv('div_1');">
+	<input type="hidden" value="UPDATE" name="VO">
+	</div>
+	<!-------- inner form END ----- //-->
+	</td></tr>
+	</table>
+<!----------------------------------- GRID -------------------------------------- //-->
+<table cellpadding="5" cellspacing="10">
+<tr>
+<%
+nnn   :=0
+if not empty(cQuery)
+   set filter to &cQuery
+endif
+go top
+do while not eof()
+ 
+   cColor := GetTavColor()
+   nnn++
+   %>
+   <td align="center" bgcolor="<%=cColor%>"><%=ID_TAV%>
+   <font size="2" color="yellow"><%=iif(COPERTI>0,zz(COPERTI)+"P","")%></font>
+   <font size="2"><%=STAT_TAV%>
+   <br><%=ID_OP%><br></font>
+   <a href="stato_tavolo.msp?VAR_TAV=<%=zz(ID_TAV)%>">
+   <img src="../../../images/pw9_icotav_lib.gif" width="50"></a>
+   <br><font size="2"><%=left(T_START,5)%> <%=left(time(),5)%></font>
+   <br><%=timediff(T_START,time())%>
+   <br><%=showCodes()%>
+   </td>
+   <%
+   if nnn >= xnCols
+      nnn := 0
+      %></tr><%
+   endif
+   skip
+enddo
+%>
+</tr>
+</table>   
+
+</form>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+<hr>
+<font color="#C0C0C0" size="2"><%=pageName()%> Term:<%=xcDevId%> Colonne:<%=xnCols%> Timeout:<%=xnTimeout%> Query:<%=xnSale%></font>
+
+</body>
+</html>
+<%
+**********************************
+function showCodes()
+**********************************
+cStyle := "color:black;font-size:12px;min-width:10px;background-color:"
+%>
+<table width="80" cellspacing="1" cellpadding="0">
+	<tr>
+		<td style="<%=cStyle%>red"><%=L1%></td><td></td>
+		<td style="<%=cStyle%>orange"><%=L2%></td><td></td>
+		<td style="<%=cStyle%>yellow"><%=L3%></td><td></td>
+		<td style="<%=cStyle%>green"><%=L4%></td><td></td>
+		<td style="<%=cStyle%>lime"><%=L5%></td>
+	</tr>
+</table>
+<%
+return("")
+******************************
+function timeDiff(cStr1,cStr2)
+******************************
+local nHour,cVal1,cVal2
+if not left(upper(cStr1),2) $ "AMPM"
+   nHour := val(left(cStr1,2)) 
+   cStr1 := cStr1 +" "+iif(nHour>=12,"pm","am")
+endif
+
+if not left(upper(cStr2),2) $ "AMPM"
+   nHour := val(left(cStr2,2)) 
+   cStr2 := cStr2 +" "+iif(nHour>=12,"pm","am")
+endif
+return elaptime(cStr1,cStr2)
+
+*****************************************
+procedure GetTavColor()
+*****************************************
+//-- DETERMINA IL COLORE DI BASE DEL TAVOLO
+local cKey, cBoxColor
+cBoxColor := "#000000"
+
+sele tavoli
+cKey := left(STAT_TAV,3)
+do case
+case cKey = "OCC"   //-- tavolo occupato
+   cBoxColor := "#990000"
+case cKey = "LIB"   //-- tavolo apparecchiato
+   cBoxColor := "#003300"
+case cKey = "CNT"   //-- richiesta conto in corso
+   cBoxColor := "#510051"
+case cKey = "PRE"   //-- prenotato
+   cBoxColor := "#00004F"
+endcase
+return(cBoxColor)
+
+%>

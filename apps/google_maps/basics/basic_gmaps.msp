@@ -1,0 +1,248 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="COPYRIGHT" CONTENT="G.Napolitano & MAXSIS ITALY (www.maxsis.it)- running on DBMAX - OPC4 is partly based on DBFREE (www.dbfree.org)">
+<META NAME="AUTHOR" CONTENT="G.Napolitano & Associates - MAXSIS ITALY (www.maxsis.it) - portion of code by © Dynamic Drive (www.dynamicdrive.com)">
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/gnx50.js"></script>
+<title>DBMax POLARIS© by MAXSIS</title>
+</head> 
+<%
+*************************************************************DBFREE-2-23*
+//set dbtype to DBASE
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+//-- 1 LIBRARY - loading DBFree external library functions
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xRoot := strTran(xRoot,"/","\")
+xcLib   := xRoot + "\lib\dbmax25.max"
+set maxlib to &xcLib
+
+//-- 2 EXPORT SYSTEM 
+//   default folder to pick up files from is DATADIR
+//   remember that must match to an alias of webserver
+cXiAlias    := "/export/"
+cPathExport := MspConfigVar("EXPORT")
+if empty(cPathExport)
+   cPathExport := MspConfigVar("DATADIR")
+endif
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VO")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+//-- 5 SAFETY SYSTEM 
+cUsrName := MSPFieldValue("VAR_USR_NAME")
+cUsrGrp  := upper(MSPFieldValue("VAR_USR_GRP"))
+cUsrRole := MSPFieldValue("VAR_USR_ROLE")
+cUrl     := setId(cSelf,cUsrName,cUsrGrp,cUsrRole)
+cSafeKey := setId("",cUsrName,cUsrGrp,cUsrRole)
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 7 PERSONALIZATION -- background and sub-webs
+cEntryPoint := dos2web(upDir(curDosDir()))   //--subweb
+cBkg := MspFieldValue("VAR_BKG")
+if empty(cBkg)
+   cBkg := "/start/default_bg.gif"
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb     := MSPFieldValue("VAR_SETDB")
+cTable     := MSPFieldValue("VAR_TABLE")
+nRecno     := val(MSPFieldValue("VAR_RECNO"))
+nIndexList := val(MSPFieldValue("VAR_INDEXLIST"))
+nIndexOrd  := val(MSPFieldValue("VAR_INDEXORD"))
+nRows      := val(MSPFieldValue("VAR_ROWS"))
+cDbRoot    := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+//-- 9 SAFETY SYSTEM
+*-- uncomment to abort page if username was not passed
+if empty(cUsrName)
+   *? "ERROR: No USERNAME supplied: your group is [" + cUsrGrp + "]"
+   *return
+endif
+
+//-- MISC
+CR_LF := chr(13)+chr(10)
+*************************************************************DBFREE-2-23**
+cDbPath := setDb("googledemo")
+
+cDb   := cDBpath + "mappe.DBF"
+cMtx  := cDBpath + "mappe_by_GPSPOS.MTX"
+
+if not file(cDb)
+  ainit( "aField","ID_OBJ","MAP_NAME","GPS_POS","GPS_LAT","GPS_LONG","DESCR","FULLTEXT")
+  ainit( "aType","C","C","C","C","C","C","M")
+  ainit( "aSize",10,25,50,16,16,80,10)
+  ainit( "aDec",0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+  ? "Rebuilt table " + cDb
+endif
+
+***********************************
+use (cDb) index (cMtx) key GPS_POS
+***********************************
+
+cMapName  := "FI_2010"
+cLatitude  := "43.769"
+cLongitude := "11.2503"
+%>
+<!----------------------------------- *google API 3 //----------------------------------------->
+<!-- 
+firenze 43.769, 11.2503  
+zoom: 17
+MapTypeId.TERRAIN
+---- //-->
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" /> 
+<style type="text/css">   html { height: 100% }   body { height: 100%; margin: 0px; padding: 0px }   #map_canvas { height: 100% } </style> 
+<script type="text/javascript"  src="http://maps.google.com/maps/api/js?sensor=false"> </script> 
+
+<script type="text/javascript">   
+var currentMap
+var markersArray = [];  
+var vx ;
+
+function initGoogleMaps() {   
+var <%=cMapName%>= new google.maps.LatLng(<%=cLatitude%>, <%=cLongitude%>);   
+
+var mapOptions = {     
+   zoom: 17,  center: <%=cMapName%>,   mapTypeId: google.maps.MapTypeId.ROADMAP };     
+   currentMap =  new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+   
+   //-- listener
+   google.maps.event.addListener(currentMap, 'click', function(event) { addMarker(event.latLng);
+    });
+}    
+
+function addMarker(location) {   
+   marker = new google.maps.Marker({     position: location,     map: currentMap   });
+   markersArray.push(marker); 
+   //-- scrive nel form i valori correnti
+   ccc = location.toString();
+   nn = ccc.indexOf(",");
+   c1 = ccc.substr(1,8);
+   c2 = ccc.substr(nn+1,9);
+   document.forms[0].VAR_LAT.value = c1;
+   document.forms[0].VAR_LONG.value = c2;
+}
+
+   
+// Removes the overlays from the map, but keeps them in the array 
+function clearOverlays() {   
+if (markersArray) 
+   {  for (i in markersArray) 
+        { markersArray[i].setMap(null);} 
+   }
+}  
+
+// Shows any overlays currently in the array 
+function showOverlays() {   
+if (markersArray) 
+   { for (i in markersArray) 
+      { markersArray[i].setMap(currentMap);}   
+   } 
+}  
+
+// Deletes all markers in the array by removing references to them 
+function deleteOverlays() {   
+if (markersArray) 
+   { for (i in markersArray) 
+      { markersArray[i].setMap(null);}     
+   markersArray.length = 0;   
+   } 
+}
+
+function putMarker( nlat, nlong ) {   
+   xThis = new google.maps.LatLng(nlat,nlong);
+   marker = new google.maps.Marker({     position: xThis,     map: currentMap   });
+   markersArray.push(marker); 
+}
+
+// la mia versione 
+// carica da database e mette in un array da processare quando si preme il tasto
+function loadOverlays() {   
+var myArray = [];
+<%
+go top
+rrr := 0
+do while not eof()
+   %>
+   myArray[<%=zz(rrr)%>]=['<%=zz(trimLeftAt(GPS_POS,","))%>','<%=zz(trimRightAt(GPS_POS,","))%>'];
+   <%
+   skip
+   rrr++
+   if rrr > 400
+      exit
+   endif
+enddo
+%>
+if (myArray ) 
+   {  for (iii in myArray ) 
+        { //--alert(''+myArray[iii][0]+'=='+myArray[iii][1]);
+        xThis = new google.maps.LatLng(myArray[iii][0],myArray[iii][1]); 
+        addMarker(xThis);
+        markersArray[iii].setMap(currentMap);
+        }
+   }
+}
+</script> 
+
+<!----------------------------------- *BODY //----------------------------------------->
+<body onload="initGoogleMaps()">  
+<form>
+
+<!----------------------------------- *la mappa di google //----------------------------------------->
+<div z-order="0" id="map_canvas" style="width:100%; height:100%"></div> 
+
+<!----------------------------------- form con gli strumenti //----------------------------------------->
+<div z-order="1" id="box" style="position:absolute; top:5; left:85; height;10; background-color: white; border: solid 1px black;">
+   <form name="form1" id="form_toolbox" >
+      N<input type="text" name="VAR_LAT" value="<%=cLatitude%>" size="10">
+      W<input type="text" name="VAR_LONG" value="<%=cLongitude%>" size="10" class="inp_box">
+      <input type="button" name="PB_0" value="<--Place there" 
+             onclick="xThis = new google.maps.LatLng(document.forms[0].VAR_LAT.value,document.forms[0].VAR_LONG.value);marker = new google.maps.Marker({ position: xThis  , map: currentMap }); markersArray.push(marker);">
+      <input type="button" name="PB_3" value="Clear" onclick="deleteOverlays()">
+      <input type="button" name="PB_A" value="Populate from DB" onclick="deleteOverlays();loadOverlays();showOverlays();">
+      </form>
+   </form>
+</div>
+
+</body> 
+</html>

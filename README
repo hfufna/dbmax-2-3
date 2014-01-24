@@ -1,0 +1,3 @@
+This folder contains the essential code for the WAM (Web Administration Module) of DBMAX 2-3
+The code is GNU Public.
+It requires DBMAX MAX Script Processor Interpreter to be executed on server (visit www.dbmax.it for more information)

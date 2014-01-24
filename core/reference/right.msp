@@ -1,0 +1,131 @@
+<!doctype html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+xAllEdit := MSPFieldValue("ALLOW")
+cDbPath := setDb("reference")
+%>
+<style type="text/css">
+.link {
+	color: navy;
+}
+
+.link:hover {
+	color: white;
+	background-color: navy;
+}
+
+</style>
+</head>
+
+<script type="text/javascript">
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+function setSubmit(cAction) {
+   var nOpt = document.form1.VAR_GROUP.selectedIndex;
+   var aArr = document.form1.VAR_GROUP.options;
+   document.form2.VAR_ACTION.value=cAction;
+   // document.form2.VAR_GROUP.value=aArr[0].value;
+   document.form2.submit();
+}
+</script>
+<%=include("/parts/html/header.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<body bgcolor="#FFFFFF" background="img/bg_for_menus.JPG">
+<table border="0" width="100%" id="table1" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF">
+	<tr>
+		<td bgcolor="#FFFFFF" valign="bottom"><img src="img/t-rex_maxscript.gif" align="left" width="70" height="47"><i><b><font face="Times New Roman" size="4">MaxScript <br>
+		</font></b><font face="Times New Roman" size="3">Language Reference</font></i></td>
+	</tr>
+	</table>	
+<table border="0" width="100%" id="table1" cellpadding="3" background="img/bg_for_forms.jpg">
+	<tr>
+	<td>
+		
+<form name="form1" action="browse.msp" method="post" class="rec" target="frm2">
+Filter by:<br>
+<font size="1">Language elements:</font><br>
+   <select id="var_group" name="VAR_GROUP" size="1">
+   <option>All</option>
+      <option>Commands</option>
+      <option>Functions</option>
+      <option>Operators</option>
+		<option>Directives</option>
+      <option>Javascripts</option>
+      <option>UDFs</option>
+   <option>Code Snippets</option>
+	<option>Scripts</option>
+      <option>ErrorCodes</option>
+   </select>
+<br>
+<font size="1">for handling:</font><br>
+   <select name="VAR_SECTION" size="1">
+   <option></option>
+   <option>Strings</option>
+	<option>Numerics</option>
+	<option>Arrays</option>
+	<option>Dates</option>
+	<option>Databases</option>
+	<option>Files</option>
+	<option>ErrorCodes</option>
+	<option>Operators</option>
+	<option>WebVars</option>
+	<option>Program_Flow</option>
+	<option>Specific_Tasks</option>
+   </select><br>
+   <font size="1">List for keyword:</font><br>
+   <input type="text" name="VAR_KEYWORD" value="" size="12">
+   <br><font size="1">into field:</font>
+   <select name="VAR_KEYFIELD" size="1">
+   <option>ELEMENT</option>
+   <option>DESCR</option>
+   <option>SINTAX</option>
+   <option>EXAMP</option>
+   <option>SEE_ALSO</option>
+   </select>
+
+   <hr>
+   <input type="hidden" name="ALLOW" value="<%=xAllEdit%>">
+   <input type="hidden" name="VAR_ACTION" value="SEARCH">
+   <input type="reset" name="PB_ESC" value="Reset query">&nbsp;
+   <input type="submit" name="PB_OK" value="Update view"></form>
+		</td>
+	</tr>
+	<tr>
+		<td>
+		</td>
+	</tr>
+</table>
+</form>
+
+<!----------------------------------- *FORM NAVIGATOR //----------------------------------------->
+<a name="a2" onclick="toggleDiv('div_2');" class="link"><u>Other options</u></a><br>
+<div id="div_2" style="display:none;">
+<form name="form2" action="browse.msp" method="post" class="rec">
+   <input type="button" name="PB_GOTOP" value="First" onclick="setSubmit('GOTOP');">
+   <input type="button" name="PB_GOBOTT" value="Last" onclick="document.form2.VAR_ACTION.value='GOBOTT';submit();">&nbsp;
+   <input type="text" name="VAR_RECNO" value="" size="4">
+   <input type="button" name="PB_GORECNO" value="Go" onclick="document.form1.ALLOW.value=document.form2.VAR_RECNO.value;setSubmit('GORECNO');">
+   <input type="hidden" name="VAR_ACTION" value="">
+</form>
+</div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+         DBFREE 3.0 NATIVE LOGIN SYSTEM for MaxScript 2.3
+         This is part of DBFree 3.0 Core Functions
+         Written by G.Napolitano (www.dbfree.org) - October 2012
+         
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="stylesheet" type="text/css" href="../default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>DBFree 2.1 Template</title>
+</head>
+
+<style type="text/css">
+a {color:white;text-decoration:none;}
+a:visited {color:white;}
+a:hover {text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<%
+************************************************************ DBFree HEADER_3.0.1.1
+//-- 1 LIBRARY 
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- 2 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 3 SESSION HANDLING VIA MEMORY FILE
+cSeed    := MSPFieldValue("XY")
+cIp      := getenv("REMOTE_ADDR")
+xMemFile := mspconfigvar("DATADIR")+"\_mem\login\"+strTran(cIp,".","_")+"_" + cSeed + ".mem"
+restore from (xMemFile) additive
+
+//-- 4 STANDARD MAXOBJECT WEBVARS
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := MSPFieldValue("VAR_ACTION")
+cSelf   := pageName()
+
+//-- 5 STANDARD DATABASE HANDLING WEBVARS 
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+cView  := MSPFieldValue("VAR_VIEW")
+nRec   := val(MSPFieldValue("VAR_REC"))
+
+
+************************************************************ END HEADER
+CR_LF := chr(13)+chr(10)
+%>
+<base target="frm2">
+<!---  <%=pagename()%>  -- <%=libInfo()%> -- <%=xcLib%>//-->
+<body background="../images/bg_v-light.jpg">
+<table border="0" id="table1" cellspacing="0" cellpadding="3" width="100%">
+	<tr>
+		<td bgcolor="#01322C" width="26"><img border="0" src="img/d8_home_ico.gif"></td>
+		<td bgcolor="#01322C" width="0"><a href="login.msp?XY=<%=cSeed%>&VAR_ACTION=LOGOUT" target="frm2"><font color="#FFFFFF">Logout</font></a></td>
+	</tr>
+	<tr>
+		<td bgcolor="#4E4B49" colspan="2"><font color="#DDDDDD">Local Procedures</font></td>
+	</tr>
+	<% 
+   $extended
+   cFolder := curDosDir()
+   cRoot := updir(cFolder)
+   cMask := curDosDir() + "\*.msp"
+   nFiles = adir( cMask, aName, aSize, aDate, aTime, aAttr )
+   for iii = 1 to nFiles	
+      cThisFile := fixslash(dos2link(aName[iii],lower(cRoot)))
+      cThisLabel := strTran(lower(cThisFile),lower(cDir),"")
+      cThisLabel := strTran(filebone(cThisLabel),"_"," ")
+   	%>
+   	<tr>
+		<td bgcolor="#000000" width="26"><img border="0" src="img/d8_prompt_ico.gif"></td>
+		<td bgcolor="#000000" width="0"><a target="frm2" href="<%=cThisFile%>?XY=<%=cSeed%>"><font color="#FFFFFF"><%=capital(cThisLabel)%></font></a></td>
+   	</tr>
+   	<%
+   next
+   %>
+</table>
+<p><font color="#FFFFFF">&nbsp;</font></p>
+</body>
+</html>
+<%
+****************************
+function dos2link(cFile,cDir)
+*****************************
+cFile := lower(cFile)
+cOut := strTran(cFile,cDir,"")
+return cOut
+%>

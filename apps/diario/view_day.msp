@@ -1,0 +1,354 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "diario"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+cParms := ""
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   cParms := "&" + MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable20  := cDir + "DETTAGLI.DBF"
+cIndex21  := cDir + "DETTAGLI.MTX"
+cIndex22  := cDir + "DETTAGLI-D.MTX"
+
+
+*************************************************************
+//-- AJAX STANDARD WEBVARS FOR DBFREE
+nFld      := val(MSPFieldValue("V_FLD"))  //-- Field to update
+nAjRec    := val(MSPFieldValue("V_REC"))  //-- record to move to
+cAjaxVar  := MSPFieldValue("AJX")         //-- value to write
+lAjaxRun  := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX ACTUATOR FOR IN-PLACE EDITING SPECIFIC FOT THIS PAGE
+cAjxTable    := MSPFieldValue("VAR_TABLE")
+cAjxIndex    := MSPFieldValue("VAR_INDEXLIST")
+cValCbEdit  := iif(empty(MSPFieldValue("CB_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCbEdit),"readonly","")
+if lAjaxRun 
+   *use (cAjxTable) index (cAjxIndex)
+   use (cTable20) in 0 alias DETTAGLI index (cIndex21),(cIndex22)
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+**************************************************************
+close data
+
+//-- INCOMING WEBVARS
+dToday     := ctod(MspFieldValue("VAR_DAY"))
+
+
+//-- APERTURA TABELLA DETTAGLI
+//
+use (cTable20) in 0 alias DETTAGLI index (cIndex21),(cIndex22)
+set order to 1
+set filter to USER=upper(xUser)
+go top
+
+//-- APERTURA TABELLA GIORNI
+//
+cTable10  := cDir + "GIORNI.DBF"
+cIndex10  := cDir + "GIORNI.MTX"
+use (cTable10) in 0 alias GIORNI index (cIndex10) //--key DATA
+set order to 1
+set filter to USER=upper(xUser)
+go top
+
+//-- POSIZIONAMENTO SUL RECORD DEL SOMMARIO GIORNI
+select GIORNI
+locate for DATA=dToday and USER=upper(xUser)
+if eof() 
+   ? "<h3>Errore: manca il record del giorno " | dToday | " in archivio!</h3>" html
+endif
+
+//-- AZIONI IN BACKGROUND
+//
+select DETTAGLI
+do case
+************************************************
+case cAction = "ADD"
+************************************************
+   append blank
+   if rlock()
+      repl DATA with dToday
+      repl GIORNO with dtoc(dToday)
+      repl SETTIM with week(dToday)
+      repl MESE   with month(dToday)
+      repl ANNO   with year(dToday)
+      repl USER   with upper(xUser)
+      unlock
+   endif
+endcase
+************************************************
+%>
+<%=include("/parts/html/header.htm")%>
+<script src="/js/jmax.js"></script> 
+<body style="margin-top:-40px;">
+<!--PARAMETERS COLLECTED: <%=cParms%> //-->
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<%
+select DETTAGLI
+dNext := dToday+1
+dPrev := dToday-1
+%>
+<%=container()%>
+<h2><span class="badge pull-right"><font size="4"><%=capital(USER)%></font></span> 
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=<%=zz(dPrev)%>"><%=itDow(dPrev,1)%> <%=day(dPrev)%></a>
+<a href="show_week.msp?XY=<%=cSeed%>&VAR_DAY=<%=zz(dow(dToday))%>"><u><%=itdow(dToday,.t.)%></u></a> <%=day(dToday)%> 
+
+<a href="show_month.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>"><u><%=itmonth(dToday,.t.)%></u></a> 
+<a href="view_year.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>"><u><%=year(dToday)%></u></a> 
+<a class="btn btn-xs btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=<%=zz(dNext)%>"><%=itDow(dNext,1)%> <%=day(dNext)%></a>
+<a class="btn btn-xs btn-default" href="view_month.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>&VAR_WEEK=<%=zz(week(dToday))%>">Mostra la settimana</a>
+<a class="btn btn-xs btn-default" href="report.msp?XY=<%=cSeed%>&VAR_WEEK=<%=zz(week(dToday))%>">SS</a>
+<a class="btn btn-xs btn-default" href="report.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>">MM</a>
+<a class="btn btn-xs btn-default" href="correggi.msp?XY=<%=cSeed%>&VAR_DAY=<%=zz(dToday)%>">Correggi</a>
+</h2>
+</h2>
+<% 
+select GIORNI 
+if not empty(TITOLO) %>
+   <div class="panel panel-default">
+     <div class="panel-body" style="background-color:#F7EFAC;"><div class="badge"><%=zz(USER)%></div> <i>Trascorso a:</i><%=zz(LUOGO)%> <b><%=LAVORO%></b> - <i>Attività svolte:</i> 
+     <%=iif(empty(ATTIV_PR),"","<i>1-</i>"+zz(ATTIV_PR))%>    
+     <%=iif(empty(ATTIV_SEC),"","<i>2-</i>"+zz(ATTIV_SEC))%>
+     <%=iif(empty(SESSO),"","<i>Sesso</i>-<font color=red>"+zz(SESSO)+"</font>")%>
+     </div>
+     <div class="panel-footer">R.<%=recno()%> - <%=zz(TITOLO)%></div>
+   </div>
+   <% 
+endif
+select DETTAGLI
+%>
+<a class="btn btn-sm btn-success" href="<%=cSelf%>?XY=<%=cSeed%>&VA=ADD&VAR_DAY=<%=zz(dToday)%>">Nuova riga</a>
+<a class="btn btn-sm btn-danger" href="<%=cSelf%>?XY=<%=cSeed%>&VA=DEL">Cancella selezionati</a>|
+<%
+cLink3 := "comment_day.msp?XY=" + cSeed + "&VAR_DAY=" + zz(dToday)
+cMsg3  := "Commenta " + itdow(dToday,.t.) + " " + zz(day(dToday)) + " " + itmonth(dToday)
+cLink4 := "review_day.msp?XY=" + cSeed + "&VAR_DAY=" + zz(dToday)
+cMsg4  := "Valuta e analizza " + itdow(dToday,.t.) + " " + zz(day(dToday)) + " " + itmonth(dToday)
+cReSelf := cSelf + "?XY=" + cSeed + cParms
+
+%>
+<a data-toggle="modal" href="#div_modal" class="btn btn-sm btn-default" onclick="popupFile('<%=cLink3%>','<%=cMsg3%>');">Commenta giorno</a>
+<a data-toggle="modal" href="#div_modal4" class="btn btn-sm btn-warning" onclick="popupFile('<%=cLink4%>','<%=cMsg4%>');">Valuta giorno</a>
+<a class="btn btn-sm btn-info" href="report.msp?XY=<%=cSeed%>&VAR_DAY=<%=zz(dToday)%>">Esame di coscienza</a>
+</h2>
+
+<a class="btn btn-sm btn-primary pull-right" href="view_year.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>">Calendario <%=znYear%></a>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<div class="row">
+   <form name="form1" action="<%=cSelf%>" method="post" style="form">
+   <input type="hidden" name="VAR_ACTION" value="SAVE">
+   <input type="hidden" name="VAR_OPTION" value="">
+   <table class="table">
+   <tr><td></td><td>Sfera</td><td>Ora</td><td>Posizione</td><td>UM</td><td>Valore</td><td>Tipo</td></tr>
+   <%
+   select DETTAGLI
+   set order to 1
+   rrr := 0
+   set filter to GIORNO=dtoc(dToday) .and. USER=upper(xUser)
+
+   go top
+   do while not eof()
+      rrr++
+      nRec := recno()
+      *********************
+      displRec(nRec,nRec,"15,03,04,12,05,10")
+      *********************
+      skip
+   enddo
+   %>
+   </table>
+   </form>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal.htm")%>
+<%=include("/parts/html/modal3.htm")%>
+
+<div class="modal" id="div_modal4" style="">
+	<div class="modal-dialog" id="div_modal-dialog" style="width:auto;height:auto;">
+      <div class="modal-content" id="div_modal-content" style="">
+        <div class="row" style="margin:3px 3px 3px 3px;" style="">
+             <div class="col-md-9"><span id="div_modal-title" class="title"><%=cMsg4%></span></div>
+             <div class="col-md-3" align="right">
+                <button id="div_button" data-dismiss="modal" class="btn btn-sm btn-primary">Close</button>
+             </div>
+         </div>
+        <div class="modal-body" style="padding:5px 5px 5px 5px;">
+          <iframe frameborder="0" id="div_modal-body" src="<%=cLink4%>" style="width:100%;height:100%;"></iframe>
+        </div>
+      </div>
+    </div>
+</div>  
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</body>
+</html>
+<%
+
+
+**************************************************
+procedure displRec(nThisRec, nRowNum, cFieldList)
+**************************************************
+//-- PROCEDURE FOR DISPLAYING A SINGLE RECORD - RE-USABLE CODE
+//   LOOPS ALL THE FIELDS AND BUILDS A ROW WITH THE AJAX HOOK FOR IN-PLACE EDITING
+//-- ATTENTION: cIsReadOnly sets if editing is allowed and must be declared from the caller
+//
+local nFld, cAjIdentifier, cAjHook
+cParms := "VAR_TABLE=" | MspEncode(cTable20) | "&VAR_REC=" | zz(nRec)
+cCBRchecked := deleted()
+set decimals to 2
+%>
+<!----------------------------------- *Record <%=zz(nThisRec)%>--------------------------------------- //-->
+<tr>
+<td nowrap>
+<%
+cLink  := "comment_pos.msp?XY=" + cSeed + "&VAR_REC=" + zz(recno())
+cMsg   := itdow(DATA,1) | " " | str(day(DATA),2,0) | " " | itmonth(DATA) | " " | ORA
+cLabel := "Dett"
+%>
+<input type="checkbox" <%=cCBRchecked%> name="CBR_<%=zz(recno())%>" title="check to select">
+<a title="R.<%=str(recno(),4,0)%>" data-toggle="modal" href="#div_modal" class="btn btn-xs btn-default" onclick="popupFile('<%=cLink%>','<%=cMsg%>')"><%=cLabel%></a>
+<%
+//-- depicting list to use
+cFieldList := strTran(cFieldList," ","")
+ainit("aFldsToShow","")
+strToNumArr(cFieldList,",",aFldsToShow)
+
+for bbb=1 to len(aFldsToShow)
+      nFld := aFldsToShow[bbb]
+      ***
+      cAjIdentifier := "div_" + zz(nThisRec)+"-"+zz(nFld)
+      cAjHook := "&V_REC="+zz(nThisRec)+"&V_FLD="+zz(nFld)
+      xVal := zz(fieldval(nFld))
+      %>
+      <td>
+      <div id="<%=cAjIdentifier%>" style="border:solid 1px #EFEFEF"></div>
+      <% 
+      do case
+      case fieldname(nFld)="TIPOLOGIA" 
+         %>
+         <select name="EF_<%=fieldname(nFld)%>" onchange="javascript:ajaxRun('<%=cSelf%>?XY=<%=cSeed%>&AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cTable20)%>&VAR_INDEXLIST=<%=MspEncode(cIndex22)%>','<%=cAjIdentifier%>');">
+         <% if not empty(xVal) %><option><%=xVal%></option><% endif %>
+            <option></option>
+            <option>Annotazione</option> <option>Contanti</option><option>Transazione</option> <option>Chiamata</option> <option>Messaggio</option> <option>Transito</option><option>Foto</option>
+         </select>
+         <% 
+      case fieldname(nFld)="SFERA"
+         %>
+         <select name="EF_<%=fieldname(nFld)%>" onchange="javascript:ajaxRun('<%=cSelf%>?XY=<%=cSeed%>&AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cTable20)%>&VAR_INDEXLIST=<%=MspEncode(cIndex22)%>','<%=cAjIdentifier%>');">
+         <% if not empty(xVal) %><option><%=xVal%></option><% endif %>
+         <option></option>
+         <option>Alimentari</option>
+         <option>Attrezzi</option>
+         <option>Consumi Casa</option>
+         <option>Consumi Person.</option>
+         <option>Carburanti</option>
+         <option>Cultura</option>
+         <option>Cura Persona</option>
+         <option>Lavoro</option>
+         <option>Mobilio</option>
+         <option>Manutenz.Veicoli</option>
+         <option>Pedaggi</option>
+         <option>Salute</option>
+         <option>Svago</option>
+         <option>Shopping</option>
+         <option>Socialita</option>
+         <option>Spese in comune</option>
+         <option>Veicoli</option>
+         <option>Vestiario</option>
+         <option>Vacanze</option>
+         <option></option>
+         <option>Comunicazioni</option>
+         <option>Affari Personali</option>
+         <option>Intrallazzi</option>
+         <option>Sesso</option>
+         <option>Produz.Reddito</option>
+         <option>Rapp.Famigliari</option>
+         </select>
+         <%
+      otherwise
+         %>
+         <input type="text" class="borded"
+            name="EF_<%=fieldname(nFld)%>" 
+            value="<%=xVal%>" 
+            size="<%=zz(fieldsize(nFld))%>"
+            title="Field: <%=fieldname(nFld)%>"   
+            onchange="javascript:ajaxRun('<%=cSelf%>?XY=<%=cSeed%>&AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cTable20)%>&VAR_INDEXLIST=<%=MspEncode(cIndex22)%>','<%=cAjIdentifier%>');">
+         <% 
+      endcase 
+      %></td><%
+next
+set decimals to 0
+
+//-- correzione record diretta
+cLink  := "amend_pos.msp?XY=" + cSeed + "&VAR_REC=" + zz(recno())
+cMsg   := itdow(DATA,1) | " " | str(day(DATA),2,0) | " " | itmonth(DATA) | " " | ORA
+%>
+<td>
+<a title="Correggi" data-toggle="modal" href="#div_modal" class="btn btn-xs btn-default" onclick="popupFile('<%=cLink%>','<%=cMsg%>')">R.<%=str(recno(),4,0)%></a>
+</td>
+</tr><%
+return
+
+
+
+%>

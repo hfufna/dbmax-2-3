@@ -1,0 +1,9 @@
+if(typeof(Storage)!=="undefined")
+{
+  if(window.innerWidth > window.innerHeight) {alert("HORIZ"); document.getElementById("frm2").src='frm2-h.htm';} else {alert("VERT"); document.getElementById("frm2").src='frm2-v.htm';}
+}
+else
+{
+document.getElementById("output").innerHTML="Sorry, your browser does not support web storage...";
+}
+</script>

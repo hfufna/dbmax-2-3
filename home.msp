@@ -1,0 +1,119 @@
+<html>
+<!--
+          DBMAX 2.3.3  by Gianluca Napolitano
+                
+          DEFAULT HOME PAGE FOR DESKTOPS
+                
+          This page is only for first use: it shows basic informations
+          and performs some initial configuration and maintenance tasks.
+          For security reasons links are enabled only for local IP addresses.
+          
+          THIS PAGE DOES NOT MAKE USE OF DATABASES!
+ //-->
+<%
+xMaxLib  := "dbmax25.max"   //-- name of library to use
+xMinLib  := "2.5.2"         //-- minimum required version (id string)
+
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\"+xMaxLib
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+cSeed := MspFieldValue("XY")
+if empty(cSeed)
+   cSeed := makeSeed()  //-- temporary seed
+endif
+%>
+<script type="text/javascript">
+//-- enable clock
+function ShowTime() {
+var dt = new Date();
+document.getElementById("div_clock").innerHTML= dt.toLocaleTimeString();
+window.setTimeout("ShowTime()", 1000);
+}
+window.setTimeout("ShowTime()", 1000);
+</script>
+<head>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Checkup DBMAX first setup</title>
+</head>
+
+<%=include("/parts/html/header.htm")%>
+<%=include("/parts/html/navbar.htm")%>
+<body background="/images/wallpaper.jpg">
+<%=container()%>
+<div class="panel panel-body" style="margin-top:25px; background-color:white; height:90%;">
+<!-------------------------------------- HTML FOR DESKTOPS PAGE START ----------------------------------- //-->
+<div class="heading" style="padding:10px 10px 10px 10px;">
+   <span class="badge badge-inverse pull-right"><%=cdow(date())%> <%=day(date())%> <%=left(cMonth(date()),3)%> <%=year(date())%> 
+   <span id="div_clock" style="background-color:red;">00:00:00</span></span>
+   <img src="/logo.jpg" class="">
+   <span style="font-size:2em;"><%=getenv("COMPUTERNAME")%></span> hosting <span style="font-size:2em;color:#ef0021;"><%=getenv("SERVER_NAME")%></span>
+   <br><span style="font-size:1.3em;">This server is ready to be configured to host your applications!</span>
+</div>
+
+<div class="panel panel-heading">
+<div class="row">
+<!-- ------- LOCAL ONLY--------//-->
+   <% if isLocal() %>
+      <% if isDir(webroot()+"\core\reference")%>
+         <a class="btn btn-default" href="/core/reference/start.msp">Language Reference</a>
+      <% endif %>
+      <% if isDir(webroot()+"\tools\dbmanager")%>
+         <a class="btn btn-default" href="/tools/dbmanager/start.msp?XY=<%=cSeed%>">DB Manager</a>
+      <% endif %>
+   <% endif %>
+<!-- ------- PUBLIC -----------//-->   
+   <a class="btn btn-default" href="/core/help/start.msp?XY=<%=cSeed%>">Getting Started</a>
+   <a class="btn btn-default" href="/core/help/help.msp?XY=<%=cSeed%>">DBMAX Help</a>
+   <% if isDir(webroot()+"\login")%>
+         <a class="btn btn-primary" href="/login/login.msp?XY=<%=cSeed%>">Enter the site</a>
+   <% endif %>
+</div>
+
+ <div class="col-sm-6 col-md-6 col-lg-6">
+   Website info:
+   <pre><%=memoread(webroot()+"\info.txt")%></pre>
+   <font size="1"><%=libVer()%> loaded from <%=filepath(xcLib)%></font>
+ </div>
+ <div class="col-sm-6 col-md-6 col-lg-6">
+   Configuration info (ini file):
+   <pre>Signature: <%=memoread(webroot()+"\xappid")%><%=CR_LF%><%=memoread(webroot()+"\config.ini")%></pre>
+ </div>
+</div>
+
+<div class="row" style="margin:25px 0px 0px 5px;">
+ <a href="javascript:toggleDiv('div_brw')" class="btn btn-sm btn-default">Browser info</a>
+ <a href="javascript:toggleDiv('div_mod')" class="btn btn-sm btn-default">App info</a>
+</div>
+
+<div class="row">
+
+ <div id="div_brw" style="display:none;margin-top:5px;">
+ <div class="well">
+ <%
+ cTxt := MspFieldValue("brw_info")
+ if not empty(cTxt)
+   %><p align="left">Info collected from your browser:<br><%=cTxt%><%
+ else
+   %><p>You need to <a href="/index.htm">reload the start page</a> in order to get fresh informations.<%
+ endif
+ %>
+ </div>
+ </div>
+
+ <div id="div_mod" style="display:none;margin-top:5px;">
+   <pre><%=modInfo(1)%></pre>
+ </div>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+</div>
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

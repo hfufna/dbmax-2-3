@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+        REGISTER FORM
+//-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>Register to enable download</title>
+</head>
+<!----------------------------------- comment -------------------------------------- //-->
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+body {
+   font-size:12;
+   font-family: Verdana, Arial, Helvetica; letter-spacing: normal; 
+   orphans: 2; text-indent: 0px; text-transform: none; 
+   widows: 2; word-spacing: 0px; 
+   -webkit-text-size-adjust: auto; 
+   -webkit-text-stroke-width: 0px;
+   }
+a {color:navy;text-decoration:underline;}
+a:visited {color:navy;}
+a:hover {color:red;text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+
+</style>
+<!----------------------------------- javascripts -------------------------------------- //-->
+
+<!----------------------------------- javascripts -------------------------------------- //-->
+<script type="text/javascript">
+
+function validateMail(this_field) 
+{
+if(this_field.value== "")
+return;
+if(this_field.value.indexOf("@") < 0)
+{
+this_field.focus();
+alert("Please insert a valid E-Mail address");
+}
+if(this_field.value.indexOf(".") < 0)
+{
+this_field.focus();
+alert("E-Mail address does not look correct");
+} }
+</script>
+
+<!----------------------------------- HTML BODY -------------------------------------- //-->
+<body>
+
+<h2><font color="#A90000">Download DBFree V3</font></h2>
+<table border="0" width="600" cellpadding="12" cellspacing="0" bgcolor="#F0F0F0" id="table1">
+	<tr>
+		<td valign="top"><font size="2">The download of DBFree V3 necessitates an authentication.<br>
+		Please, indicate here the email address that you've registered on this site.</font>&nbsp;<br>
+&nbsp;
+<!----------------------------------- SUBSCRIBERS LOGIN -------------------------------------- //-->
+<form method="post" action="/login/login.msp?VO=EMAIL">
+			<p><font size="2"><b>Your email:</b>&nbsp;&nbsp;&nbsp;
+			<input type="text" name="EF_EMAIL" size="33" onblur="validateMail(this.form.EF_EMAIL);">
+			&nbsp;&nbsp;&nbsp;<input type="submit" value="Submit" name="PB_OK1"></font></p>
+			<p><font size="2"><input type="checkbox" name="EF_AUTOLOG" checked value="ON">&nbsp;&nbsp;Automatic login at each visit</font></p>
+		</form>
+		</td>
+	</tr>
+</table>
+<p></p>
+<table border="0" width="600" cellpadding="12" cellspacing="0" bgcolor="#F0F0F0" id="table2">
+	<tr>
+		<td valign="top"><font size="2">If you have no registered email, you can register at no cost on this site by filling the form below.<br>
+		<br>
+&nbsp;</font>
+<!----------------------------------- NEW SUBSCRIPTION -------------------------------------- //-->
+<form method="post" action="start.msp">
+			<table cellpadding="4" cellspacing="0" border="0" id="table3">
+				<tr>
+					<td>
+					<div align="right">
+						<b><font size="2">Your email:</font></b></div>
+					</td>
+					<td valign="top"><font size="2"><input type="text" name="EF_EMAIL" size="33" 
+					onblur="validateMail(this.form.EF_EMAIL);">&nbsp;&nbsp;<input type="submit" value="Submit" name="PB_OK2"></font></td>
+				</tr>
+				<tr>
+					<td><font size="2">
+					<div align="right">
+						Your country:</div>
+					</font></td>
+					<td valign="top"><font size="2">
+					<input type="text" name="EF_STATE" size="33"></font></td>
+				</tr>
+				<tr>
+					<td><font size="2">
+					<div align="right">
+						Your first name:&nbsp;<i>(Optional)</i></div>
+					</font></td>
+					<td valign="top"><font size="2">
+					<input type="text" name="EF_NAME" size="33"></font></td>
+				</tr>
+				<tr>
+					<td><font size="2">
+					<div align="right">
+						Your last name:&nbsp;<i>(Optional)</i></div>
+					</font></td>
+					<td valign="top"><font size="2">
+					<input type="text" name="EF_SURNAME" size="33"></font></td>
+				</tr>
+				<tr>
+					<td><font size="2">
+					<div align="right">
+						Your city:&nbsp;<i>(Optional)</i></div>
+					</font></td>
+					<td valign="top"><font size="2">
+					<input type="text" name="EF_CITY" size="33"></font></td>
+				</tr>
+				<tr>
+					<td><font size="2">
+					<div align="right">
+						Your company:&nbsp;<i>(Optional)</i></div>
+					</font></td>
+					<td valign="top"><font size="2">
+					<input type="text" name="EF_COMPANY" size="33"></font></td>
+				</tr>
+				<tr>
+					<td valign="top" colspan="2"><font size="2">
+					<input type="checkbox" name="EF_AUTOLOG" checked value="1">
+					&nbsp;&nbsp;Automatic login at each visit</font></td>
+				</tr>
+				<tr>
+					<td valign="top" colspan="2"><font size="2">
+					<input type="checkbox" name="EF_NEWS" checked value="1">
+					&nbsp;&nbsp;I want to subscribe to the DBFree newsletter (<b>NO</b>&nbsp;spam)</font></td>
+				</tr>
+				<tr>
+					<td valign="top" colspan="2"><font size="2">
+					<input type="checkbox" name="EF_CONTACT" value="1">
+					&nbsp;&nbsp;I accept to be contacted by DBFree editors (<b>NO</b>&nbsp;spam)</font></td>
+				</tr>
+			</table>
+		</form>
+		</td>
+	</tr>
+</table>
+<!----------------------------------- END BODY -------------------------------------- //-->
+<p><a href="start.msp?VAR_ACTION=LIST">Show all users</a></p>
+</body>
+</html>
+

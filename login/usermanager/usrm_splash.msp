@@ -1,0 +1,35 @@
+<html>
+<%
+lDebug :=.t.
+********************************************* 
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+****************************************
+xAppId := memoread(webroot()+"\xappid")
+
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;margin-bottom:3px;background-color:#FFFFFF;">
+<div class="container">
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<h3>Please select an user from list
+<a target="_top" href="/login/login.msp?XY=<%=cSeed%>&VA=RELOAD" class="btn btn-sm btn-success pull-right">Main menu</a>
+<a target="_top" href="/console/start.msp?XY=<%=cSeed%>&VA=RELOAD" class="btn btn-sm btn-danger pull-right">Console</a>
+</h3>
+<hr>
+</div>
+<body>
+
+</body>
+
+</html>

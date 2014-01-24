@@ -1,0 +1,198 @@
+<html>
+
+<style type="text/css">
+a {color:navy;text-decoration:none;}
+a:visited {color:green;}
+a:hover {color:green;text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<script type="text/javascript">
+function CutToClipboard()
+{   CutTxt = document.selection.createRange();
+   CutTxt.execCommand("Cut");
+} 
+
+function CopyToClipboard()
+{   CopiedTxt = document.selection.createRange();
+   CopiedTxt.execCommand("Copy");
+}
+
+function PasteFromClipboard()
+{    document.Form1.txtArea.focus();
+   PastedText = document.Form1.txtArea.createTextRange();
+   PastedText.execCommand("Paste");
+} 
+
+function doCopy(ccc)
+{   CopiedTxt = ccc;
+   CopiedTxt.execCommand("Copy");
+   alert(+Snippet loaded into clipboard');
+
+</script>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+
+set decimals to 0
+set century on
+set hour to 24
+
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+cMsg := ""
+
+//-- LOCAL VARS
+cSelf     := pageName()
+cDbPath   := setDb("cmd")
+cTagOpen  := "<" + "%"
+cTagClose := "%" + ">"
+cTagStr   := cTagOpen + CR_LF + CR_LF + cTagClose
+cMsg      := getenv("SERVER_SOFTWARE") + " Ready."
+cProgDir  := curDosDir()
+xcRunDir  := curDosDir()
+
+//-- PRELOADED CODE
+cHead    := memoread(cProgDir+"header.txt")
+cFoot    := memoread(cProgDir+"footer.txt")
+
+*********************************************************************
+//-- INCOMING WEBVARS
+cAction  := strTran(upper(cAction)," ","")
+cCode    := MSPFieldValue("EF_CODE")
+
+
+//-- INCOMING CODE CHECKOUT
+*-- checking for code being included into correct tags 
+cCode := alltrim(cCode)
+if len(cCode) > 0
+   if left(cCode,2) <> cTagOpen
+      cCode := cTagOpen + CR_LF + cCode
+   endif
+   if right(cCode,2) <> cTagClose
+      cCode := cCode + CR_LF + cTagClose
+   endif
+endif
+
+***********************************************************************
+//-- FILES TO USE
+cIp       := getenv("REMOTE_ADDR")
+cToken    := strtran(cIp,".","-") 
+cRunFile  := xcRunDir + "run_" + cToken + ".msp"
+if not file(cRunFile)
+   memowrit(cRunFile,"No code yet!")
+endif
+cRunPage := dos2web(cRunFile)
+cTmpFile := cDbPath + "tmp_" + cToken + ".txt"
+
+**********************************************************************
+//-- PREDEFINED FOLDERS FOR SAVING EXPORTING ETC
+cSaveDir := updir(xcRunDir) + "userfiles\"
+cExpDir  := upDir(xcRunDir) + "userpages\"
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<%
+do case
+***************************
+case empty(cAction)
+***************************
+//-- now we need to enable extended mode (to use some non-web functions)
+$extended
+aName := "" //-- will store the name list of files
+aSize := "" //-- list of file sizes
+aDate := "" //-- list of last modification dates
+aTime := "" //-- list of last modification times
+aAttr := "" //-- list of file attributes
+
+//-- loading file list of current folder
+cStartFolder := curDosDir() + curWebPage()
+cStartFolder := filepath(cStartFolder)+"snippets"
+
+cMask        := MSPFieldValue("VAR_MASK")
+if empty(cMask)
+   cMask := "*.*"
+endif
+
+cNameMask := MSPFieldValue("VAR_NAME")
+if empty(cNameMask)
+   cFileMask := cMask
+else
+   cFileMask := "*" + cNameMask + cMask
+endif
+
+cSeed := cStartFolder+"\"+cFileMask
+nFiles := adir( cSeed, aName, aSize, aDate, aTime, aAttr )
+%>
+<table border="0" width="100%" cellspacing="0" cellpadding="2"><tr><td bgcolor="#666666" align="center"><font color="#FFFFFF">Code Snippets</font></td></tr></table>
+<form name="form_mask" action="<%=cSelf%>" method="post" target="_self">
+<input type="text" name="VAR_NAME" value="<%=cNameMask%>" size="7">
+<select name="VAR_MASK" style="width:4em;">
+   <option><%=cMask%></option>
+   <option>*.msp</option>
+   <option>*.txt</option>
+   <option>*.*</option>
+</select>
+<input type="submit" name="PB_OK" value="Filter">
+<%=passFields(aVars)%>
+</form>
+<div style="border:solid:1 px green;padding:3 3 3 3;background-color:white; color:green;font-size:0.8em;">
+Click on the snippets below to append it in the blackboard <i>at the end</i> of existing code.</div>
+<ol>
+<%
+//-- listing files to screen
+rrr :=0
+for iii = 1 to nFiles
+   cThisFile := aName[iii]
+   if right(cThisFile,1)$"._" .or. aSize[iii]=0 //-- exclude folder and hidden
+      *
+   else  
+      cFileName := filename(cThisFile) 
+      if right(cThisFile,4) $ ".msp.txt"
+         cCode := mspencode(memoread(cThisFile))
+         %><li><a href="start.msp?EF_SNIP=<%=cCode%>&OPTION=ADD" target="frm2">
+            <font color="navy"><%=fileclean(trimLeft(cFileName,3))%></font>
+            </a></li>
+         <%
+      endif 
+   endif
+next
+%></ol><%
+**********************************
+case cAction="DISPLAY"
+**********************************
+xcRunDir  := curDosDir()
+cFile := MSPFieldValue("FILE")
+cRunFile  := xcRunDir + "run_" + cToken + ".msp"
+cCode := memoread(cFile)
+%>
+<textarea rows="20" style="width:100%;">
+<%=cCode%>
+</textarea>
+<hr>
+<a href="<%=cSelf%>">Back</a>
+<%
+**********************************
+endcase
+**********************************
+%>
+</body>
+</html>

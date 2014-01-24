@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!-- 
+          DBMAX 2.5 (c)2014 by MAXSIS (www.maxsis.it) 
+          written for MAX SCRIPT PROCESSOR 2.2
+          APPLICATION BOOTSTRAP PAGE rev.2 jan 15,2014
+ //--->
+ 
+<!----------------------------------- local styles -------------------------------------- //-->
+<head>
+<meta charset="windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<title>DBMAX 2.5 (c)2014 MAXSIS</title>
+
+<script type="text/javascript">
+//-- enable countdown
+var eltime = 0;
+function countdown() {
+window.setTimeout("countdown()", 1000);
+document.getElementById("div_counter").innerHTML= '&nbsp;'+ eltime + '&nbsp;';
+eltime = eltime+1;
+}
+window.setTimeout("countdown()", 1000);
+eltime = eltime+1;
+</script>
+
+</head>
+<body>
+<h1>Please wait while identifying your browser....<br>
+<span id="div_counter" style="font-size:3em; background-color:green;color:white;"></span></h1>
+<h2><font color="maroon">This page should close in less than 10 seconds.</font></h2>
+I you still see this page check if your browser supports Javascript and that <b>Javascript is enabled!</b><p>
+</p>
+<!----------------------------------- START BODY ------------------------------------ //-->
+<div style="background-color:white;">
+<!---------------- hidden form to transfer variables to MaxScript ------------------- //-->
+<form name="form1" action="/home.msp" method="post" target="_top">
+   <textarea name="brw_info" cols="80" rows="10" style="display:none;"></textarea>
+   <input type="hidden" name="VAR_ACTION" value="GO">
+   <hr>
+   There was a problem while retrieving your settings : we will use defaults.
+   <input type="submit" name="PB_OK" value="Continue">
+</form>
+<!---------------------- GATHERING INFO ABOUT BROWSER -------------------------------- //-->
+<script type="text/javascript">
+var ww;
+var hh;
+var cTxt="";
+//alert(cTxt);
+
+//-- redirecting to site entrypoint for mobiles
+if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) 
+ {  document.form1.action='/m/home.msp'; }
+
+
+
+cTxt+= "[NavCodeName=" + navigator.appCodeName + "]";
+cTxt+= "[NavName=" + navigator.appName + "]";
+cTxt+= "[NavVersion=" + navigator.appVersion + "]";
+cTxt+= "[NavCookies=" + navigator.cookieEnabled + "]";
+cTxt+= "[NavPlatform=" + navigator.platform + "]";
+cTxt+= "[NavUserAgent= " + navigator.userAgent + "]";
+cTxt+= "[NavScreenSize= " + screen.availWidth + "x" + screen.availHeight+ "]";
+
+var isOk = 0;
+
+if( window.innerWidth ) 
+   {
+    cTxt += "- Usingmethod 1 - ";
+    ww = window.innerWidth;
+    hh = window.innerHeight; 
+    cTxt += "[AvWidth=" + ww + "]";
+    cTxt += "[AvHeight=" + hh + "]";    
+    cTxt += "- All Ok";
+    isOk = 1;
+    } 
+else if (document.documentElement && document.documentElement.clientWidth != 0) 
+    {
+    cTxt += "- Usingmethod 2 - ";
+    ww = document.documentElement.clientWidth ;
+    hh = document.documentElement.clientHeight;	
+    cTxt += "[AvWidth=" + ww + "]";
+    cTxt += "[AvHeight=" + hh + "]";    
+    cTxt += "- All Ok";
+    isOk = 1;
+     } 
+else if (document.body) 
+    {
+    cTxt += "- Usingmethod 3 - ";
+    ww = document.body.clientWidth;
+    hh = document.body.clientHeight;	
+    cTxt += "[AvWidth=" + ww + "]";
+    cTxt += "[AvHeight=" + hh + "]";    
+    cTxt += "- All Ok";
+    isOk = 1;
+    }
+//------------------------ self submitting the form 
+document.form1.brw_info.value=cTxt;
+if (isOk == 1)  { 
+  document.form1.submit(); 
+}
+</script>
+<!----------------------------------- END HTML -------------------------------------- //-->
+</body>
+</html>

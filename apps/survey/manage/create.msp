@@ -1,0 +1,276 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+DBFREE DEMO AND TUTORIALS 2013
+
+********************************************************
+SURVEY MAKER DEMO  v.0.0.1 - February 2013
+Written from Hannes "Fuffy" Dalgreen for MaxScript 2.1
+********************************************************
+
+Module name.......: CREATE.msp
+Purpose...........: ADD A NEW SURVEY TO ARCHIVE
+
+//-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="../../../default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>DBFreeActive Page</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+a {color:navy;text-decoration:underline;}
+a:visited {color:navy;}
+a:hover {color:red;text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+.rcorner {position:fixed; top:5; right:10;}
+</style>
+<!----------------------------------- javascripts -------------------------------------- //-->
+<%
+//-- APPLICATION ID
+xAppId := "survey"
+**************************************** DBFree 2-22-MINI-HEADER
+//-- SERVER DETECTOR AND LIBRARY LOADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK HANDLER
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set century on
+set decimals to 0
+set deleted off
+
+
+cSelf   := pageName()
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+nRecno  := val(MSPFieldValue("VAR_RECNO"))
+
+//-- DATABASE TO USE
+cDir := setDb(xAppId)
+
+//-- TABLES TO USE
+cTable  := cDir + "SURVEY.DBF"
+cIndex  := cDir + "SURVEY.MTX"
+use (cTable) in 0 alias SURVEY index (cIndex) key D_CREA
+
+//-- RECORD TO MOVE TO
+if nRecno>0 and nRecno<(lastrec()-1)
+   go nRecno
+endif
+
+//-- INCOMING ENTRYFIELDS
+//-- load values coming from the form
+nId_no         := val(MSPFieldValue("EF_ID_NO"))
+dD_crea        := ctod(MSPFieldValue("EF_D_CREA"))
+dD_start       := ctod(MSPFieldValue("EF_D_START"))
+dD_end         := ctod(MSPFieldValue("EF_D_END"))
+cUsr_id        := MSPFieldValue("EF_USR_ID")
+cTarget_grp    := MSPFieldValue("EF_TARGET_GRP")
+cTitle         := MSPFieldValue("EF_TITLE")
+cFull_desc     := mspdecode(MSPFieldValue("EF_FULL_DESC"))
+cSurvey_id     := MSPFieldValue("EF_SURVEY_ID")
+
+
+cMsg := ""
+//-- preventing empty records to be saved
+if empty(cTitle)
+   cAction :=""
+endif
+
+do case
+***********************
+case cAction = "SAVE"
+***********************
+if cOption="APPEND"
+  append blank
+  nRecno := recno()
+  nId_no := recno()
+  cSurvey_id := "SRV-"+str(recno(),5,0,"0")
+endif
+
+go nRecno
+if rlock(2)
+  repl ID_NO          with nId_no
+  repl D_CREA         with dD_crea
+  repl D_START        with dD_start
+  repl D_END          with dD_end
+  repl USR_ID         with cUsr_id
+  repl TARGET_GRP     with cTarget_grp
+  repl TITLE          with cTitle
+  repl FULL_DESC      with cFull_desc
+  repl SURVEY_ID      with cSurvey_id
+  unlock
+endif
+
+cAction := "DONE"
+
+***********************
+case cAction = "DELETE"
+***********************
+   delete
+   skip
+   cAction := ""
+***********************
+endcase
+***********************
+%>
+<body>
+<p>
+<%
+if empty(cMsg)
+   cMsg := "Current action:" + cAction
+endif
+do case
+//----------------------------------------------------------------------
+case empty(cAction)
+//----------------------------------------------------------------------
+go bottom
+skip
+%>
+<!---- form start //---->
+</p>
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+<font size="4">Creating new survey</font>  [<%=cMsg%>] 
+<!-- input fields go here //-->
+<%=newRecord()%>
+<hr>
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VO" value="APPEND">
+<input type="submit" name="PB_OK" value="CREATE">
+</form>
+<!--- form end //--->
+<%
+//======================================================================
+case cAction="DONE"
+//----------------------------------------------------------------------
+%>
+<font size="4">Survey <%=SURVEY_ID%> created.</font><br>
+<div style=""><%=FULL_DESC%></div>
+<hr>
+<a href="edit.msp?VAR_RECNO=<%=zz(recno())%>&VAR_SR_ID=<%=cSurvey_id%>">Add questions now</a>
+<%
+//----------------------------------------------------------------------
+endcase
+//======================================================================
+%>
+<!----------------------------------- debug only -------------------------------------- //-->
+<div style="position:fixed; width:100%; height:13px; background-color:#C0C0C0; bottom:0; left:0; font-size:10; color: black; text-align:right;"><%=pagename()%></div>
+</body>
+
+</html>
+<%
+***********************************************
+procedure newRecord()
+***********************************************
+%>
+<table border="0" width="100%" cellpadding="3">
+<tr>
+   <td class="th1" style="background-color: #04A6E8"><font color="#FFFFFF">Field</font></td>
+   <td class="th1" style="background-color: #04A6E8" align="right">What is used for</td>
+   <td class="th1" style="background-color: #04A6E8">Values (field name, type and size)</td>
+</tr>
+
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Auto</font></td>
+   <td  class="td1" align="right"><i>Survey progressive #</i></td>
+   <td align="left" class="td1">
+    <input readonly type="text" name="EF_ID_NO" value="<%=zz(recno())%>" size=10>
+    <font color="#666666">ID_NO&nbsp;(N)10</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Auto</font></td>
+   <td  class="td1" align="right"><i>Date of creation</i></td>
+   <td align="left" class="td1">
+    <input readonly type="text" name="EF_D_CREA" value="<%=date()%>" size=12>
+    <font color="#666666">D_CREA&nbsp;(D)12</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Required</font></td>
+   <td  class="td1" align="right">Survey start from</td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_D_START" value="<%=date()%>" size=12>
+    <font color="#666666">D_START&nbsp;(D)12</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Optional</font></td>
+   <td  class="td1" align="right">Survey ends at</td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_D_END" value="<%=date()+30%>" size=12>
+    <font color="#666666">D_END&nbsp;(D)12</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Auto</font></td>
+   <td  class="td1" align="right"><i>Your user ID</i></td>
+   <td align="left" class="td1">
+    <input readonly type="text" name="EF_USR_ID" value="<%=getenv("REMOTE_ADDR")%>" size=20>
+    <font color="#666666">USR_ID&nbsp;(C)20</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Optional</font></td>
+   <td  class="td1" align="right">Target group ID</td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_TARGET_GRP" value="<%=zz(TARGET_GRP)%>" size=20>
+    <font color="#666666">TARGET_GRP&nbsp;(C)20</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Required</font></td>
+   <td  class="td1" align="right">Title to display in reports<br>
+	(not visible to users)</td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_TITLE" value="<%=zz(TITLE)%>" size=40>
+    <font color="#666666">TITLE&nbsp;(C)80</font></td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Optional</font></td>
+   <td  class="td1" align="right">Description of the survey<br>
+	(shown to users)</td>
+   <td align="left" class="td1">
+    <font color="#666666">FULL_DESC&nbsp;(M)0<br>
+	</font>
+    <textarea name="EF_FULL_DESC" rows=4 cols=40 style="width:90%;"><%=zz(FULL_DESC)%></textarea>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1" bgcolor="#808080"><font color="#FFFFFF">Auto</font></td>
+   <td  class="td1" align="right"><i>ID assigned to this survey</i></td>
+   <td align="left" class="td1">
+    <input readonly type="text" name="EF_SURVEY_ID" value="<%=zz(SURVEY_ID)%>" size=10>
+    <font color="#666666">SURVEY_ID&nbsp;(C)10</font></td>
+</tr>
+</table>
+<%
+return ""
+%>

@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+               SLAVE PAGE - USING GLOBALS.MEM 
+               *********************************
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="stylesheet" type="text/css" href="../../default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="javascript" src="/js/max-ajax.js"></script>
+<title>DATABASE Navigator - DB Manager v.1.0-2013</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+body {font-size:12;}
+td {vertical-align: top;font-size:12;}
+li {margin-top:3px;}
+.dbitem { border-bottom:dotted 1px white;}
+</style>
+<!----------------------------------- MaxScript -------------------------------------- //-->
+<%
+lDebug :=.f.
+**************************************** DBFree 3-0-3-MID-HEADER
+zcRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free30.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+if lDebug
+? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+endif
+next
+
+//-- LOAD APP GLOBALS
+cCfgFile := webRoot() + "\globals.mem"
+restore from(cCfgFile) additive
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed,xAppId)
+if file(cMemFile)
+   restore from (cMemFile) additive
+endif
+
+//--
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+nRecno  := val(MSPFieldValue("VAR_RECNO"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MID-HEADER
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//--LOCAL VARIABLES
+cIp := getenv("REMOTE_ADDR")
+cUrl := getenv("SERVER_NAME")
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SECTION
+//
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with V1.9-V2.1
+
+//-- TABLE(S) TO USE
+//
+cTable  := cDir + "ALLEGATI.DBF"
+cIndex  := cDir + "ALLEGATI.MTX"
+if not file(cTable)
+  ainit( "aField","ID_DOC","SUB_ID","OGGETTO","TESTO_DESC","FILE_DESC","ULT_AGG","STATUS","ID_PROGR","SERVICE")
+  ainit( "aType","C","C","C","M","C","C","C","C","C")
+  ainit( "aSize",15,20,90,10,35,17,15,3,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+
+use (cTable) in 0 alias MASTER index (cIndex) key ID_DOC
+
+//-- TABLE(S) TO USE
+//
+cTable  := cDir + "ALLEGATI.DBF"
+cIndex  := cDir + "ALLEGATI.MTX"
+if not file(cTable)
+  ainit( "aField","ID_DOC","SUB_ID","OGGETTO","TESTO_DESC","FILE_DESC","ULT_AGG","STATUS","ID_PROGR","SERVICE")
+  ainit( "aType","C","C","C","M","C","C","C","C","C")
+  ainit( "aSize",15,20,90,10,35,17,15,3,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+
+use (cTable) in 0 alias MASTER index (cIndex) key ID_DOC
+
+use
+%>
+
+<!----------------------------------- HTML BODY -------------------------------------- //-->%>
+<body>
+
+</body>
+
+</html>

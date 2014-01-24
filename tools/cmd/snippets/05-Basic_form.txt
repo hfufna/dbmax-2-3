@@ -1,0 +1,12 @@
+<hr>
+<form name="form1" action="<%=cSelf%>" method="post">
+
+Name:<input type="text" name="EF_NAME">
+Surname:<input type="text" name="EF_SURNAME">
+Age:<input type="text" name="EF_AGE" size="2">
+<hr>
+
+<input type="hidden" name="VAR_ACTION" value="WRITE">
+<input type="submit" name="PB_OK" value="Test">
+</form>
+<% %>

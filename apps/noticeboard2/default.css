@@ -1,0 +1,76 @@
+body {
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	margin-top: 3;
+	margin-bottom: 8;
+	margin-right: 2;
+	margin-left: 2;
+	padding: 3px;
+}
+
+th {
+  font-family: Verdana, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #333333;
+  vertical-align: top;
+}
+
+td {
+  font-family: Verdana, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #333333;
+  vertical-align: top;
+}
+.code           { overflow: hidden;
+                     color: maroon;
+                     background-color: #DDDDDD;
+                     padding: 3px;
+                     font-size: 10pt;
+                     -moz-border-radius: 3;
+                     border: 1px solid black;
+                     cursor: default;
+                     max-height: 500px;
+                     width: 760px;
+                    min-height: 35px;
+                    font-family: Courier, Monospace, Lucida Console;                     
+                   }
+.code:hover       { overflow: auto;
+                   }
+                   
+.textbox {
+	width:100%; 
+	max-height:350px; 
+   min-height: 50px;
+	background-color:#FFFFF2; 
+	color:maroon; 
+	border:solid 1px black;
+}
+.browse {
+  overflow: hidden;
+  color: #000000;
+  background-color: #EDFAFE;
+  padding: 3px;
+  font-size: 10pt;
+  -moz-border-radius: 3px;
+  border: 1px dotted #0000FF;
+  margin-top: 2px;
+  cursor: default;
+  max-height: 500px;
+  .width: 100%;       /* IE only */
+  .min-height: 35px
+}
+.example  { 
+  color: #000080;
+  background-color: #FFFFF0;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px dotted #800000;
+  margin-top: 2px
+}
+.hover.example { 
+  overflow: auto;
+}
+
+hr.bold {
+  border: 1px solid #3C5E80;
+}

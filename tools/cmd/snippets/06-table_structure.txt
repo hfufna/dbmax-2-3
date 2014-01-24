@@ -1,0 +1,15 @@
+<%
+setDb("demo")
+use "mydb"
+? "Table:" | dbf() | " Records:" | reccount()
+
+aFld := ""
+nnn := mfields(aFld)
+?
+for FLDNUM=1 to afields()
+   for F_INFO=1 to 4
+     ?? aFld[F_INFO,FLDNUM] | "  "
+   next
+   ?
+next
+%>

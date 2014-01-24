@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+         DBFREE 3.0 NATIVE LOGIN SYSTEM for MaxScript 2.3
+         This is part of DBFree 3.0 Core Functions
+         Written by G.Napolitano (www.dbfree.org) - October 2012
+         
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="stylesheet" type="text/css" href="../default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>DBFree 2.1 Template</title>
+</head>
+
+<style type="text/css">
+a {color:white;text-decoration:none;}
+a:visited {color:white;}
+a:hover {text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+
+<script type="text/javascript">
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)    {
+    bb.style.display='block';    }
+else if (nVisib == 0)
+   {     bb.style.display='none';    }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')    {
+   bb.style.display='none';   }
+else if (bb.style.display == 'none')   { 
+   bb.style.display='block';   }
+}
+</script>
+<script type="text/javascript">
+/*  This script changes the background color of the given element
+    (typicall a table-row) when called by a click (typically on a link)
+*/
+function changeBg(cDiv,cColor){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+    bb.style.backgroundColor=cColor;
+}
+/* This script changes the background of all tags (typically a row)
+   so to clear the highlited row produced by the previous function
+*/
+function setTagsColor(cTagName,cValue){
+var aElem = document.getElementsByTagName(cTagName);
+//alert(aElem.length);
+for (var x=0; x < aElem.length; x++)
+   { aElem[x].style.backgroundColor=cValue;}
+}
+</script>
+
+<%
+************************************************************ DBFree HEADER_3.0.1.1
+//-- 1 LIBRARY 
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- 2 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 3 SESSION HANDLING VIA MEMORY FILE
+cSeed    := MSPFieldValue("XY")
+cIp      := getenv("REMOTE_ADDR")
+xMemFile := mspconfigvar("DATADIR")+"\_mem\login\"+strTran(cIp,".","_")+"_" + cSeed + ".mem"
+restore from (xMemFile) additive
+
+//-- 4 STANDARD MAXOBJECT WEBVARS
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := MSPFieldValue("VAR_ACTION")
+cSelf   := pageName()
+
+//-- 5 STANDARD DATABASE HANDLING WEBVARS 
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+cView  := MSPFieldValue("VAR_VIEW")
+nRec   := val(MSPFieldValue("VAR_REC"))
+
+
+************************************************************ END HEADER_3.0.1.1
+CR_LF := chr(13)+chr(10)
+set date to british
+set decimals to 0
+
+//--SETTING DB PATH FIXED (OVERRIDES ANY PARAMETER PASSED)
+//  This is a security feature
+//
+cDir := setDb("noticeboard2")
+
+//-- OPENING TABLES AND INDEXES
+//   if indexes not existing will be created
+//
+//-- MENUS
+t_menus  := cDir + "usr_menus.DBF"
+i_menus  := cDir + "usr_menus.MTX"
+use (t_menus) in 0 alias USERMENU index (i_menus) key USR_ID
+set order to 1
+if lastrec()<1
+   ? "<h3>PROBLEM: user menu empty!</h3>Enter <b>maintenance</b> and add at least an application for each user." html 
+   return  
+endif
+%>
+<!----------------------------------- <%=pagename()%> -------------------------------------- //-->
+<body background="../images/bg_v-light.jpg">
+<%
+//-- SEEKING USER
+//
+select USERMENU
+seek alltrim(xcUsrId)
+if found()
+   nRecno := recno()
+   cUsrId := USR_ID
+   set filter to USR_ID = cUsrId // and USR_NAME = xcUsrName
+   go top
+else
+   ? "<h3>ERROR: Could not find user ["+ xcUsrName + "]!</h3>Try rebuilding the indexes." html
+   return
+endif
+%>
+<table border="0" id="table1" cellspacing="0" cellpadding="3" width="100%">
+	<tr>
+		<td bgcolor="#01322C" width="26"><img border="0" src="img/d8_home_ico.gif"></td>
+		<td bgcolor="#01322C" width="0"><a target="frm2" href="login.msp?XY=<%=cSeed%>&VAR_ACTION=LOGOUT"><font color="#FFFFFF">Logout</font></a></td>
+	</tr>
+	<tr>
+		<td bgcolor="#4E4B49" colspan="2"><font color="#DDDDDD">User <%=xcUsrId%> Menu</font></td>
+	</tr>
+	<% 
+	go top
+	rrr :=0
+   do while not eof()	
+      rrr++
+      cLink  := "/"+zz(GROUP)+"/"+zz(MODULE)+"/"+zz(PAGE_NAME)
+      cFrame := zz(PAGE_FRM)
+      cDescr := MOD_DESCR
+      nHH := mlcount(cDescr,25)
+      nHH := max(nHH,2)
+   	%>
+   	<tr id="tr_<%=zz(rrr)%>" bgcolor="#333333">
+		<td width="26"><img border="0" src="img/d8_prompt_ico.gif" onmouseover="toggleDiv('item_<%=zz(rrr)%>')" onmouseout="showDiv('item_<%=zz(rrr)%>',0)"></td>
+		<td width="0">
+	       <a target="<%=cFrame%>" href="<%=cLink%>" 
+	       onclick="showDiv('item_<%=zz(rrr)%>',0); setTagsColor('tr','#333333'); changeBg('tr_<%=zz(rrr)%>','red');">
+	       <font color="#FFFFFF"><%=zz(MODULE)%></font>
+	       </a>
+	       <div id="item_<%=zz(rrr)%>" style="display:none;width:100%;height:<%=nHH%>em;border:solid 1px white;padding:3 3 3 3; background-color:#C0C0C0;margin-top:5;">
+	       <font size="1">[<%=zz(MODULE)%>]<hr><%=cDescr%></font>
+	       </div>
+		</td>
+   	</tr>
+   	<%
+      skip
+   enddo
+   %>
+</table>
+<p><font color="#FFFFFF">&nbsp;</font></p>
+
+</body>
+</html>

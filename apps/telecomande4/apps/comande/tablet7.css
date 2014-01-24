@@ -1,0 +1,46 @@
+body {
+	background-color: black;
+	color: white;
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 1em;
+	margin-top: 2;
+	margin-bottom: 0;
+	margin-right: 0;
+	margin-left: 2;
+}
+
+a {
+	color: white;
+}
+
+a:visited {
+	color: white;
+}
+th {
+	font-size: 0.8em;
+}
+td {
+	font-size: 1em;
+	font-weight: normal;
+}
+
+input {font-size: 1em; }
+select {font-size: 1em;}
+option {font-size: 1em;}
+
+a:visited { color: white; }
+
+form {
+  margin-top: 1;
+  margin-bottom: 1;
+  overflow: hidden;
+  font-size: 1em;
+}
+
+
+img.pbmenu { min-width: 25%; }
+
+img { 
+   min-height: 1.5em
+   min-width: 1.5em;
+}

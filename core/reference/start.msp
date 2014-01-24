@@ -1,0 +1,33 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+cSeed := MspFieldValue("XY")
+
+*************************************************************************
+%>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>New Page 1</title>
+</head>
+	<frameset cols="245,*" frameborder="0">
+		<frame name="frm1" target="frm2" src="menu.msp?XY=<%=cSeed%>">
+		<frame name="frm2" src="splash.msp?XY=<%=cSeed%>" scrolling="auto" marginwidth="0" marginheight="0">
+	</frameset>
+	<body>
+
+	<p>This page uses frames, but your browser doesn't support them.</p>
+
+	</body>
+	</noframes>
+</frameset>
+
+</html>

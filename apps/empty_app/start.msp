@@ -1,0 +1,90 @@
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 SLAVE HEADER 0200
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 02 -- GETTING SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- 012 -- GETTING CARGO VARS
+if not empty(xCargoFile) 
+   if file(xCargoFile)
+      restore from (xCargoFile) additive
+   else
+      ? "ERROR: Cargo file [" + xCargoFile + "] missing!"
+      *return   
+   endif
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDbSet)
+if not empty(xDbType)
+   set dbtype to (xDbType)
+endif
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER 0200
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("appbar.htm")%>
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<div class="jumbotron">
+<h1>Empty Application <small>Use this framework to build your app</small><a class="btn btn-sm btn-primary pull-right" href="<%=xStarter%>?XY=<%=cSeed%>&VA=RELOAD">Back</a></h1>
+</div>
+
+<div class="well">
+<%=memoread(webroot() + "\info.txt")%>
+<p>
+<a class="btn btn-sm btn-primary" href="page1.msp?XY=<%=cSeed%>">First page to link</a>
+</div>
+<span class="badge pull-right"><%=cSeed%></span>
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

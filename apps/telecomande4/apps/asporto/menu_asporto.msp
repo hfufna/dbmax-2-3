@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="asporto.css">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  **? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+*#########################################################################
+//-- DIMENSIONA ELEMENTI
+cAltImg    := "47"
+nLargCella := "20%"
+%>
+<!----------------------------------- START BODY -------------------------------------- //-->
+<body onload="top.frm2.location='vista_ordini.msp';">
+<table border="0">
+	<tr>
+		<td width="<%=zz(nLargCella)%>">
+         <a target="_top" href="../../index.msp"><img src="../../images/pw9_home.gif" height="<%=cAltImg%>"></a> 
+		</td>
+		<td width="<%=zz(nLargCella )%>">
+		   <a target="frm1" href="../cassa/menu_cassa.htm"><img border="0" src="../../images/pw9_conto-s.gif" height="<%=cAltImg%>"></a></td>
+		<td width="<%=zz(nLargCella )%>">
+         <a target="frm2" href="vista_ordini.msp">
+<img src="../../images/pw9_vista_ordini.gif" height="<%=cAltImg%>"></a>
+		</td>
+		<td width="<%=zz(nLargCella )%>">
+&nbsp;</td>
+		<td width="<%=zz(nLargCella )%>">
+<a target="frm2" href="javascript:top.frm2.location.reload();"><img src="../../images/pw9_aggiorna.gif" height="<%=cAltImg%>"></a>
+		</td>
+	</tr>
+</table>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+</body>
+</html>

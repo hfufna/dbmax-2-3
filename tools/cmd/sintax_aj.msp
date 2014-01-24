@@ -1,0 +1,93 @@
+<html>
+<%
+**************************************** DBFree HEADER -2-995
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+cSelf    := pageName()
+
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 5 SAFETY SYSTEM 
+cUsrName := MSPFieldValue("VAR_USR_NAME")
+cUsrGrp  := upper(MSPFieldValue("VAR_USR_GRP"))
+cUsrRole := MSPFieldValue("VAR_USR_ROLE")
+cUrl     := setId(cSelf,cUsrName,cUsrGrp,cUsrRole)
+cSafeKey := setId("",cUsrName,cUsrGrp,cUsrRole)
+if empty(cUsrName)
+   *? "<h2>LOGIN ERROR</h2><hr>No USERNAME was supplied: your group is [" + cUsrGrp + "]<p>Contact the administrators." html
+   *return
+endif
+
+//-- 11 MAXOBJECT HANDLING
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+nRec     := val(MSPFieldValue("VAR_REC"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER 2-995
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<%
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+
+//-- standard DBFree MTX indexes
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not opened"
+   return
+endif
+set order to 0
+go top
+if reccount() < 1
+   %><h3>Attention!</h3>Your Reference database is empty.<br>In order to this module to work
+   you need to load the appropriate file (<%=cDb%>) in this location: [<%=cDbPath%>]
+   <br>You can download an update file from 
+   <a href="http://www.dbfree.org/updates">www.dbfree.org</a><br>
+   <%
+   return
+endif
+
+
+cKey := upper(MSPFieldValue("VAR_KEY"))
+rrr:=0
+go top
+do while not eof()
+   if cKey $ upper(ELEMENT)
+      rrr++
+      %>
+      <a href="sintax_list.msp?VAR_ACTION=XDISPLAY&VAR_RECNO=<%=zz(recno())%>" id="id_<%=zz(rrr)%>">
+      <b><%=zz(ELEMENT)%></b>
+      </a>
+      <br> 
+      <font color="navy"><%=zz(DESCR)%></font><hr>
+      <%
+   endif
+   skip
+enddo
+if rrr = 0
+   ? "Nessuna corrispondenza!"
+endif
+%>
+</body>
+</html>

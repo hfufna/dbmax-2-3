@@ -1,0 +1,72 @@
+<html>
+<%
+lDebug :=.f.
+xAppId := "opc4"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=appInfo()%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<%=container()%>
+<%=include("tpl/banner.htm")%>
+
+
+<!-- center logo //-->
+<div class="row" style="margin-top:80px;">
+  <div class="col-sm-4 col-md-4 col-lg-4">
+  <strong>Progetto OPC</strong><br>
+  Osservatorio Piccole Cose
+  </div>
+  <div class="col-sm-4 col-md-4 col-lg-4">
+     <a href="loginpage.msp">
+     <img border="0" src="img/opc4-biglogo.jpg" style="width:80%;"></a>
+  </div>  
+  <div class="col-sm-4 col-md-4 col-lg-4">
+<p><small>Il progetto OPC si propone di migliorare la sicurezza e la vivibilità della città tramite 
+l'accoglimento delle segnalazioni dei cittadini sui piccoli problemi quotidiani /scritte murali, 
+piccole buche del manto stradale, relitti di veicoli, segnaletica, manutenzione del verde pubblico, etc.). 
+Per fare una segnalazione telefonare a Linea Comune 055055 il Conctact Center del Comune di Firenze, 
+oppure rivolgersi agli URP o ai Quartieri.</small>  
+  </div>
+</div>
+</body>
+
+</html>

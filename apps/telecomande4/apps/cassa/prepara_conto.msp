@@ -1,0 +1,508 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="cassa.css">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<script type="text/javascript">
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+</script>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<a target="_top" href="/index.msp"><h3>RICHIEDI AUTORIZZAZIONE</h3></a>' html
+   return
+endif
+
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 2
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+%>
+<script language="javascript">
+<!--
+function updConto() {
+nTot = parseFloat(document.form_pag.EF_TOTCONTO.value);
+
+nContanti = parseFloat(document.form_pag.EF_IMP_CONT.value);
+nCarte    = parseFloat(document.form_pag.EF_IMP_EPAY.value);
+
+nTicket1 = parseFloat(document.form_pag.EF_IMP_TKT1.value);
+nTicket2 = parseFloat(document.form_pag.EF_IMP_TKT2.value);
+
+nRiscosso = nContanti+nCarte+nTicket1+nTicket2;;
+nResto = nRiscosso-nTot;
+
+document.form_pag.EF_IMP_TKT.value=nTicket1+nTicket2;
+document.form_pag.EF_TOT_CTRL.value = nRiscosso;
+document.form_pag.EF_RESTO.value = nResto;
+
+}
+function updTkt1() {
+n4 = parseFloat(document.form_pag.EF_QNT_TKT1.value);
+n5 = parseFloat(document.form_pag.EF_VAL_TKT1.value);
+document.form_pag.EF_IMP_TKT1.value = n4*n5;
+}
+function updTkt2() {
+n6 = parseFloat(document.form_pag.EF_QNT_TKT2.value);
+n7 = parseFloat(document.form_pag.EF_VAL_TKT2.value);
+document.form_pag.EF_IMP_TKT1.value = n6*n7;
+}
+//-->
+</script>
+<%
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+   return
+endif
+
+cTav := MSPFieldValue("VAR_TAV")
+if empty(cTav)
+   ? "ERRORE"
+   ? "Manca il numero tavolo!"
+   return
+endif
+%>
+<head><title>CONTO TAVOLO <%=cTav%></title></head>
+<%
+//-- apre la tabella tavoli e si posiziona sul tavolo richiesto
+//
+dbOpen(xDB,"2")
+select tavoli
+go top
+locate for alltrim(ID_TAV)=alltrim(cTav)
+if eof()
+   ? "ERRORE: Tavolo sbagliato. Aggiornare indici"
+   return
+endif 
+cT_start := zz(T_START)
+nCoperti := COPERTI
+
+//-- apre la tabella comande
+dbOpen(xDB,"3")
+select comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+sum all PRZ_UN to nTotConto
+
+//-- apre tabella cassa
+dbOpen(xDB,"5")
+select cassa
+%>
+<body>
+<!----------------------------------- BODY START -------------------------------------- //-->
+<%
+//-- CREAZIONE CARTELLA DEL GIORNALIERO
+cDir  :=  cDbPath + dayDir(date())
+if not file(cDir)
+   md(cDir)
+endif
+cFile := cDir + "\" + cTav + "_" + strtran(time(),":","-")+".dbf"
+
+
+//-- BACKGROUND ACTIONS
+do case
+******************************
+case cAction ="PAGROMA"
+******************************
+cAction := ""
+
+******************************
+case cAction ="PAGTAV"
+******************************
+nTotConto := val(MSPFieldValue("EF_TOTCONTO"))
+cIdOp     := MSPFieldValue("EF_IDOP")
+nImpCont  := val(MSPFieldValue("EF_IMP_CONT"))
+nResto    := val(MSPFieldValue("EF_RESTO"))
+
+cDesEpay  := MSPFieldValue("EF_DES_EPAY")
+nImpEpay  := val(MSPFieldValue("EF_IMP_EPAY"))
+nImpTkt   := val(MSPFieldValue("EF_IMP_TKT"))
+
+cDesTkt1 := MSPFieldValue("EF_DES_TKT1")
+nQntTkt1 := val(MSPFieldValue("EF_QNT_TKT1"))
+nValTkt1 := val(MSPFieldValue("EF_VAL_TKT1"))
+nImpTkt1 := val(MSPFieldValue("EF_IMP_TKT1"))
+
+cDesTkt2 := MSPFieldValue("EF_DES_TKT2")
+nQntTkt2 := val(MSPFieldValue("EF_QNT_TKT2"))
+nValTkt2 := val(MSPFieldValue("EF_VAL_TKT2"))
+nImpTkt2 := val(MSPFieldValue("EF_IMP_TKT2"))
+
+lError :=.f.
+sele cassa
+append blank
+if rlock(1)
+   repl COD_CLI   with xcCodCli
+   repl NSESSIONE with zcSession
+   repl COD_OP    with "INCASSO"
+   repl ID_OP     with xcIdOp
+   repl D_REG     with date()
+   repl T_AP      with cT_start
+   repl T_CHIUS   with time()
+   repl IMP_TOT   with nTotConto
+   repl IMP_CONT  with nImpCont
+   repl IMP_REST  with nResto
+   repl DES_EPAY  with cDesEpay
+   repl IMP_EPAY  with nImpEpay
+   
+   repl DES_TKT1 with cDesTkt1
+   *repl QNT_TKT1  with nQntTkt1
+   *repl VAL_TKT1  with nValTkt1
+   repl IMP_TKT1  with nImpTkt1
+   
+   repl DES_TKT2 with cDesTkt2
+   *repl QNT_TKT2  with nQntTkt2
+   *repl VAL_TKT2  with nValTkt2
+   repl IMP_TKT2  with nImpTkt2
+   
+   repl ID_TAV    with cTav
+   *repl ID_SALA  with 
+   unlock
+else
+   ? "ERRORE: database occupato - riprovare"
+   lError :=.t.
+endif
+
+cPrintFile := curDosDir() + "buffer.htm"
+if not lError
+   //-- mette il pagato a tutte le righe della comanda
+   sele comande
+   set filter to alltrim(ID_TAV) == alltrim(cTav)
+   go top
+   if flock(1)
+      repl all STAT_COM with "PAGATO"
+      unlock
+   endif
+   cAction := "LIBTAV"
+endif
+
+******************************
+case cAction ="CONTROW"
+******************************
+//-- conteggia la comanda alla romana
+// prendendo in considerazione solo le righe flaggate
+cAction := ""
+
+******************************************************
+endcase
+******************************************************
+%>
+<%
+//-- FOREGROUND ACTIONS
+//
+do case
+******************************************************
+case cAction = "RIVEDI"
+******************************************************
+%>
+<form name="form1">
+<!----------------------------- *BANNER ----------------------------- //-->
+<table border="0" width="100%" cellspacing="5" cellpadding="5">
+	<tr><td colspan="4" bgcolor="#B2001D">CASSA: conto per tavolo <%=cTav%> [<%=cAction%>]</td></tr>
+	<tr>
+	<td>
+	<input type="text" name="EF_TOT" value="" size="5" style="border:none;">
+	<a href="<%=cSelf%>?VAR_ACTION=CHIUDI&VAR_TAV=<%=cTav%>">
+	<font color="#FFFF00">Chiudi conto</font></a><font color="#FFFF00">&nbsp; </font><a href="<%=cSelf%>?VAR_ACTION=&VAR_TAV=RIPARTISCI<%=cTav%>">Alla romana</a></td>
+	<td>Fattura</td>
+	<td><a href="<%=cSelf%>?VAR_ACTION=&VAR_TAV=<%=cTav%>">Rivedi</a></td>
+	<td><a href="vista_cassa.msp"><font color="#00FF00">Rinuncia</font></a></td>
+	</tr>
+</table>
+<table width="100%" bgcolor="#E3D39B" cellpadding="2">
+<%
+select comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+rrr := 0
+nTotConto := 0
+nComande  := 0
+go top
+do while not eof()
+   rrr++
+   if empty(cAction)
+   %>
+   <tr>
+   <td><%=zz(rrr)%></td>
+   <td bgcolor="#FCFCFC"><font color="black"><%=ID_COM%></font></td>
+   <td bgcolor="#FCFCFC"><font color="gray"><%=GRP_PROD%></font></td>
+   <td bgcolor="#FCFCFC"><font color="black"><%=DESC_PROD%></font></td>
+   <td bgcolor="#FCFCFC"><font color="black"><%=PRZ_UN%></font></td>
+   <td bgcolor="#FCFCFC"><font color="navy"><%=STAT_COM%></font></td>
+   <td bgcolor="#FCFCFC">
+      <input type="checkbox" name="EF_<%=zz(ID_COM)%>">
+	</td>
+   </tr>
+   <%
+   endif
+   nTotConto+= PRZ_UN
+   nComande++
+   skip
+enddo
+%>
+</table>
+<script language="javascript">form1.EF_TOT.value='<%=zz(nTotConto)%> Euro';</script>
+<%
+******************************************************
+case empty(cAction)
+******************************************************
+aInit("aCarte","VISA","Maestro","PagoBancomat","AMEX","Mastercard")
+cListaCarte := ""
+for iii=1 to len(aCarte)
+   cListaCarte += "<option>" +aCarte[iii]+"</option>"
+next
+cListaTicket := ""
+aInit("aTicket","BonChef","T-Rest","DayRisto","CAMST","Consip")
+for iii=1 to len(aTicket)
+   cListaTicket += "<option>" +aTicket[iii]+"</option>"
+next
+
+sele comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+sum all PRZ_UN to nTotConto
+%>
+<!---- form start //---->
+<form name="form_pag" action="<%=cSelf%>" method="post">
+<table border="0" id="table1" cellpadding="5" bgcolor="#E3D39B">
+	<tr>
+		<td colspan="2" bgcolor="#B2001D"><b><font color="#FFFFFF">Conto per il Tavolo <%=cTav%></font></b><font color="#FFFFFF"> </font>
+</td>
+	</tr>
+	<tr>
+		<td colspan="2" bgcolor="#FFFFF0"><font color="#B2001D">Riscuotere:
+		<input type="text" name="EF_TOTCONTO" value="<%=zz(nTotConto)%>" size="5" style="background-color:#FFCCCC;border:none;color:maroon;"></font> </td>
+	</tr>
+	<tr>
+		<td colspan="2" bgcolor="#FFFFF0"><font color="#B2001D">Contanti
+		=<input type="text" name="EF_IMP_CONT" value="0" size="5" onchange="updConto();"></font> </td>
+	</tr>
+	<tr>
+		<td colspan="2" bgcolor="#FFFFF0"><font color="#B2001D"><a href="javascript:toggleDiv('div_epay');"><font color="#800000">Bancomat/Carte</font></a><br>
+		<div id="div_epay" style="display:none;">
+		<select name="EF_DES_EPAY"><option></option><%=cListaCarte%></select>
+		=<input type="text" name="EF_IMP_EPAY" value="0" size="5"></font></div>
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2" bgcolor="#FFFFF0"><font color="#B2001D">
+		<a href="javascript:toggleDiv('div_tkt');"><font color="#800000">Tickets</font></a>
+		=</font>
+		<input type="text" name="EF_IMP_TKT" value="0" size="5" readonly style="background-color:#FFFFC4;border:none;color:maroon;">
+		</td>
+	</tr>
+	<tr id="div_tkt" style="display:none;">
+		<td bgcolor="#FFFFF0">
+		<font color="#B2001D">
+		Tipo<select name="EF_DES_TKT1"><option></option><%=cListaTicket%></select>
+		<br>
+		n.<input type="text" name="EF_QNT_TKT1" value="0" size="1" onchange="updTkt1(this.value);">
+		da<input type="text" name="EF_VAL_TKT1" value="0" size="2" onchange="updTkt1(this.value);">
+		=<input type="text" name="EF_IMP_TKT1" value="0" size="4" readonly style="background-color:#FFFFC4;border:none;color:maroon;"></font>
+		</td>
+		<td bgcolor="#FFFFF0">
+		<font color="#B2001D">
+		Tipo<select name="EF_DES_TKT2"><option></option><%=cListaTicket%></select> 
+		<br>
+		n.<input type="text" name="EF_QNT_TKT2"  value="0" size="1" onchange="updTkt2(this.value);">
+		da<input type="text" name="EF_VAL_TKT2"  value="0" size="2" onchange="updTkt2(this.value);">
+		=<input type="text" name="EF_IMP_TKT2"   value="0" size="4" style="background-color:#FFFFC4;border:none;color:maroon;"></font>
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2" align="center" bgcolor="#FFFFF0">
+		<input type="text" name="EF_TOT_CTRL" value="0" size="5" >
+		<font color="#008000">Resto</font><input type="text" name="EF_RESTO" value="0" size="5" >
+		<!------------------ totale di controllo ---------------- //-->
+		<input type="button" name="PB_CHK" value="Calcola" onclick="updConto();">
+		<input type="submit" name="PB_OK" value="SCONTRINO">
+		<input type="submit" name="PB_OK1" value="RICEVUTA">
+		<input type="submit" name="PB_OK0" value="FATTURA">
+		<input type="reset"  name="PB_ESC1" value="CE">
+      <input type="hidden" name="VAR_TAV" value="<%=cTav%>">
+      <input type="hidden" name="EF_IDOP" value="<%=xcIdOp%>">
+      <input type="hidden" name="VAR_ACTION" value="PAGTAV">
+      </td>
+		</tr>
+</table>
+</form>
+<!--- form end //--->
+<script language="javascript">form_pag.EF_IMP_CONT.focus();</script>
+<%
+******************************************************
+case cAction="LIBTAV"
+******************************************************
+//-- libera il tavolo dopo il pagamento del conto
+%><div style="display:none">
+<%
+cPrintFile := curDosDir()+"BUFFER.HTM"
+   set alte to (cPrintFile)
+   set alte on
+   ? "<html><body bgcolor=white>" html
+   ? "<b>" | xcTxtCliente1 | "</b><br>" html
+   ? xcTxtCliente2 | "<br>" html
+   ? xcTxtCliente3 | "<br>" html
+   ? xcTxtCliente4 | "<br>" html
+   ? "<i>" | xcTxtCliente5 | "</i><p>" html
+   ? "<h3>RICEVUTA FISCALE"  | "</h3>" html
+   ? itDate(date()) | "<br>" html
+   ? "Coperti.." | nCoperti   | "<br>" html
+   ? "Tavolo..." | cTav   | "<br>" html
+   ? "Importo:" | nTotConto   | "E <br>" html
+   ? "<br>" html
+   ? {{<a href=javascript:print();>Stampa</a> delle }} | left(time(),5) html
+   ? "</body></html>" html
+   set alte to
+cPrintLink := "buffer.htm"
+%>
+</div>
+<!----------------------------------- RICEVUTA -------------------------------------- //-->
+<%=cPrintLink%><br>
+<iframe src="<%=cPrintLink%>" height="250" width="440px" name="frm1" style="border:none; height:50%; min-height:300px;"></iframe>
+<br>
+<form name="form2" action="<%=cSelf%>" method="post" style="border:solid 1px lime; padding:10 10 10 10;">
+<input type="hidden" name="VAR_ACTION" value="A_LIBTAV" >
+Registrare il pagamento?
+<input type="submit" name="PB_OK" value="OK" >
+<%=webVars2fields(aVars)%>
+</form>
+<%
+******************************************************
+case cAction="A_LIBTAV"
+******************************************************
+//-- registra la liberazione del tavolo
+//
+select comande
+copy to (cFile) for alltrim(ID_TAV)=alltrim(cTav)
+if flock(4)
+   delete all for alltrim(ID_TAV)=alltrim(cTav)
+   unlock
+endif
+
+select tavoli
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with ""
+      repl ID_OP   with ""
+      repl T_START with ""
+      repl T_END   with ""
+      repl T_TOT   with ""
+      repl TOT_CNT with 0
+      repl NUM_COM with 0
+      repl COPERTI with 0
+      unlock
+   endif
+else
+   ? "ERRORE nell'impegnare il tavolo " + cTav
+endif
+? "<p>&nbsp;</p><h1>TRANSAZIONE EFFETTUATA</h1>" html
+   
+******************************************************
+endcase
+******************************************************
+%>
+</form>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+<hr>
+<font color="#C0C0C0" size="2"><%=pageName()%> Term:<%=xcDevId%></font>
+</body>
+</html>
+
+<%
+******************************
+function timeDiff(cStr1,cStr2)
+******************************
+//-- calcola la differenza tra due orari carattere
+local nHour,cVal1,cVal2
+if not left(upper(cStr1),2) $ "AMPM"
+   nHour := val(left(cStr1,2)) 
+   cStr1 := cStr1 +" "+iif(nHour>=12,"pm","am")
+endif
+
+if not left(upper(cStr2),2) $ "AMPM"
+   nHour := val(left(cStr2,2)) 
+   cStr2 := cStr2 +" "+iif(nHour>=12,"pm","am")
+endif
+return elaptime(cStr1,cStr2)
+
+************************
+function dayDir(dDate)
+************************
+//-- ritorna il nome da assegnaread una directory
+//   per i salvataggi giornalieri
+local cNow, cOut
+cOut := ""
+cNow:= itDate(dDate)
+cOut := subs(cNow,8,4)
+cOut += subs(cNow,4,3)
+cOut += subs(cNow,1,2)
+return cOut
+%>

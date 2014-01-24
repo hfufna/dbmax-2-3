@@ -1,0 +1,3 @@
+DB Manager for DBMAX 2.3
+Version 1.2.3
+NOv 06, 2013

@@ -1,0 +1,214 @@
+<html>
+<%
+xAppId := "dbmax"
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+
+if not empty(cSeed)
+   cMemFile := getMemFile(cSeed)
+   if file(cMemFile)
+      restore from (cMemFile) additive
+   endif
+endif
+*********************************************
+set decimals to 0
+set date to british
+
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+%>
+<%=AppInfo()%>
+<%=include("/parts/html/header.htm")%>
+<body style="background-color:#f1f1f1;">
+<%=container()%>
+<%
+xAppId := memoread(webroot()+"\"+"xAppId")
+lOk := iif(isLocal(),.t.,.f.)
+
+if type(xUser)="U"
+   xUser := ""
+elseif lower(xUser) = "admin"
+   lOk :=.t.
+endif
+
+cWebRoot := webroot()
+cConfigFile := cWebRoot + "\config.ini"
+cAppIdFile  := cWebRoot + "\xappid" 
+cMspConfigFile := MspConfigVar("MSPDIR")+"\bin\mspserver.cfg"
+%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h1 class="panel panel-body" style="margin-top:-40px;">DBMAX setup page
+<a href="/home.msp" class="btn btn-default pull-right">Start page</a> <span class="badge"><%=lower(xUser)%></span></h1>
+<% if callingPage() <> pagename() %>
+   <a href="<%=callingPage()%>" class="btn btn-primary pull-right">Back</a></h1>
+<% endif
+   if not empty(cSeed)
+   %>
+   <a href="/login/login.msp?XY=<%=cSeed%>" class="btn btn-success pull-right" style="margin:0px 5px;">Welcome page</a></h1>
+<% endif %>
+<%
+if not lOk
+   %><h3>Setup procedure is allowed only from local addresses</h3>Your address is <%=getenv("REMOTE_ADDR")%></h3><%
+   return
+endif
+%>
+<h4>A - <a href="javascript:toggleDiv('div_1')">Main configuration</a></h4>
+<div class="panel" id="div_1" style="display:none;">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<div class="panel panel-body">
+<h4>Server info: <font color="#FF0000"> \\<%=getenv("COMPUTERNAME")%></font> 
+on <font color="#008000"> <%=getenv("SERVER_SOFTWARE")%></font> 
+as <font color="#0000FF"> <%=lower(trimLeftAt(getenv("SERVER_PROTOCOL"),"/"))%>://<%=getenv("SERVER_NAME")%></font></h4>
+<h4>
+<span class="badge"><big>A1</big></span> Library position: <font color="#FF0000"><%=MspConfigVar("LIB")%></font><br>
+<span class="badge"><big>A2</big></span> Library in use: <small><%=libVer()%></small><br>
+<span class="badge"><big>A3</big></span> Installation folder: <font color="#0000FF"> <%=MspConfigVar("MSPDIR")%></font></h4>
+<%
+cDbfreeDir := getenv("SYSTEM_DRIVE") + MspConfigVar("MSPDIR")
+if isdir(cDbfreeDir)
+   %><div class="well"><h4><font color="#FF0000">Attention: a DBFree installation has been detected on this server
+   into <%=cDbfreeDir%>.<br>
+   <small>DBMAX can coexist with it, but you may require some 
+   additional settings. Please read the manual!</small></font></h4></div><%
+endif
+
+//-- checking the correct configuration
+cClaimWebroot := readIniVar(cMspConfigFile,"WEBROOT")
+%>
+<h4><span class="badge"><big>A4</big></span> MaxScript's Configuration file: <small><%=cMspConfigFile%></small></h4>
+<textarea name="EF_CONFIG_MSP" style="width:50%;max-width:500px;" rows="5" readonly><%=memoread(cMspConfigFile)%></textarea>
+<%
+if cClaimWebroot <> cWebRoot
+   %><div class="well"><font color="red"><h4>Variable WEBROOT misconfigured: <small><%=cClaimWebroot%></small></h4>
+   Should be <input type="text" name="EF_WEBROOT" size="40" value="<%=cWebroot%>"></font>
+   <button class="btn btn-sm btn-danger">Reset to defaults</button>
+   </div><%
+endif
+
+//-- checking the developers options
+cCompilerFile := cWebRoot + "\lib\maxcompiler.exe"
+cLinkerFile   := cWebRoot + "\lib\maxlinker.exe"
+cMakeFile     := cWebRoot + "\lib\makemaxlib.cmd"
+
+if file(cCompilerFile) .or. file(cLinkerFile)
+   %>
+   <div class="well"><h4><font color="#FF0000">Developer's options installed!</font><br>
+   Please check the configuration (read the manual!)</h4>
+   <pre>*** MAKEFILE for DBMAX libraries *****<%=CR_LF%><%=memoread(cMakeFile)%></pre>
+   <button class="btn btn-sm btn-danger">Reset to defaults</button>
+   </div>
+   <%
+endif
+%>
+<form name="form1" action="<%=cSelf%>" method="post" class="form">
+   <h4><span class="badge"><big>A5</big></span> Application ID:</h4>
+   <input type="text" name="EF_XAPPID" value="<%=memoread(cAppIdFile)%>" size="15" title="Application ID">
+   <input name="VAR_ACTION" type="submit" value="SAVE">
+</form>
+   
+<h4><span class="badge"><big>A6</big></span> Configuration file: <small><%=cConfigFile%></small></h4>
+<textarea name="EF_CONFIG_INI" style="width:50%;max-width:500px;" rows="5" readonly><%=memoread(cConfigFile)%></textarea>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</div>
+</div>
+
+<h4>B - <a href="javascript:toggleDiv('div_2')">Database configuration</a></h4>
+<div class="panel panel-default" id="div_2" style="display:none;">
+
+<div class="panel panel-body">
+<form name="form3" action="<%=cSelf%>" method="post" class="form">
+   <h4><span class="badge"><big>B1</big></span> Databases location:</h4>
+   <input type="text" name="EF_DATADIR" value="<%=MspConfigVar("DATADIR")%>" size="40" title="Phisical position of all databases">
+   
+   <h4><span class="badge"><big>B2</big></span> Database Driver Type</h4>
+   <select name="EF_SETDBTYPE" title="Database type to use by default">
+   <option selected><%=readIniVar(cConfigFile,"kDbType")%></option>
+   <option>DBASE</option>
+   <option>FOX</option>
+   <option>ODBC</option>
+   <option>XBASE</option>
+   </select>
+   <input name="VAR_ACTION" type="submit" value="SAVE">
+</form>
+<form name="form4" action="<%=cSelf%>" method="post" class="form">
+   <h4><span class="badge"><big>B3</big></span> Tables to use</h4>
+   <input type="text" name="EF_01" value="" size="20" title="">
+   <input name="VAR_ACTION" type="submit" value="SAVE">
+</form>
+</div>
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+cDb := MspConfigVar("DATADIR") + "\" + xAppId
+cTable1 := cDb + "\site_usr.DBF"
+cTable2 := cDb + "\usr_menus.DBF"
+cTable3 := cDb + "\usr_logs.DBF"
+%>
+<h4>C - <a href="javascript:toggleDiv('div_3')">Users</a></h4>
+<div class="panel panel-body" id="div_3" style="display:none;">
+   <h4><span class="badge"><big>C1</big></span> Users are stored into: <font color="#0000FF"><%=cDb%></font>
+   <h5>Users: <%=cTable1%></h5>
+   <h5>Users apps: <%=cTable2%></h5>
+   <h5>Users log: <%=cTable3%></h5>
+   </h4>
+</div>
+
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+cAppFolder := cWebRoot + "\apps"
+%>
+<h4>E - <a href="javascript:toggleDiv('div_5')">Web applications</a></h4>
+<div class="panel panel-body" id="div_5" style="display:none;">
+   <h4><span class="badge"><big>E1</big></span> Application store: <font color="#0000FF"> <%=MspConfigVar("STORE")%></font></h4>
+   <h4><span class="badge"><big>E2</big></span> Applications folder is: <font color="red"><%=cAppFolder%></font></h4>
+   
+   <h4><span class="badge"><big>E3</big></span> Applications installed:</h4>
+   <%
+   $extended
+   cMask := cAppFolder + "\*."
+   nFiles = adir( cMask, aName)
+   rrr := 0
+   for iii = 1 to nFiles
+      cThis:= foldername(aName[iii])
+      if left(cThis,1) $ "._\/"
+      else
+         cAbstractFile := aName[iii] + "\app-abstract.htm"
+         
+         rrr++
+         %><li>
+         <h4><span class="badge"><%=rrr%></span> <a href="javascript:toggleDiv('div_A<%=zz(rrr)%>')"><%=upper(cThis)%></a></h4>
+         <!-- <%=cAbstractFile%> //-->
+         <% if file(cAbstractFile) %>
+            <div class="well" id="div_A<%=zz(rrr)%>" style="display:none"><%=memoread(cAbstractFile)%></div>
+         <% endif %>
+         </li><% 
+      endif
+   next
+   %>
+   </h4>
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=container(0)%>
+</body>
+
+</html>
+
+<%
+*****************************
+function foldername(cFullpath)
+****************************
+local nPos
+if right(cFullPath,1)="\"
+   cFullPath := trimRight(cFullPath,1)
+endif
+nPos := rat("\", cFullPath)
+return trimLeft(cFullPath,nPos)
+%>

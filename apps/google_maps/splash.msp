@@ -1,0 +1,29 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>GMAPS Splash</title>
+<base target="_self">
+<link rel="stylesheet" type="text/css" href="/default.css">
+</head>
+
+<body>
+
+<p><b><font size="3">Google Demo</font></b></p>
+
+
+<p align="center"><img border="0" src="../../images/maxis_2010_BN_sml.jpg" width="107" height="25"><br>
+<font size="5">&amp;<br>
+</font>
+<img border="0" src="img/splash1.gif"></p>
+<p align="center">This sample shows how to integrate MaxScript with an external 
+service<br>
+like Google maps through its API </p>
+<p align="center">For more info check
+<a href="http://code.google.com/intl/it/apis/maps/documentation/javascript/tutorial.html">
+Google API Documentation</a></p>
+
+</body>
+
+</html>

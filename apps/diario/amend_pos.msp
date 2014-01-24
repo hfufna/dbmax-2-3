@@ -1,0 +1,198 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "diario"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px">
+<%=container()%>
+<%
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+cTable20  := cDir + "DETTAGLI.DBF"
+cIndex21  := cDir + "DETTAGLI.MTX"
+cIndex22  := cDir + "DETTAGLI-D.MTX"
+
+//-- INCOMING WEBVARS
+nRec     := val(MspFieldValue("VAR_REC"))
+
+//-- APERTURA TABELLA DETTAGLI
+use (cTable20) in 0 alias DETTAGLI index (cIndex21),(cIndex22)
+
+
+//-- BACKGROUND ACTIONS
+*********************************
+if cAction="SAVE"
+*********************************
+   saveRecord(nRec,aVars)
+   ? "<h2>Dati salvati</h2>" html
+   return
+endif
+%>
+
+<%
+set decimals to 2
+
+select DETTAGLI
+go nRec
+%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h2>Correzione della posizione <%=nRec%> - Utente: <%=xUSer%></h2>
+
+<form name="form_<%=zz(recno())%>" action="<%=cSelf%>"  method="post" class="form">
+
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VA" value="SAVE">
+<input type="hidden" name="VAR_REC" value="<%=zz(recno())%>">
+
+<table class="t_tbl">
+<tr><td colspan="2"class="t_row1" nowrap><b>DETTAGLI</b> [Rec.<%=recno()%> of <%=reccount()%>]</td>
+<td class="t_row1" align="right"><input class="btn btn-sm btn-primary" type="submit" name="PB_OK1" value="Save changes"></td></tr>
+<tr><td class="t_head" align="left" width="2%">Field</td><td class="t_head" align="right">Fieldname/</td><td class="t_head" align="left">Input value</td></tr>
+<tr>
+<td class="t_head" width="2%" align="center">1</td>
+<td class="t_cell" align="right">Data (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_DATA" value="<%=DATA%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">2</td>
+<td class="t_cell" align="right">Giorno (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_GIORNO" value="<%=GIORNO%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">3</td>
+<td class="t_cell" align="right">Ora (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_ORA" value="<%=ORA%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">4</td>
+<td class="t_cell" align="right">Posizione (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="80" name="EF_POSIZIONE" value="<%=zz(POSIZIONE)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">5</td>
+<td class="t_cell" align="right">Valore (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_VALORE" value="<%=zz(VALORE)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">6</td>
+<td class="t_cell" align="right">Mese (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_MESE" value="<%=zz(MESE)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">7</td>
+<td class="t_cell" align="right">Settim (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_SETTIM" value="<%=zz(SETTIM)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">8</td>
+<td class="t_cell" align="right">Anno (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_ANNO" value="<%=zz(ANNO)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">9</td>
+<td class="t_cell" align="right">Commento (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="0" name="EF_COMMENTO" value="<%=zz(COMMENTO)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">10</td>
+<td class="t_cell" align="right">Tipologia (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="25" name="EF_TIPOLOGIA" value="<%=zz(TIPOLOGIA)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">11</td>
+<td class="t_cell" align="right">User (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="20" name="EF_USER" value="<%=zz(USER)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">12</td>
+<td class="t_cell" align="right">U_m (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="12" name="EF_U_M" value="<%=zz(U_M)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">13</td>
+<td class="t_cell" align="right">Attivita (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="20" name="EF_ATTIVITA" value="<%=zz(ATTIVITA)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">14</td>
+<td class="t_cell" align="right">Valutaz (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="20" name="EF_VALUTAZ" value="<%=zz(VALUTAZ)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">15</td>
+<td class="t_cell" align="right">Sfera (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="20" name="EF_SFERA" value="<%=zz(SFERA)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">16</td>
+<td class="t_cell" align="right">Comparto (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_COMPARTO" value="<%=zz(COMPARTO)%>"></td>
+</tr>
+<tr>
+<td class="t_head" width="2%" align="center">17</td>
+<td class="t_cell" align="right">Punti (U)&nbsp;</td>
+<td class="t_cell" align="left"><input type="text" size="10" name="EF_PUNTI" value="<%=zz(PUNTI)%>"></td>
+</tr>
+</table>
+<input class="btn btn-sm btn-primary" type="submit" name="PB_OK2" value="Save Changes">
+</form>
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+</html>
+

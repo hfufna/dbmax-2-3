@@ -1,0 +1,220 @@
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+ //--->
+<html>
+<%
+lDebug :=.f.
+xAppId := "maxplanner"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+//-- INCOMING WEBVARS
+displaySess(cSeed)
+
+//-- RETRIEVING APP-SPECIFIC VARS
+restore from (xCargoFile) additive
+restore from (zcInit) additive
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+*************************************************
+//-- PUBLIC VARIABLES
+//
+
+//-- setting year to work with
+znYear := MSPFieldValue("VAR_YEAR")
+if empty(znYear)
+   znYear := year(date())
+else
+   znYear := val(znYear)
+endif
+
+
+//-- saving
+save all like z* to (xCargoFile)
+
+//-- starting date
+dFirst   := ctod("01/01/" + zz(znYear))
+nDow     := dow(dFirst)-1
+nMonth   := 1
+nWeek    := 1
+nTotDays := 0
+dThisDay := date()
+
+//-- page to show when clicking on month
+cLink1 := "view_month.msp?XY="+cSeed
+%>
+<body>
+<!----------------------------------- * year display top menu //----------------------------------------->
+<div style="position:absolute; top:0; left:0">
+<table border="0" id="table1">
+		<tr>
+		<td valign="top">
+		   <a target="_self" href="start.msp?XY=<%=cSeed%>">
+		   <img border="0" src="img/calendar_home.jpg" width="54" height="46"></a>
+		</td>
+		<td valign="top">
+		   <a href="view_day.msp?XY=<%=cSeed%>&VAR_DAY=<%=dThisDay%>&VAR_MONTH=<%=zz(month(dThisDay))%>" title="<%=zcMsgToDay%>">
+		   <img border="0" src="img/calendar_today.jpg" width="54" height="46">
+         </a>
+      </td>
+		<td valign="top">
+		   <a href="doSearch.msp?XY=<%=cSeed%>&VAR_DAY=<%=date()%>"  title="<%=zcMsgNextFree%>">
+         <img border="0" src="img/calendar_nextfree.jpg" width="54" height="46">
+         </a>
+      </td>
+		<td valign="top"> 
+		   <a href="list_all.msp?XY=<%=cSeed%>&VAR_ACTION=LIST"  title="<%=zcMsgAll%>">
+         <img border="0" src="img/calendar_alldays.jpg" width="54" height="46">
+         </a>
+		</td>
+		</tr>
+</table>
+</div>
+<!----------------------------------- *end menu //----------------------------------------->
+
+
+<!----------------------------------- *year calendar 3 rows by 4 columns //----------------------------------------->
+<div style="position:absolute; top:50; left:0; width:100%;">
+<table border="2" width="100%">
+<tr>
+<%
+//-- repeat for each remaining month
+for nThisMonth = 1 to len(zaMonths)
+   nnn := daysOfMonth(nThisMonth)  %>
+   <td valign="top">
+   <div align="center">
+   <!----------- * link to month display page //---------------->
+   <a href="<%=cLink1%>&VAR_MONTH=<%=zz(nThisMonth)%>"><font size="3" color="navy"><b><%=zaMonths[nThisMonth]%></b></font></a>
+
+   <!----------------------------------- *boxing a month//----------------------------------------->
+    <table border="0" id="tbmonth" cellspacing="5" cellpadding="2">
+    <!-- dayweek column labels //-->
+	 <tr><% for iii=1 to len(zaWeekDays) %><td><%=zaWeekDays[iii]%></td><% next %></tr><tr>
+	 <!-- columns with days //-->
+    <%
+    //-- cells to skip to get correct alignement 
+    //   under the dayweek column label
+    //
+    dThisDay := dFirst + nTotDays
+    nSkip    := dow(dThisDay)  //-- empty cells to insert
+    if nSkip > 1
+       for ccc=1 to nSkip-1
+       %>
+       <td>&nbsp;</td>
+       <%
+       next
+    endif
+    rrr := nSkip-1
+    //-- place a day link for each remaining column
+    for ccc=1 to nnn
+       dThisDay := dFirst + nTotDays
+       cClr := "#000000"
+       cBgr := "#EFEFEF"
+       do case
+       case dThisDay < date()
+          cClr := "#C0C0C0"
+          cBgr := "#EFEFEF"
+       case dow(dThisDay)=1
+          cClr := "red"
+       case dow(dThisDay)=7
+          cClr := "navy"
+       endcase
+       if dThisDay = date()
+          cBgr := "yellow"
+       endif
+       rrr++
+       nTotDays++
+       %>
+       <!----------- *link to day display page //---------------->
+       <td align="right" bgcolor="<%=cBgr%>">
+       <a href="view_day.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(nThisMonth )%>&VAR_DAY=<%=dThisDay%>">
+       <font size="2" color="<%=cClr%>"><b><%=day(dThisDay)%></b></font></a>
+       </td>
+       <!------ *counter for days placed over seven columns //------->
+        <%
+        if rrr > 6
+           %></tr><tr><%
+           rrr := 0
+           nWeek++
+       endif
+    next 
+    %></tr>
+   </table>
+   </div>
+   <!----------- *counter for months placed over three columns //---------------->
+   <% if mod(nThisMonth,3)=0%></td><td><tr><% endif %>
+   <% 
+next 
+%>
+</tr>
+</table>
+</div>
+<!----------------------------------- *end year calendar //----------------------------------------->
+</body>
+</html>
+
+<%
+****************************
+function printMonth(nMese)
+****************************
+local nnn, ccc, rrr
+nnn := daysOfMonth(nMese)
+ccc := 0
+rrr := 1
+%><tr><%
+do while ccc < nnn
+   ccc++
+   %><td>&nbsp;<%=ccc%></td><%
+   rrr++
+   if rrr=7
+      rrr := 1
+      %></tr><tr><%
+   endif
+enddo 
+%></tr><%
+return
+%>

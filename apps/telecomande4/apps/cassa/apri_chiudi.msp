@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="../../default.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<a target="_top" href="/index.msp"><h3>RICHIEDI AUTORIZZAZIONE</h3></a>' html
+   return
+endif
+
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"5")
+select cassa
+go bottom
+cLastSession := NSESSIONE
+
+******************************************* OK **
+
+//-- CASSA APERTA?
+zcSession  := readIniVar(xcIniFile,"sessionecassa")
+go bottom  //-- andiamo all'ultimo movimento
+
+//-- IMPORTANTE: I DECIMALI PER I CENT
+set decimals to 2
+%>
+<body>
+<%
+cConfirm :=MSPFieldValue("PB_SUBMIT")
+do case
+*-------------------------------
+case empty(cAction)
+*-------------------------------
+%>
+<p>&nbsp;</p>
+<% if empty(zcSession) or empty(zcSession) %>
+   <form name="form_apri" action="<%=cSelf%>" method="post">
+   La cassa è chiusa.
+   <p>L'ultima sessione è stata la <%=NSESSIONE%> del <%=D_REG%> chiusa alle <%=T_CHIUS%>
+   <p> Per aprire una nuova sessione di cassa inserisci l'importo attualmente in cassa (<%=VAL_CONT%>):<br>
+&nbsp;<input type="text" name="EF_RIP_E" value="0" size="5">,<input type="text" name="EF_RIP_C" value="0" size="2">E
+   <p><input type="submit" name="VAR_ACTION" value="APRI">
+   </form>
+<% else %>
+   <form name="form_chiudi" action="<%=cSelf%>" method="post">
+   La cassa è aperta: vuoi chiuderla adesso?<br>
+   <p>Inserisci l'importo attualmente in cassa: 
+   <input type="text" name="EF_RIP_E" value="0" size="5">,<input type="text" name="EF_RIP_C" value="0" size="2">E
+   <p><input type="submit" name="VAR_ACTION" value="CHIUDI">
+   </form>
+<% endif%>
+<%
+*-------------------------------
+case cAction = "CORREGGI"
+*-------------------------------
+
+
+*-------------------------------
+case cAction = "APRI"
+*-------------------------------
+//-- aggiusta i decimali
+nRipEuro := val(MSPFieldValue("EF_RIP_E"))
+nRipCent := val(MSPFieldValue("EF_RIP_C"))
+nRipCent := min(nRipCent,99)
+cTot := zz(nRipEuro)+"."+zz(nRipCent)
+nRipCassa := val(cTot)
+
+cDir  :=  cDbPath + dayDir(date())
+if not file(cDir)
+   md(cDir)
+endif
+
+zcSession := zz(seconds())
+writeIniVar(xcIniFile,"sessionecassa",zcSession)
+select cassa
+go bottom
+nRiportoPrec := RIPORTO
+
+append blank
+if rlock()
+   repl COD_CLI   with xcCodCli
+   repl COD_OP    with "APERTURA"
+   repl NSESSIONE with zcSession 
+   repl D_REG     with date()
+   repl T_AP      with time()
+   repl ID_OP     with getenv("SERVER_NAME")
+   repl VAL_CONT with nRipCassa+nRiportoPrec
+   repl IMP_CONT with nRipCassa+nRiportoPrec
+   repl RIPORTO   with nRipCassa
+   unlock
+endif
+close cassa
+%><script language="javascript">document.location='vista_conti.msp';</script><%
+
+*-------------------------------
+case cAction = "CHIUDI"
+*-------------------------------
+//-- aggiusta i decimali
+nRipEuro := val(MSPFieldValue("EF_RIP_E"))
+nRipCent := val(MSPFieldValue("EF_RIP_C"))
+nRipCent := min(nRipCent,99)
+cTot := zz(nRipEuro)+"."+zz(nRipCent)
+nRipCassa := val(cTot)
+
+sum all IMP_CONT to nTotInc
+sum all IMP_REST to nTotCont
+sum all IMP_REST to nTotRest
+nNuovaCassa := nTotCont-nTotRest
+
+cDir  :=  cDbPath + dayDir(date())
+if not file(cDir)
+   md(cDir)
+endif
+select cassa
+seek zcSession
+if found()
+   ? "Chiusura della sessione " | zcSession
+   zcSession := "0"
+   save all like x* to (xMemFile)
+   select cassa
+   
+   //-- siamo sul record di oggi
+   nRecApertura := recno()
+   nVersamenti := VAL_VERS
+   
+   //-- duplichiamo
+   nRecChiusura := cloneRec(nRecApertura )
+   go nRecChiusura
+   if rlock(2)
+      repl COD_OP  with "CHIUSURA"
+      repl T_CHIUS with time()
+      repl ID_OP with getenv("SERVER_NAME")
+      repl VAL_CONT with nRipCassa-nVersamenti  //-- aggiorniamo con ieri
+      repl RIPORTO with nRipCassa+nNuovaCassa
+      repl VAL_VERS with 0  //-- altrimenti si duplicano anche i versamenti
+      unlock
+      writeIniVar(xcIniFile,"sessionecassa"," ")
+      
+      cDayNum := zz(daysFrom())
+      
+      dbOpen(xDB,"2")
+      select tavoli
+      cFile := cDir + "\TAV_" + cDayNum + "-" + left(strtran(time(),":","-"),5) + ".dbf"
+      copy to (cFile) for NSESSIONE=zcSession   
+      ? "tavoli del giorno in " + cFile
+      
+      dbOpen(xDB,"3")
+      select comande
+      cFile := cDir + "\COM_" + cDayNum + "-" + left(strtran(time(),":","-"),5) + ".dbf"
+      copy to (cFile) for NSESSIONE=zcSession   
+      ? "Comande del giorno in " + cFile
+      cTdb := cDbPath + "comande.dbf"
+      cTxb := cDbPath + "comande.mtx"
+      use (cTdb) index (cTxb) excl
+      if used()
+         zap
+      endif
+      use
+   endif
+else
+   ? "ERRORE: cassa già chiusa"
+endif
+close cassa
+*-------------------------------
+endcase
+*-------------------------------
+%>
+<!----------------------------------- END -------------------------------------- //-->
+<font color="gray" size="2"><%=pagename()%></font>
+
+</body>
+</html>
+<%
+************************
+function dayDir(dDate)
+************************
+//-- ritorna il nome da assegnare ad una directory
+//   per i salvataggi giornalieri
+local cNow, cOut
+cOut := ""
+cNow:= itDate(dDate)
+cOut := subs(cNow,8,4)
+cOut += subs(cNow,4,3)
+cOut += subs(cNow,1,2)
+return cOut
+
+********************************
+function dayNum( date1,date2)
+********************************
+//-- numero dei giorni  trascorsi da inizio anno
+local nDD, cDD
+   cDD := "01/01/" | year(date())
+   nDD := date()-ctod(cDD)
+   return nDD
+return nDD
+
+***********************
+function CloneRec(nRec)
+***********************
+local cVal,nFlds,iii,aCargo,nNewRec
+//-- record to be duplicated
+go nRec
+
+//-- loading values into an array
+cVal := ""
+nFlds := afields()
+declare aCargo[nFlds,2]
+for iii=1 to nFlds
+   aCargo[iii,1] := fieldname(iii)
+   aCargo[iii,2] := fieldval(iii)
+next
+
+//-- creating the new record
+append blank
+nNewRec := recno()
+if rlock()
+   for iii=1 to len(aCargo)
+      cFxx := aCargo[iii,1]
+      repl &cFxx with aCargo[iii,2]
+   next
+   unlock
+endif
+return nNewRec
+%>

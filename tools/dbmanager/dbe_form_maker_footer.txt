@@ -1,0 +1,202 @@
+</body>
+</html>
+<%
+*****************************
+procedure display_m(nField)
+*****************************
+%><div class="memoborded"><%=fieldval(nField)%></div><%
+return
+
+************************************
+procedure input_c(nField,cIsRO)
+************************************
+//-- AJAX CALL FOR CHARACTER DATA TYPE
+%>
+<input name="EF_<%=fieldname(nField)%>" value="<%=zz(fieldval(nField))%>" <%=cIsRO%> type="text" class="borded" 
+   size="<%=zz(fieldsize(nField))%>" title="Field: <%=fieldname(nField)%>" 
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjCall%>','<%=cAjIdentifier %>');">
+<%
+return
+*****************************
+procedure input_n(nField,cIsRO)
+*****************************
+//-- AJAX CALL FOR NUMERICS
+%>
+<input name="EF_<%=fieldname(nField)%>" value="<%=zz(fieldval(nField))%>" <%=cIsRO%> type="text" class="borded" 
+   size="<%=zz(nFldSize)%>" title="Field: <%=cFldInfo%>" 
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjCall%>','<%=cAjIdentifier %>');">
+<%
+return
+*****************************
+procedure input_d(nField,cIsRO)
+*****************************
+//-- AJAX CALL FOR CALENDAR DATES
+%>
+<DIV ID="calbox" STYLE="position:absolute;visibility:hidden;background-color:white;layer-background-color:white;"></DIV>
+<font size="1">
+<input name="EF_<%=cFldName%>" id="anchor_<%=cFldName%>" value="<%=zz(fieldval(nField))%>" <%=cIsRO%> type="text" class="borded" 
+   size="<%=zz(nFldSize)%>" title="Field: <%=cFldInfo%>" 
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjCall%>','<%=cAjIdentifier %>');">
+   <a href="#" id="anchor_<%=cFldName%>" onClick="calx.select(document.form_nav.EF_<%=cFldName%>,'anchor_<%=cFldName%>','dd/MM/yyyy');return false;">Select</a>
+   <a href="#" onClick="javascript:ajaxRun('<%=cSelf%>?AJX=',form_nav.EF_<%=cFldName%>.value+'<%=cAjCall%>','<%=cAjIdentifier %>');">Ok</a>
+</font>
+<%
+return
+*****************************
+procedure input_l(nField,cIsRO)
+*****************************
+xVal := iif(fieldval(nField),"Yes","No")
+if empty(cIsRO)
+   %>
+   <select name="EF_<%=cFldName%>" class="borded" 
+   size="1" title="Field: <%=cFldInfo%>" 
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjCall%>','<%=cAjIdentifier %>');">
+   <option><%=xVal%></option><option>Yes</option><option>No</option>
+   </select>
+   <%
+else
+   %>
+   <input name="EF_<%=cFldName%>" class="borded" value="<%=xVal%>" size="1" readonly>
+   <%
+endif
+return
+*****************************
+procedure input_m(nField,cIsRO)
+*****************************
+//-- AJAX CALL FOR MEMO FIELDS
+%><textarea name="EF_<%=cFldName%>" <%=cIsRO%> class="memoborded" title="Field: <%=cFldInfo%>" 
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjCall%>','<%=cAjIdentifier %>');"><%=fieldval(nField)%></textarea><%
+return
+*****************************
+procedure input_rte(nField)
+*****************************
+//-- AJAX CALL FOR MEMO FIELDS AND RTE EDITOR
+local jVar, cMemoField
+cMemoField := fieldval(nField)
+jVar := "j"+ zz(recno())+"F"+zz(nField)
+%>
+<script language="javascript">
+//build new richTextEditor
+var <%=jVar%> = new richTextEditor('<%=jVar%>');
+<%=jVar%>.html = unescape('<%=RTESafe(cMemoField)%>');
+
+//enable all commands for demo
+<%=jVar%>.cmdFormatBlock = true;
+<%=jVar%>.cmdFontName = true;
+<%=jVar%>.cmdFontSize = true;
+<%=jVar%>.cmdIncreaseFontSize = true;
+<%=jVar%>.cmdDecreaseFontSize = true;
+
+<%=jVar%>.cmdBold = true;
+<%=jVar%>.cmdItalic = true;
+<%=jVar%>.cmdUnderline = true;
+<%=jVar%>.cmdStrikethrough = true;
+<%=jVar%>.cmdSuperscript = true;
+<%=jVar%>.cmdSubscript = true;
+
+<%=jVar%>.cmdJustifyLeft = true;
+<%=jVar%>.cmdJustifyCenter = true;
+<%=jVar%>.cmdJustifyRight = true;
+<%=jVar%>.cmdJustifyFull = true;
+
+<%=jVar%>.cmdInsertHorizontalRule = true;
+<%=jVar%>.cmdInsertOrderedList = true;
+<%=jVar%>.cmdInsertUnorderedList = true;
+
+<%=jVar%>.cmdOutdent = true;
+<%=jVar%>.cmdIndent = true;
+<%=jVar%>.cmdForeColor = true;
+<%=jVar%>.cmdHiliteColor = true;
+<%=jVar%>.cmdInsertLink = true;
+<%=jVar%>.cmdInsertImage = true;
+<%=jVar%>.cmdInsertSpecialChars = true;
+<%=jVar%>.cmdInsertTable = true;
+<%=jVar%>.cmdSpellcheck = true;
+
+<%=jVar%>.cmdCut = true;
+<%=jVar%>.cmdCopy = true;
+<%=jVar%>.cmdPaste = true;
+<%=jVar%>.cmdUndo = true;
+<%=jVar%>.cmdRedo = true;
+<%=jVar%>.cmdRemoveFormat = true;
+<%=jVar%>.cmdUnlink = true;
+
+<%=jVar%>.toggleSrc = true;
+
+<%=jVar%>.build();
+</script>
+<button type="button" onclick="updateRTEs(); vvv=escape(document.form_nav.<%=jVar%>.value); ajaxRun('<%=cSelf%>?AJX=',vvv+'<%=cAjCall%>','<%=cAjIdentifier %>');">Save changes</button>
+<%
+return ""
+
+*************************
+function RTESafe(strText)
+*************************
+//-- returns safe code for preloading in the RTE
+local tmpString
+
+tmpString := alltrim(strText)
+
+//-- convert all types of single quotes
+tmpString := strTran(tmpString, chr(145), chr(39))
+tmpString := strTran(tmpString, chr(146), chr(39))
+tmpString := strTran(tmpString, "'", "&#39;")
+
+//-- convert all types of double quotes
+tmpString := strTran(tmpString, chr(147), chr(34))
+tmpString := strTran(tmpString, chr(148), chr(34))
+tmpString := strTran(tmpString, '""', '\""')
+
+//-- replace carriage returns & line feeds
+tmpString := strTran(tmpString, chr(10), " ")
+tmpString := strTran(tmpString, chr(13), " ")
+
+return(tmpString)
+
+*-------------------------------------------------------------------------------
+function fieldfitter(cFldname, xCargo)
+*-------------------------------------------------------------------------------
+//-- riceve una stringa *xCargo* e restituisce un tipo di valore adatto
+//   ad essere salvato nel campo *cFldname* 
+//   Il campo deve esistere nella tabella attualmente aperta
+//
+if empty(cFldName) or empty(xCargo)
+   return ""
+else
+   xType  := fieldcont(cFldname)
+   cType  := vtype(cFldname)
+   do case
+   case cType = "N"
+      xCargo := val(xCargo)
+   case cType = "C"
+      xCargo := alltrim(xCargo)
+   case cType = "D"
+      xCargo := ctod(xCargo)
+   case cType = "L"
+      xCargo := upper(xCargo)
+       if (xCargo="S" .or. xCargo="1" .or. xCargo="Y")
+          xCargo :=.t.
+       else
+          xCargo := .F.
+       endif
+   case cType = "M"
+      xCargo := alltrim(xCargo)
+   endcase
+endif
+return xCargo
+ 
+*-------------------------------------------------------------------------------
+function contains(cTxt, cChars)
+*-------------------------------------------------------------------------------
+local lFlag, nLen, cKey, nPos
+nLen := len(cChars)  //-- how many chars to search
+lFlag :=.f.
+for iii=1 to nLen
+   cKey := subs(cChars,iii,1)
+   if at(cKey, cTxt)>0
+      lFlag := .t.
+   endif
+   loop
+next
+return lFlag
+%>

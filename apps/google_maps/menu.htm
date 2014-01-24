@@ -1,0 +1,56 @@
+<html>
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Menu</title>
+<link rel="stylesheet" type="text/css" href="/default.css">
+<base target="_self">
+</head>
+
+<!----------------------------------- *does not load frm2 to avoid map refresh //----------------------------------------->
+<body  bgcolor="#EAF2FD">
+
+   <table border="0" cellpadding="3" cellspacing="1" width="100%" id="table2" 
+ height="27">
+	<tr>
+		<td align="center" height="0" width="100%" bgcolor="#000080">
+		<font color="#FFFFFF"><b>DBMax
+</b><font size="2"> on</font><b> Google Maps™</b></font></td>
+	</tr>
+	<tr>
+		<td align="left" height="0" width="100%" bgcolor="#FFFFFF">
+		<a target="_top" href="../index_apps.msp">Exit</a></td>
+	</tr>
+	<tr>
+		<td align="left" height="0" width="100%">
+		&nbsp;</td>
+	</tr>
+	</table>
+
+
+
+<table border="0" cellpadding="2" cellspacing="3" width="1152" id="table1">
+	<tr>
+		<td width="16" bgcolor="#97DF9C">1</td>
+		<td><a href="basics/basic_menu.msp">The basics</a></td>
+	</tr>
+	<tr>
+		<td width="16" bgcolor="#97DF9C">
+		<!--- *
+		needs to load frm2 from here to avoid next menu to refresh the map everytime a pinpoint is added
+		 //-->
+		2</td>
+		<td>
+		<a onclick="top.frm2.location='retrieving/showpos_gmaps.msp';" href="retrieving/showpos_menu.msp">Storing in a table</a></td>
+	</tr>
+	<tr>
+		<td width="16" bgcolor="#97DF9C">3</td>
+		<td><a href="insert/insert_menu.msp">Insert a location by form</a></td>
+	</tr>
+	</table>
+<p><a target="_blank" href="https://developers.google.com/maps/documentation/javascript/v2/introduction?hl=it">Obtaining a key from Google</a></p>
+	<p>&nbsp;</p>
+
+</body>
+
+</html>

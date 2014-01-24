@@ -1,0 +1,9 @@
+<script language="javascript">
+
+function doBlink() {
+  if (blink.style.display == "") { blink.style.display = "None"; }
+  //Nasconde il testo
+  else { blink.style.display = ""; }
+}
+x = window.setInterval("doBlink()", 500);
+

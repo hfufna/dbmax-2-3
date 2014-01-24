@@ -1,0 +1,144 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "fedifraga"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+*************************************************************
+//-- AJAX STANDARD WEBVARS FOR DBFREE
+nFld      := val(MSPFieldValue("V_FLD"))  //-- Field to update
+nAjRec    := val(MSPFieldValue("V_REC"))  //-- record to move to
+cAjaxVar  := MSPFieldValue("AJX")         //-- value to write
+lAjaxRun  := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX ACTUATOR FOR IN-PLACE EDITING)
+cAjxTable    := MSPFieldValue("VAR_TABLE")
+cAjxIndex    := MSPFieldValue("VAR_INDEXLIST")
+cValCbEdit  := iif(empty(MSPFieldValue("CB_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCbEdit),"readonly","")
+if lAjaxRun 
+   use (cAjxTable) index (cAjxIndex)
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+**************************************************************
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- INCOMING WEBVARS
+dDay      := ctod(MspFieldValue("VAR_DAY"))
+cText := MspFieldValue("EF_REPORT")
+
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable10  := cDir + "GIORNI.DBF"
+cIndex10  := cDir + "GIORNI.MTX"
+use (cTable10) in 0 alias GIORNI index (cIndex10)
+set order to 0
+
+select GIORNI
+if type(dDay)="D"
+   locate for DATA = dDay
+   if not DATA = dDay
+      ? "<h2>ERRORE: GIORNO " | dDay | " NON TROVATO</h2>" html
+      return
+   endif
+endif
+
+do case
+***********************************************************************************************
+case cAction = "SAVE"
+***********************************************************************************************
+if not empty(cText)
+  if rlock(2)
+     repl REPORT with cText
+     unlock
+     ? "<h2>Modifiche salvate</h2>" html
+  endif
+endif
+*cAction := ""
+***********************************************************************************************
+endcase
+***********************************************************************************************
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<%
+do case
+***********************************************************************************************
+case empty(cAction)
+***********************************************************************************************
+%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" class="form">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input type="hidden" name="VA" value="SAVE">
+   <input type="hidden" name="VAR_DAY" value="<%=zz(dDay)%>">
+   <input type="submit" class="btn btn-success pull-right" value="Salva modifiche">
+   <textarea name="EF_REPORT" style="width:100%; height:90%;"><%=zz(REPORT)%></textarea>
+</form>
+<!--- form end //--->
+<%
+***********************************************************************************************
+endcase
+***********************************************************************************************
+%>
+<%=container(0)%>
+</body>
+</html>

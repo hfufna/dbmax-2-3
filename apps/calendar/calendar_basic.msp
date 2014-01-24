@@ -1,0 +1,181 @@
+<!--
+                DBMAX 2.3  by Gianluca Napolitano
+                
+                CALENDAR DEMO
+ //-->
+<html>
+<%
+//-- PARAMETERS:
+//  VY = Year to display (default current year)
+//  VT = Title to display
+//  VMS = First month to display
+//  VME = Last month to display
+
+lDebug :=.f.
+xAppId := "calendar"
+*************************************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+   //-- INITIALIZE THE CARGO
+   if empty(xCargoFile)
+      xCargoFile := xMemDir + "\" + cSeed + "_maxplanner.mem"
+      save all like x* to (xMemFile)
+   endif
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- APPLICATION SPECIFIC SESSION FILE
+
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+else
+   //-- init module specific globals
+   znCurrYear  := year(date()) //-- YEAR TO USE
+   znCurrMonth := 1
+   znCurrWeek  := 1
+   zdCurrDay   := date()
+   
+   //-- GETTING REGION SPECIFIC TERMS FROM LOCAL SYSTEM TABLE
+   //  This includes the language to use
+   //
+   zcLanguageId := MSPFieldValue("LANG") //-- language to use
+   if empty(zcLanguageId)
+      zcLanguageId := "ENG"                
+   endif
+   zcInit := curDosDir() + zcLanguageId + ".mem"   //-- file for language
+   ***
+   save all like z* to (xCargoFile)
+endif
+
+cSelf := pagename()
+
+CR_LF := chr(13)+chr(10)
+*************************************************************************** END SLAVE-HEADER
+
+//-- INCOMING WEBVARS (PAGE PARAMETERS)
+cYear   := MspFieldValue("VY")  //-- year to display (default current year)
+cYear   := iif(empty(cYear),str(year(date()),4,0),cYear)
+**
+cTitle := MspFieldValue("VT")
+cTitle := iif(empty(cTitle),cYear,cTitle)
+**
+nStartMonth := val(MspFieldValue("VMS"))    //-- display only from this month number onward
+nStartMonth := if(nStartMonth=0,1,month(date()))
+**
+nEndMonth   := val(MspFieldValue("VME"))
+nEndMonth   := if(nEndMonth=0,12,nEndMonth)
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- MONTH AND DAY OF THE WEEK NAMES
+ainit("zaMonths","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre")
+ainit("zaWeekDays","Dom","Lun","Mar","Mer","Gio","Ven","Sab")
+
+//-- DATE TO START
+dFirst  := ctod("01/"+str(nStartMonth,2,0,"0")+"/"+cYear)
+
+//-- ARRAY FOR DAYS OF THE YEAR
+nDaysOfYear := 365
+if isleapYear(dFirst)
+   nDaysOfYear := 366
+endif
+declare zaDays[nDaysOfYear]
+
+//-- LOADING DATES INTO ARRAY
+for iii=1 to len(zaDays)
+   zaDays[iii] := dFirst+iii
+next
+   
+//-- LINKS TO NEXT PAGES
+cLink2month := "view_month.msp"
+cLink2day   := "view_day.msp"
+cLink3week  := "view_week.msp"
+
+//-- COUNTERS
+nFistDayOfY := firstDoM(dFirst)
+dToday      := firstDoM(dFirst)-1
+
+nMonth      := month(dFirst)
+nWeek       := 1
+nDow        := dow(dFirst)-1
+nThisMonth  := nMonth
+nTotDays    := 0
+nDayOfYear  := 1
+
+//-- NOW BUILDING THE CALENDAR
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=container()%>
+<!--- *CALENDAR TITLE* //-->
+<h2><%=cTitle%> <small><%=dow(dFirst)%> <%=dFirst%></small></h2>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<% for rrr=1 to 4 %>
+   <!-- ---------------------- ROW <%=zz(rrr)%>--------------------------------------//-->
+   <div id="row_<%=zz(rrr)%>" class="row">
+   <% for ccc=1 to 3 %>
+      <!--- *column <%=zz(ccc)%>* //-->
+      <%
+      //-- DISPLAY MONTH
+      dOne := ctod("01/"+str(nMonth,2,0,"0")+"/"+cYear)
+      nOffset := dow(dOne)      
+      cShow := "block"
+         if nThisMonth < nStartMonth
+            cShow := "none"
+         endif
+      %>
+      <div id="cell_<%=zz(rrr)%><%=zz(ccc)%>" class="panel col-sm-4 col-md-4 col-lg-4" style="display:<%=cShow%>;">
+      <!--- *month title* //-->
+      <strong><%=zaMonths[nThisMonth]%></strong> Inizia <%=dOne%> con <%=zaWeekDays[nOffSet]%>
+      <table class="table"><tr>
+      <!--- *legenda* //-->
+      <% for www=1 to 7 %><td><small><%=zaWeekDays[www]%></small></td><% next %>
+      </tr>
+      <!--- *days* //-->
+      <tr><%
+      //-- DISPLAY DAYS
+      nnn := daysOfMonth(nThisMonth)
+      for ddd=1 to (nnn+nOffSet-1)  %>
+         <td>
+         <% if ddd >= nOffSet 
+            dToday++
+            cLabel := itDow(dToday) + " " + itDate(dToday)
+            %>
+            <a href="" class="link" title="<%=cLabel%>"><%=zz(ddd-nOffSet+1)%></a>
+         <% endif %>
+         </td>
+         <%
+         if mod(ddd,7)=0
+            %></tr><tr><%
+         endif
+      next
+      nThisMonth++
+      %></tr></table>
+      </div>
+      <!--- *end* //-->
+   <% next %>
+   </div>
+<% next %>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+</body>
+
+</html>
+

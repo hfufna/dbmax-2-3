@@ -1,0 +1,261 @@
+<html>
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 SLAVE HEADER 0201
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 02 -- GETTING SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- 012 -- GETTING CARGO VARS
+if not empty(xCargoFile) 
+   if file(xCargoFile)
+      restore from (xCargoFile) additive
+   else
+      ? "ERROR: Cargo file [" + xCargoFile + "] missing!"
+      *return   
+   endif
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- 014 - DEFAULT REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- 015 -- DEFAULT DATABASE SETTINGS
+if type(xDbSet)="C" and not empty(xDbSet)
+   cDir := setDb(xDbSet)
+else
+   cDir := setDb("cmd")
+endif
+if type(xDbType)="C" and not empty(xDbType)
+   xDbType := upper(trimRight(xDbType,1))
+   if not xDbType $ "MAX XBASE"
+      set dbtype to (xDbType)
+   endif
+endif
+
+//-- 020 -- MISC SETTINGS
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER 0201
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%=modInfo()%>
+<!-- ---------------------------------------- END DBMAX SLAVE HEADER ----------------------------------------//-->
+<%
+//-- INCOMING WEBVARS
+cKey := MspFieldValue("VK")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- ONLY ADMIN CAN CHANGE ROLES AND GROUP
+if lower(xUser)="admin"
+   R_W := ""
+else
+   R_W := "readonly"
+endif
+
+
+//-- DATABASE SETTINGS OVVERRIDE
+//   (usermanager uses XBASE indexes)
+cDir := setDb(xAppId)
+set dbtype to ""
+cDbPath := cDir  //-- for compatibility with 2.x
+
+
+//-- TABLE TO USE
+cDbUsers    := cDBpath + "site_usr.DBF"
+cNxUsers1  := "site_usr_by_name.MTX"
+cNxUsers2  := "site_usr_by_mail.MTX"
+use (cDbUsers) in 0 alias USERS index (cNxUsers1) key USR_NAME unique,(cNxUsers2) key EMAIL 
+set order to 1
+seek cKey
+if found()
+   nRecno := recno()
+else
+   ? "ERROR: user profile for " + cKey + " not found!"
+   return
+endif
+
+//-- to avoid tampering we use anothe webVar different by 
+//   the one (VAR_REC) used in the header
+//
+nRecno := val(MSPFieldValue("VR"))
+if nRecno > 0 .and. nRecno <= lastrec()
+   go nRecno
+endif
+
+cMsg := ""
+
+dD_reg      := ctod(MSPFieldValue("EF_D_REG"))
+cUsr_id     := MSPFieldValue("EF_USR_ID")
+cUsr_name   := MSPFieldValue("EF_USR_NAME")
+cUsr_grp    := MSPFieldValue("EF_USR_GRP")
+cUsr_role   := MSPFieldValue("EF_USR_ROLE")
+cUsr_psw    := MSPFieldValue("EF_USR_PSW")
+cRemind     := MSPFieldValue("EF_REMIND")
+cFname      := MSPFieldValue("EF_FNAME")
+cSurname    := MSPFieldValue("EF_SURNAME")
+cEmail      := MSPFieldValue("EF_EMAIL")
+dExp_date   := ctod(MSPFieldValue("EF_EXP_DATE"))
+lIs_logged  := iif(MSPFieldValue("EF_IS_LOGGED")="S",.t.,.f.)
+cTime_log   := MSPFieldValue("EF_TIME_LOG")
+dLast_log   := ctod(MSPFieldValue("EF_LAST_LOG"))
+cUsr_page   := MSPFieldValue("EF_USR_PAGE")
+
+do case
+*==================================================================================
+case cAction = "SAVE"
+*----------------------------------------------------------------------------------
+if nRecno > 0 .and. nRecno <= lastrec()
+   go nRecno
+
+   //--- we build an array of two fields (columns) to store temp values
+   declare aValues[2,1]
+ 
+   //-- now we loop into incoming variables (e.g. the fields of the previous form)
+   //   and consider only those starting with prefix EF_ (entryfield) like those
+   //   we wisely named that way to identify them
+   nnn :=1
+   for iii= 1 to MSPFieldCount()
+      if MSPFieldName(iii) = "EF_"
+         //-- this is for debug: shows the incoming vars
+         *? str(nnn) + MSPFieldName(iii) html
+         //-- we fill the array
+         aRedim(aValues[2],nnn)
+         cFld := strTran(MSPFieldName(iii),"EF_","")
+         mVal := MSPFieldValue(iii)
+         aValues[1,nnn] := cFld
+         aValues[2,nnn] := mVal
+         nnn++
+      endif
+   next
+
+   //-- now that we collected changed values from the form we write them in the record
+   //   in the same exact order we retrieved them when we built the form  
+   if rlock(2)
+      for iii = 1 to len(aValues[2])
+         cFld  := aValues[1,iii]
+         mVal  := aValues[2,iii]
+         if not empty(mVal)
+            cOldCont := fieldcont(cFld)
+            cType := type(cOldCont)
+            *? cFld  + " ("+cType +") == [" +mVal + "]"
+            do case
+            case cType = "N"
+               mVal := val(mVal)
+            case cType = "D"
+               mVal := ctod(mVal)
+            case cType = "L"
+               mVal := iif(upper(mVal)$"YS1",.t.,.f.)
+            endcase
+            repl &cFld with mVal
+         endif
+      next
+      unlock
+      cMsg := "SAVED at " | time()
+   else
+      ? "ERROR: could not lock record " + str(nRecno) html
+   endif
+else
+   ? "ERROR: di not receive the number of the record to go to" html
+endif
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("navbar.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=container()%>
+<div class="panel panel-body">
+   <span class="badge badge-danger pull-right"><%=cMsg%></span>
+   <a class="btn btn-primary pull-left" href="/login/login.msp?XY=<%=cSeed%>&VA=RELOAD">Back</a></span>
+</div>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<form class="form-horizontal" role="form" method="post" action="<%=cSelf%>">
+<input type="hidden" name="VA" value="SAVE">
+<input type="hidden" name="VR" value="<%=zz(recno())%>">
+<input type="hidden" name="EF_USR_ID" value="<%=zz(USR_ID)%>" >
+<input type="hidden" name="XY" value="<%=cSeed%>">
+
+<legend>Edit your profile 
+<input class="btn btn-success pull-right" value="Save changes" type="submit" name="PB_OK">
+</legend>
+
+<div class="col-sm-6"><div class="panel panel-body">
+<div class="form-group">
+	<label for="EF_USR_NAME">Username (Nickname)</label>
+	<input class="form-control"  value="<%=zz(USR_NAME)%>" name="EF_USR_NAME" readonly> 
+	<label for="EF_USR_GRP">Group</label>
+	<input class="form-control" value="<%=zz(USR_GRP)%>" name="EF_USR_GRP" <%=R_W%> > 
+	<label for="EF_USR_ROLE">Role</label>
+	<input class="form-control" value="<%=zz(USR_ROLE)%>" name="EF_USR_ROLE" <%=R_W%> >
+</div> 
+<div class="form-group">	
+	<label for="EF_USR_PSW">Password</label>
+	<input class="form-control" value="<%=zz(USR_PSW)%>" name="EF_USR_PSW"> 
+	<label for="EF_REMIND">Password Reminder</label>
+	<input class="form-control" value="<%=zz(REMIND)%>" name="EF_REMIND"> 
+</div></div>
+</div>
+
+<div class="col-sm-6"><div class="panel panel-body">
+<div class="form-group">
+	<label for="EF_FNAME">Real Name</label>
+	<input class="form-control" value="<%=zz(FNAME)%>" name="EF_FNAME"> 
+	<label for="EF_SURNAME">Surname</label>
+	<input class="form-control" value="<%=zz(SURNAME)%>" name="EF_SURNAME"> 
+	<label for="EF_EMAIL">e-mail</label>
+	<input class="form-control" value="<%=zz(EMAIL)%>" name="EF_EMAIL"> 
+</div></div>
+</div>
+</form>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=container(0)%>
+</body>
+<%=include("/parts/html/footer.htm")%></html>

@@ -1,0 +1,149 @@
+<html>
+<head>
+    <title>DBFree Default Companion Website</title>   
+
+    <meta http-equiv="Pragma" CONTENT="no-cache">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+    <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+    <META HTTP-EQUIV="EXPIRES" CONTENT="0">
+  
+    <meta charset="windows-1252">
+    <!-- meta charset="utf-8" //-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="shortcut icon" href="/favicon.png">
+
+    <!-- Bootstrap core CSS - DON'T CHANGE THE ORDER CSS/JS ARE CALLED HERE! -->
+    <link href="app-css/bootstrap.css" rel="stylesheet">
+    <link href="app-css/docs.css" rel="stylesheet">
+    <link href="app-css/pygments-manni.css" rel="stylesheet">    
+    <link href="app-css/bootstrap-theme.css" rel="stylesheet">
+    <link href="app-css/theme.css" rel="stylesheet">
+
+    
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 5]>
+      <script src="app-js/html5shiv.js"></script>
+      <script src="app-js/respond.min.js"></script>
+    <![endif]-->
+    <script src="app-js/jmax.js"></script>   
+    <script src="app-js/jquery.js"></script>
+    <script src="app-js/bootstrap.js"></script>
+</head>
+<body>
+<!----------------------------------- * HTML-BODY --------------------------------------- //-->
+<!----------------------------------- PART # *NAVBAR.HTM--------------------------------------- //-->
+    <header class="navbar navbar-inverse navbar-fixed-top " role="banner">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+          </button>
+          <img border="0" src="app-img/dbfree-tab.gif">
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="/index.htm">Home</a></li>
+            <li class="dropdown" id="menu1">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Navigation</a>
+              <ul class="dropdown-menu">
+                <li class="dropdown-header"></li>
+                <li><a href="/home.msp">Home</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </header>
+<!----------------------------------- END # *NAVBAR.HTM--------------------------------------- //-->
+<hr>
+      
+<div class="container">
+  	<div class="row">
+  	
+        <div class="col-md-4">
+          <div class="panel panel-default" onclick="document.location='page1.htm';">
+            <div class="panel-heading"><h3>
+            <img class="img-responsive" src="app-img/21.JPG" width="82" height="81"> Welcome back to future.</h3></div>
+			<div class="panel-body">If you were used to programming with Xbase it's time to migrate to web! <br>And nowaday the web means tablets and smartphones. 
+            That are surprisingly similar to old PCs than you'd ever think...
+            <br><a class="btn btn-default" href="page1.htm">More...</a>            
+            </div>
+          </div>
+      </div>
+      
+		<div class="col-md-4">
+			<div class="panel panel-default" onclick="document.location='page2.htm';">
+				<div class="panel-heading">
+					<h3><img class="img-responsive" src="app-img/00.JPG" width="85" height="82"> Developing Web Apps.</h3></div>
+				<div class="panel-body">Either if you want to port your database applications to mobile 
+            devices or develop new applications from scratch 
+            DBMax offers you a considerably painless way to deliver database-driven 
+            web pages to tablets and smartphones. 
+            <br><a class="btn btn-default" href="page2.htm">More...</a>            
+            </div></div>
+       </div>
+       
+   	<div class="col-md-4">
+			<div class="panel panel-default" onclick="document.location='page3.htm';">
+				<div class="panel-heading">
+					<h3><img class="img-responsive" src="app-img/07.JPG" width="86" height="87"> Targeting Mobile Devices.</h3></div>
+				<div class="panel-body">DBMax is a software suite running on Microsoft Windows™ that offers 
+            a JIT compiler (based on the Xbase Max Script Processor ) 
+            and CodeBase™ DBF database embedded engine.
+            <br><a class="btn btn-default" href="page3.htm">More...</a>
+            </div></div></div>
+
+      </div>
+ 
+   <!-------------- modal trigger ON //-->
+   <hr>
+   <div class="row text-center">
+      <a class="btn btn-default" data-toggle="modal" href="#div_modal" onclick="modalResize();">About this server</a>
+   </div>
+
+</div>
+<!----------------------------------- * HTML-BODY --------------------------------------- //-->
+<!-- MODAL WINDOW - TYPE 3 (extra-compact) - CALL BUTTON:
+cLink  := cSelf +"?VA=D"
+cMsg   := "Here the message"
+cLabel := "Click here"
+<a data-toggle="modal" href="#div_modal" class="btn btn-default" onclick="modalResize();">Label</a>
+//-->
+
+<script src="app-js/jmodal.js"></script>
+<div class="modal" id="div_modal" style="">
+	<div class="modal-dialog" id="div_modal-dialog" style="width:auto;height:auto;">
+      <div class="modal-content" id="div_modal-content" style="">
+        <div class="row" style="margin:3px 3px 3px 3px;" style="">
+             <div class="col-sm-9 col-md-9"><span id="div_modal-title">About this server</span></div>
+             <div class="col-sm-3 col-md-3" align="right">
+                <button id="div_button" data-dismiss="modal" class="btn btn-xs btn-primary">Close</button>
+             </div>
+         </div>
+        <div class="modal-body" style="padding:5px 5px 5px 5px;">
+          <iframe frameborder="0" id="div_modal-body" src="info.msp" style="width:100%;height:100%;"></iframe>
+        </div>
+      </div>
+    </div>
+</div>  
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<script type="text/javascript">
+function modalResize(){
+var hh = curHeight();
+var ww = curWidth();
+//alert(hh);
+document.getElementById('div_modal').style.height=hh+'px';
+document.getElementById('div_modal-dialog').style.height=(hh)+'px';
+document.getElementById('div_modal-content').style.height=(hh-50)+'px';
+document.getElementById('div_modal-body').style.height=(hh-130)+'px';
+
+document.getElementById('div_modal').style.width=ww+'px';
+document.getElementById('div_modal-dialog').style.width=(ww)+'px';
+document.getElementById('div_modal-content').style.width=(ww-50)+'px';
+document.getElementById('div_modal-body').style.width=(ww-100)+'px';
+}
+</script>
+</body>
+</html>

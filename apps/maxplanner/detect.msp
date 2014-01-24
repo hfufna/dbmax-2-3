@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+MAXPLANNER FOR DBMAX and DBFREE 2.0 (MaxScript 2.21)
+BETA VERSION
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - MArch 2011
+ //--->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/dbfree30.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="JavaScript" type="text/javascript" src="/js/dbfree50.js"></script>
+<title>Browser Detector for MaxScript</title>
+</head>
+<%
+******************** DBFree 2.0 MINI-HEADER **********
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- SETTING DATABASE
+cDbPath := setDb("maxplanner")
+
+//-- CREATING TABLES
+cDb  := cDBpath + "BROWSERS.DBF"
+cXb  := cDBpath + "BROWSERS.MTX"
+if not file(cDb)
+  ainit( "aField","AGENT_ID","DETECT_STR","AGENT_STR")
+  ainit( "aType","C","M","C")
+  ainit( "aSize",20,10,50)
+  ainit( "aDec",0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+//-- standard DBFree MTX indexes
+  use (cDb) in 0 alias TEMP index (cXb) key AGENT_ID
+  use
+endif
+
+//-- OPEN TABLES
+use (cDb) index (cXb) key AGENT_ID
+
+%>
+<!--------------------------------------- end 1 //--------------------------------------------->
+<body>
+
+<table border="0" width="100%" id="table1">
+	<tr>
+		<td valign="top"><b><font size="4" color="#003399">Detecting your browser</font></b></td>
+		<td align="right" valign="top"><a href="start.msp"><img border="0" src="img/maxplanner_ico.JPG" width="56" height="56"></a></td>
+	</tr>
+</table>
+<script language="javascript">
+var cTxt="";
+cTxt+= "CodeName:" + navigator.appCodeName + "<br>";
+cTxt+= "Name:" + navigator.appName + "<br>";
+cTxt+= "Version:" + navigator.appVersion + "<br>";
+cTxt+= "Cookies:" + navigator.cookieEnabled + "<br>";
+cTxt+= "Platform:" + navigator.platform + "<br>";
+cTxt+= "User-agent: " + navigator.userAgent + "<br>";
+cTxt+= "Screen size: " + screen.availHeight + "x" + screen.availWidth + "<br>";
+</script>
+<hr>
+<%
+cBrowser := getenv("HTTP_USER_AGENT")
+
+cKey :=""
+cBrowser := alltrim(upper(cBrowser))
+do case
+case "MSIE" $ cBrowser
+   cKey := "IIS"
+case "BADA" $ cBrowser
+   cKey := "BADA"
+case "FIREFOX" $ cBrowser
+  cKey := "FIREFOX"
+case "ANDROID" $ cBrowser
+  cKey := "ANDROID"  
+otherwise
+  cKey := "UNKNOWN"
+endcase
+
+lExist :=.f.
+go top
+seek cKey
+*
+if not found()
+   ? cBrowser
+   set order to 0
+   go top
+   do while not eof()
+      if cBrowser = DETECT_STR
+         lExist := .t.
+      endif
+      skip
+   enddo
+else
+   //-- found
+   %><h1><%=cKey%></h1><%
+   lExist := .t.
+endif
+
+if not lExist
+   append blank
+   if rlock(2)
+      repl AGENT_ID with cKey
+      repl DETECT_STR with cBrowser
+      unlock
+   endif
+endif
+use
+%>
+<script language="javascript">
+document.write(cTxt)
+</script>
+</body>
+</html>

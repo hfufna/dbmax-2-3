@@ -1,0 +1,8 @@
+<script>
+
+var ww = window.innerWidth;
+var hh = window.innerHeight
+sessionStorage.ww=ww;
+sessionStorage.hh=hh;
+
+</script>

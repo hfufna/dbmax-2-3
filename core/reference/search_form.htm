@@ -1,0 +1,41 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<title>reference search form</title>
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<base target="_self">
+</head>
+
+<script language="javascript" src="/js/jmax.js"></script>
+
+<body bgcolor="#F4F4F4">
+<h3 align="center">Ajax Search</h3>
+
+<div align="center">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<form name="form1" method="post">
+<font color="#800000">Type part of the the command or function you want to search:<br>
+</font>
+<img border="0" src="img/arrow_right.gif">
+<input name="ef_key" type="text" size="25" onkeyup="javascript:ajaxRun('aj_seeker.msp?VAR_KEY=',this.value,'div_results');">
+<input type="reset" value="Reset search" onclick="document.form1.ef_key.focus();">
+</form>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<hr>
+<div id="div_results" style="border:solid 1px green;">
+   <!-- results //-->
+</div>
+
+<p align="center"><font size="1">Online Reference build 2010-10-19.001</font>
+
+<script language="javascript">document.form1.ef_key.focus();</script>
+
+</body>
+</html>

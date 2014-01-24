@@ -1,0 +1,408 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- local variables
+cMsg := "" + MSPFieldValue("VAR_ACTION")
+
+%>
+<%=modInfo()%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<%
+//-- INCOMING WEBVARS
+//
+cNewFile := MSPFieldValue("EF_NEWFILE")
+cDir     := MSPFieldValue("VAR_DIR")
+cTable   := cDir + "\" + cNewFile
+cTable   := fixSlash(cTable)
+
+//-- DATABASE SETTINGS
+cStru := cDir + "\_TMP.dbf"
+*? "Temporary table:" + cStru
+if not file(cStru)
+   ainit( "aFIELDS" , "FIELD_NAME", "FIELD_TYPE" , "FIELD_LEN","FIELD_DEC" ) 
+   ainit( "aTYPES" , "C" , "C" , "N", "N" ) 
+   ainit( "aSIZES" , 10 , 1 , 3, 3 ) 
+   ainit( "aDECS" , 0 , 0 , 0, 0 ) 
+   create (cStru) from aFIELDS, aTYPES, aSIZES, aDECS
+endif
+
+//-- OPENING FILES
+use (cStru)
+if not used()
+   ? "ERROR: could not open " + cStru
+   return
+endif
+nFlds := afields()
+
+//-- EVALUATING OPTIONS
+//
+
+//-- BACKGROUND ACTIONS
+//
+do case
+*****************************
+case cAction = "DELETE"
+*****************************
+//-- delete selected fields (using checkboxes)
+use (cStru) excl
+
+//-- building a list of CB_ webvars
+declare aFldList[1]
+nnn := 0
+for iii = 1 to len(aVars)
+  if upper(aVars[iii,1])="CB_"
+     nnn++
+     cCb := strTran(upper(aVars[iii,1]),"CB_","")
+     nFld := val(cCb)
+     *? "CB= " | cCb | " VAL=" | nFld | " FLD=" | fieldname(nFld)
+     if len(aFldList)<nnn
+          aadd(aFldList,nFld)
+     endif
+     aFldList[nnn] := nFld
+   endif
+next
+if nnn > 0
+   for iii=1 to len(aFldList)
+      nRec := aFldList[iii]
+      go (nRec)
+      delete
+      *? "Recno=" | nRec | " " | FIELD_NAME | " " | FIELD_TYPE 
+   next
+endif
+pack
+use
+cAction :=""
+*****************************
+case cAction="CLEAR"
+*****************************
+use (cStru) exclusive
+zap
+cAction := ""
+*****************************
+case cAction="ADD"
+*****************************
+use (cStru)
+append blank
+if rlock(1)
+   repl FIELD_NAME with "FLD"+zz(recno())
+   unlock
+endif
+cAction :=""
+*****************************
+case cAction="CREATE"
+*****************************
+//-- ATTENTION: field-type must be uppercase
+
+if file(cTable+".dbf")
+   %><h2><font size="4">Attention</font></h2>
+   File <b><%=cNewFile%></b> already exists!
+   <p>Delete the file or change the name, then retry.
+   <%
+   cAction := ""
+else
+   use (cStru) excl
+   *copy to (cDir + "\" + "_"+filebone(cNewFile)+zz(seconds())+".dbf")
+   dele all for empty(FIELD_NAME)
+   replace all FIELD_TYPE with "C" for empty(FIELD_TYPE)
+   replace all FIELD_LEN with 10 for (empty(FIELD_LEN).or. FIELD_LEN=0)
+   if empty(cNewFile)
+      cMsg := "<b>You must give your table a name!</b>"
+      cAction := ""
+   else
+      CREATE (cTable) FROM (cStru)
+      use (cTable) excl
+      zap
+      cAction := "DONE"
+      %>
+      <script language="javascript">top.frm1.location.reload(true);</script>
+      <%
+   endif
+endif
+%>
+<hr>
+<%
+*****************************
+endcase
+*****************************
+%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<body style="margin-top:-40px;">
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+do case
+*------------------------------------------
+case empty(cAction)
+*------------------------------------------
+  //-- ATTENTION: field-type must be uppercase
+
+   *-- opening the structure file
+   use (cStru) excl
+   *-- clean it up
+   delete  all for empty(FIELD_NAME)
+   replace all FIELD_TYPE with "C" for empty(FIELD_TYPE)
+   replace all FIELD_LEN with 10 for (empty(FIELD_LEN).or. FIELD_LEN=0)
+   %>
+  <!----------------------------------- GRID -------------------------------------- //-->
+   <form role="form" name="form1" action="<%=cSelf%>" method="post">
+   <p><b><font size="4">Creating a new table</font></b> into the current database:
+   <table class="table"  style="background-color:#FFFFFF; min-width:450px;">
+   <font color="red"><%=cMsg%></font><br>
+   Name for the new <%=cDbType%> table:<input type="text" name="EF_NEWFILE" value="<%=cNewFile%>" size="30">
+   <tr bgcolor="#000000">
+   <td colspan="5" bgcolor="#DDDDDD">
+   <% cValCbEdit := "" %>
+   <span class="badge">Fields <%=zz(lastrec())%></span>
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input type="hidden" name="VAR_DIR"     value="<%=cDir%>">
+   <input type="hidden" name="VAR_TABLE"   value="<%=cTable%>">
+   <input type="submit" class="btn btn-xs btn-danger" name="VAR_ACTION"  value="Clear all">
+   <input type="submit" class="btn btn-xs btn-primary" name="VAR_ACTION"  value="Add field">
+   <input type="submit" class="btn btn-xs btn-warning" name="VAR_ACTION"  value="Delete selected">
+   </td>
+   </tr>
+   <tr style="height:1.6em;padding: 5 5 0 0;"><td></td><td>Fieldname</td><td>Data type</td><td>Size</td><td>Decimals</td></tr><%
+   rrr := 0
+   go top
+   do while not eof()
+      rrr++
+      nRec := recno()
+      displRec(nRec,nRec)
+      skip
+   enddo
+   %>
+   </table>
+   <% if rrr > 0 %>
+   <input type="submit" name="VAR_ACTION" value="Create table"></td>
+   <% endif %>
+   </form>
+   <hr>
+<%
+*----------------------------
+case cAction = "DONE"
+*----------------------------
+use (cTable)
+%>
+Structure of table <font color="#800000"><b><a href="dbe_browse.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cTable%>"><%=cNewFile%></a></b></font>
+<br>Position on server:[<%=cTable%>.dbf]  
+<br>Record size:<b><%=recsize()%></b> bytes<br>
+<hr>
+   <table>
+   <tr>
+   <td bgcolor="#666666" align="center"><font color="#FFFFFF">Field #</font></td>
+	<td bgcolor="#666666" align="center"><font color="#FFFFFF">Fieldname</font></td>
+	<td bgcolor="#666666" align="center"><font color="#FFFFFF">Type</font></td>
+	<td bgcolor="#666666" align="center"><font color="#FFFFFF">Size</font></td>
+	</tr>
+   <%
+   for iii = 1 to fcount()
+      cLabel := fieldname(iii)
+      mVal   := fieldcont(fieldname(iii))
+      cType  := vtype(fieldname(iii))
+      nFlen  := 8
+      do case
+      case type(mVal) = "C"
+         nFlen := len(mVal)
+         mVal := alltrim(mVal)
+      case type(mVal) = "N"
+         nFlen := len(str(mVal))
+         mVal := ltrim(str(mVal))
+      case type(mVal) = "D"
+         nFlen := 12
+         mVal := dtoc(mVal)
+      case type(mVal) = "L"
+         nFlen := 1
+         mVal := iif(mVal,"S","N")
+      case type(mVal) = "M"
+         mVal := alltrim(mVal)
+      endcase
+      
+      cLeadVal := "<" + "%=" + cLabel + "%" + ">"
+      %>
+      <tr>
+         <td bgcolor="#C0C0C0"><font color="#FFFFFF"><%=ltrim(str(iii))%></font></td>
+         <td align="right" bgcolor="#E2E2E2"><font color="#666666"><%=cLabel%></font></td> 
+         <td align="center" bgcolor="#E2E2E2"><font color="#666666"><%=cType%></font></td> 
+         <td align="center" bgcolor="#E2E2E2"><font color="#666666"><%=nFlen%></font></td> 
+         </td>
+      </tr>
+      <%
+   next
+   %>
+   </table>
+   <hr>
+<%
+*----------------------------
+endcase
+*----------------------------
+save all like x* to (xMemFile)
+%>
+<!----------------------------------- BODY END -------------------------------------- //-->
+<%=container(0)%>
+</body>
+</html>
+<%
+**************************************************
+procedure displRec(nThisRec, nRowNum)
+**************************************************
+//-- PROCEDURE FOR DISPLAYING A SINGLE RECORD - RE-USABLE CODE
+//   LOOPS ALL THE FIELDS AND BUILDS A ROW WITH THE AJAX HOOK FOR IN-PLACE EDITING
+//-- ATTENTION: cIsReadOnly sets if editing is allowed and must be declared from the caller
+//
+local nFld, cAjIdentifier, cAjHook
+cParms := "VAR_TABLE=" | MspEncode(cStru) | "&VAR_REC=" | zz(nRec)
+%>
+<!----------------------------------- *Record <%=zz(nThisRec)%>--------------------------------------- //-->
+<tr>
+<td><%=zz(nRowNum)%><input type="checkbox" name="CB_<%=zz(nThisRec)%>" unchecked></td>
+<%
+for nFld=1 to afields()
+      ***
+      cAjIdentifier := "div_" + zz(nThisRec)+"-"+zz(nFld)
+      cAjHook := "&V_REC="+zz(nThisRec)+"&V_FLD="+zz(nFld)
+      %>
+      <td>
+      <div id="<%=cAjIdentifier%>" style="border:solid 1px #EFEFEF"></div>
+      <% if nFld=2%>
+      <select name="EF_FIELD_TYPE_<%=zz(nThisRec)%>"
+      onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cStru)%>','<%=cAjIdentifier%>');">
+            <option><%=FIELD_TYPE%></option><option>C</option><option>N</option><option>D</option><option>M</option><option>L</option>
+      </select>
+      <% else %>
+      <input type="text" class="borded"
+      name="EF_<%=fieldname(nFld)%>_<%=zz(nThisRec)%>" 
+      value="<%=zz(fieldval(nFld))%>" 
+      size="<%=zz(fieldsize(nFld))%>"
+      onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cStru)%>','<%=cAjIdentifier%>');">
+      <% endif %></td><%
+      ***
+next
+%></tr><%
+return
+
+******************************
+function optRows()
+******************************
+local nnn
+for nnn=10 to 60 step 5
+   %><option><%=nnn%></option><%
+next
+return("")
+%>

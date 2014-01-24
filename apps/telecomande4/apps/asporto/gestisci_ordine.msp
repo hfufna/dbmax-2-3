@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="asporto.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<script type="text/javascript">
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+</script>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- CERCA APPARATO
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFIle,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+   return
+endif
+
+******************************************* OK **
+
+//-- CONTROLLA CHE SIAMO SUL TAVOLO GIUSTO
+cTav := MSPFieldValue("VAR_TAV")
+if empty(cTav)
+   ? "ERRORE"
+   ? "Manca il numero tavolo!"
+   return
+endif
+
+*####################################################
+//-- DIMENSIONA ELEMENTI 2
+cLarghTab := xnWW  //-- solo per gestione tavolo
+cAltPuls       :=47   //-- solo per il menu
+*
+cLarghIcoTav   := zz(int(xnWW/4*0.6))
+cLarghIcoProd  := zz(int(xnWW/7))
+
+//-- per il pulsante visualizza/nascondi comande consegnate
+lShow := .t.
+
+
+//-- apre la tabella ordini e si posiziona sul tavolo richiesto
+dbOpen(xDB,"6")
+select ordini
+go top
+locate for alltrim(ID_TAV)=alltrim(cTav)
+if eof()
+   ? "ERRORE: Tavolo sbagliato: aggiornare indici"
+   return
+else
+   //-- carica i dati del tavolo corrente
+   cTavCurrStat := zz(STAT_TAV)
+endif 
+
+//-- apre la tabella comande
+dbOpen(xDB,"3")
+select comande
+count for ID_TAV = cTav to nComande
+go top
+
+
+//-- BACKGROUND ACTIONS
+do case
+******************************************************
+case cAction="NUOVORD"
+******************************************************
+// prepara il yavolo virtuale all'accettazione di un nuovo ordine
+//
+cStatoTav:= "OCC"
+select ordini
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with cStatoTav
+      repl ID_OP     with "CASSA"
+      repl T_START   with time()
+      unlock
+   endif
+else
+   ? "ERRORE nell'impegnare il tavolo " + cTav
+endif
+cAction := ""
+
+******************************
+case cAction="NASCONDI"
+******************************
+if xcShowAll 
+   xcShowAll :=.f.
+else
+   xcShowAll :=.t.
+endif
+save all like x* to (xMemFile)
+cAction := ""
+
+******************************
+case cAction ="A_FZCONTO"
+******************************
+//-- conferma la consegna per tutte le posizioni di un tavolo
+sele ordini
+cCurrStatus := STAT_TAV
+if cCurrStatus="OCC"
+   sele comande
+   set filter to alltrim(ID_TAV) == alltrim(cTav)
+   go top
+   do while not eof()
+      if rlock(1)
+         repl STAT_COM with "SERV"
+         repl T_CONS with time() 
+         unlock
+      endif
+      skip
+   enddo
+else
+   ? "OPERAZIONE INCONGRUA"
+   ? "Tavolo " + cTav + " in stato " + cCurrStatus
+endif
+cAction := ""
+
+
+******************************
+case cAction ="TUTTOFATTO"
+******************************
+//-- conferma la consegna per tutte le posizioni di un tavolo
+sele ordini
+cCurrStatus := STAT_TAV
+if cCurrStatus="OCC"
+   sele comande
+   set filter to alltrim(ID_TAV) == alltrim(cTav)
+   go top
+   do while not eof()
+      if left(STAT_COM,3) = "PRO" 
+         if rlock(1)
+            repl STAT_COM with "SERV"
+            repl T_CONS with time() 
+            unlock
+         endif
+      endif
+      skip
+   enddo
+   *
+else
+   ? "OPERAZIONE INCONGRUA"
+   ? "Tavolo " + cTav + " in stato " + cCurrStatus
+endif
+cAction := ""
+
+******************************
+case cAction ="MANDATUTTO"
+******************************
+//-- conferma e rende visibili ai remoti tutte le posizioni di un tavolo
+sele comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+if flock(1)
+   dele all for STAT_COM = "CANC"
+   repl all STAT_COM with "LAVORAZ",T_SEND with time() for left(STAT_COM,3) = "SOS"
+   unlock
+endif
+cAction := ""
+
+
+******************************
+case cAction ="RIGAOK"
+******************************
+//-- conferma posizione comanda e rende visibile in cucina/forno ecc
+sele comande
+nRec := val(MSPFieldValue("VAR_ROW"))
+go nRec
+if rlock(1)
+   repl STAT_COM  with "LAVORAZ"
+   repl T_SEND  with time()
+   unlock
+endif
+cAction := ""
+
+
+******************************
+case cAction ="SERVROW"
+******************************
+sele comande
+nRec := val(MSPFieldValue("VAR_ROW"))
+go nRec
+if rlock(1)
+   repl STAT_COM with "SERV"
+   repl T_CONS   with time()
+   unlock
+else
+   ? "ERRORE scrivendo la comanda"
+endif
+cAction := ""
+
+
+******************************
+case cAction ="ANNROW"
+******************************
+//-- annulla la riga di comanda (che rimane visibile solo al cameriere)
+sele comande
+nRec := val(MSPFieldValue("VAR_ROW"))
+go nRec
+if rlock(1)
+   repl STAT_COM  with "CANC"
+   repl T_REG   with time()
+   unlock
+endif
+cAction := ""
+
+
+******************************************************
+case cAction="A_SAVCONTO"
+******************************************************
+//-- prepara il conto
+//
+lError :=.f.
+//-- aggiorna le comande del tavolo
+cTot := 0
+select comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+do while not eof()
+   if rlock(3)
+      repl STAT_COM with "CONTO"
+      cTot += PRZ_UN
+      unlock
+   else
+      lError :=.t.
+   endif
+   skip
+enddo
+
+//-- cambia status al tavolo
+select ordini
+locate for alltrim(ID_TAV)=alltrim(cTav)
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with "CNT"
+      repl TOT_CNT with cTot
+      unlock
+   endif
+endif
+
+if lError
+   ? "ERRORE DI COMUNICAZIONE: riprovare a chiedere il conto"
+endif
+cAction:=""
+%>
+<script language="javascript">document.location='/apps/monitor/cassa/prepara_conto.msp?VAR_TAV=<%=cTav%>';</script>
+<%
+
+******************************************************
+case cAction="A_RIAPRI"
+******************************************************
+//-- riapre la comanda e annulla il conto
+//
+lError :=.f.
+//-- aggiorna le comande del tavolo
+cTot := 0
+select comande
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+do while not eof()
+   if rlock(3)
+      repl STAT_COM with "SERV"
+      cTot += PRZ_UN
+      unlock
+   else
+      lError :=.t.
+   endif
+   skip
+enddo
+
+//-- cambia status al tavolo
+select ordini
+locate for alltrim(ID_TAV)=alltrim(cTav)
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with "OCC"
+      repl TOT_CNT with cTot 
+      unlock
+   endif
+endif
+
+if lError
+   ? "ERRORE DI COMUNICAZIONE: riprovare a chiedere il conto"
+endif
+cAction:=""
+
+******************************************************
+case cAction="LIBTAV"
+******************************************************
+//-- registra la liberazione del tavolo
+//
+select ordini
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with ""
+      repl COPERTI   with 0
+      repl ID_OP     with ""
+      unlock
+   endif
+else
+   ? "ERRORE nell'impegnare il tavolo " + cTav
+endif
+cAction :=""
+
+******************************************************
+case cAction="A_APPARTAV"
+******************************************************
+//-- registra la liberazione del tavolo
+//
+select ordini
+if ID_TAV=cTav
+   if rlock(4)
+      repl STAT_TAV  with "LIB"
+      repl COPERTI   with 0
+      repl ID_OP     with xcIdOp
+      *repl T_START   with time()
+      repl D_REG     with date()
+      repl NSESSIONE with zcSession
+      unlock
+   endif
+else
+   ? "ERRORE nell'impegnare il tavolo " + cTav
+endif
+cAction :=""
+
+
+******************************************************
+case cAction="A_CLEANUP"
+******************************************************
+//-- svuota i record delle le righe cancellate
+select comande
+do while not eof()
+   if STAT_COM="CANC"
+      if rlock(1)
+         for iii=1 to afields()
+            cFld := fieldname(iii)
+            xval := fieldfit(cFld,"")
+            repl &cFld with xVal
+         next
+         unlock
+      endif
+   endif
+   skip
+enddo
+cAction := ""
+
+******************************************************
+endcase
+******************************************************
+
+//----------------------------------PAGINA ---------------------------------------
+select ordini
+go top
+locate for alltrim(ID_TAV)=alltrim(cTav)
+cStatoTav  := STAT_TAV
+cTimeOcc   := T_START
+%>
+<body>
+<!----------------------------- *RIGA ROSSA ----------------------------- //-->
+<table border="0" width="100%" cellspacing="5" cellpadding="5" width="100%">
+	<tr>
+		<td bgcolor="#990000">
+		<img border="0" src="../../images/ico_tav.gif" height="30"><b> <%=cTav%></b></font>
+		   Status[<%=cStatoTav%>] <%=cAction%>
+		</td>
+	</tr>
+</table>
+<%
+//-- FOREGROUND ACTIONS
+//
+nTotConto := 0
+do case
+***********************************
+case empty(cAction)
+***********************************
+%>
+<!----------------------------------- *MENU SUPERIORE --------------------------------------- //-->
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<!-- riga 1 //-->
+<tr>
+<tr>
+<td align="center" bgcolor="#FFFFC1">
+   <img height="<%=cAltPuls%>" border="0" src="../../images/ico_comanda1.gif" width="53" height="85">
+   <font style="font-size:2.2em;color:black"><%=recno()%></font>
+   <a href="ordine.msp?VAR_ACTION=COM&VAR_TAV=<%=cTav%>"><img height="<%=cAltPuls%>" src="../../images/pw9_sceglimenu-a.gif"></a>
+</td>
+</tr>
+</table>
+<!----------------------------------- *RIEPILOGO COMANDA --------------------------------------- //-->
+<table bgcolor="#CC6600" cellpadding="5" width="100%">
+<tr bgcolor="#993300"><td colspan="6" height="1px" bgcolor="#FFFFC1"></td></tr>
+<%
+sele comande
+set order to 1
+set filter to alltrim(ID_TAV) == alltrim(cTav)
+go top
+rrr := 0
+do while not eof()
+   rrr++
+   cThisColor := colorize(STAT_COM)
+   %>
+   <tr>
+      <td bgcolor="<%=cThisColor%>"><font size="2" color="red"><%=zz(rrr)%></font></td>
+      <td bgcolor="<%=cThisColor%>"><font color="black"><%=DESC_PROD%></font></td>
+      <td bgcolor="<%=cThisColor%>"><font color="gray" size="2"><%=GRP_PROD%></font></td>
+      <td bgcolor="<%=cThisColor%>"><font color="navy" size="2"><%=STAT_COM%><br>(<%=DEF_DEST%>)</font></td>
+      <td bgcolor="<%=cThisColor%>">
+         <a href="<%=cSelf%>?VAR_ACTION=SERVROW&VAR_ROW=<%=zz(recno())%>&VAR_TAV=<%=cTav%>"><img height="<%=cAltPuls%>" src="../../images/pw9_servito-s.gif"></a>
+      </td>
+      <td bgcolor="<%=cThisColor%>">
+         <font color="#000000"><%=left(timeDiff(time(),T_SEND),2)%>m</font>
+      </td>
+   </tr>
+   <%
+   nTotConto+= PRZ_UN
+   skip
+enddo
+%>
+<tr bgcolor="#993300"><td colspan="6" height="3px" bgcolor="#FFFFC1">
+<% if rrr=0 %><h2 align="center"><font color="red">Ordine vuoto...</h2></font><% endif %>
+</td></tr>
+</table>
+<%
+******************************************************
+case cAction="CONTOTAV"
+******************************************************
+//-- chiede il conto e mette il tavolo in pre-lista
+sele ordini
+%>
+<!----------------------------------- *FORM3 --------------------------------------- //-->
+<form name="form3" action="<%=cSelf%>" method="post">
+<%=webVars2fields(aVars)%>
+<table border="0" width="100%" cellspacing="5" cellpadding="5" width="100%">
+<tr>
+<td bgcolor="#660066">	<span style="font-size: 1.3em">Richiesta conto:</span> <%=left(time(),5)%></td>
+</tr>
+<% if STAT_TAV="CNT" %>
+   <tr><td>Riaprire le comande?<br>
+   <input type="hidden" name="VAR_ACTION" value="A_NUOVORD">
+   <input type="hidden" name="EF_COPERTI" value="<%=COPERTI%>">
+   </td></tr>
+   <% 
+else %>
+   <tr><td>
+   <%
+   select comande
+   set filter to alltrim(ID_TAV)==alltrim(cTav)
+   go top
+   count to nnn
+   count to nPosAperte for left(STAT_COM,3) $ "CON PRO LAV"
+   if nPosAperte > 0
+      %>
+      <h1><font color="lime">Ci sono ancora <%=nPosAperte%> comande aperte!</font></h1>
+      <a href="<%=cSelf%>?VAR_TAV=<%=cTav%>"><img height="<%=cAltPuls%>" border="0" src="../../images/pw9_comande-ctrl.gif"></a>
+      <a href="<%=cSelf%>?VAR_ACTION=A_FZCONTO&VAR_TAV=<%=cTav%>"><img height="<%=cAltPuls%>" border="0" src="../../images/pw9_chiuditutto.gif"></a>
+      <%
+   endif
+   %>
+   </td></tr>
+   <tr><td>
+   <div class="dialog" style="width: 711px; height: 62px">
+   <span style="font-size: 1.5em; font-weight: 700">Preparare il conto?</span>
+   <input type="hidden" name="VAR_ACTION" value="A_SAVCONTO">
+   <input type="submit" name="PB_OK" value="OK">
+   </div>
+   </td></tr>
+   <% 
+endif 
+%>
+</table>
+</form>
+<%
+******************************************************
+endcase
+******************************************************
+%>
+<table width="100%"><tr><td>
+<%if left(cTavCurrStat,3) $ "OCC"%>
+<a href="<%=cSelf%>?VAR_ACTION=MANDATUTTO&VAR_TAV=<%=cTav%>"><img height="<%=cAltPuls%>" src="../../images/pw9_mandatutto-f.gif"></a>
+<% endif %>
+</td>
+<td align="right">
+<a href="<%=cSelf%>?VAR_ACTION=A_SAVCONTO&VAR_TAV=<%=cTav%>">
+<img src="../../images/pw9_conto-s.gif" height="<%=cAltPuls%>"></a>
+</td>
+<td align="right">
+<a href="vista_ordini.msp">
+<img src="../../images/pw9_vista_ordini.gif" height="<%=cAltPuls%>"></a>
+</td>
+</tr>
+</table>
+<!----------------------------------- *--------------------------------------- //-->
+<hr><font color="orange" size="2"><%=pageName()%> <%=upper(xcIdOp)%> Sala:<%=xcIdSala%> Term:<%=xcDevId%> Cons:<%=iif(xcShowAll,"ON","OFF")%>
+<%=xnWW%>x<%=xnHH%></font>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+</body>
+</html>
+<%
+***************************
+function colorize(cToken)
+***************************
+local cOut
+do case
+case cToken="SOS"
+   cOut := "yellow"
+case cToken="LAV"
+   cOut := "#FFFFC1"
+case cToken="SERV"
+   cOut := "#FBD2E8"
+case cToken="CAN"
+   cOut := "#FFB3D1"
+case cToken="CON"
+   cOut := "#353535"
+case cToken="OK"
+   cOut := "#333333"
+case cToken="PRO"
+   cOut := "orange"
+otherwise
+   cOut := "#FFFFFF"
+endcase
+return cOut
+
+******************************
+function timeDiff(cStr1,cStr2)
+******************************
+local nHour,cVal1,cVal2
+if not left(upper(cStr1),2) $ "AMPM"
+   nHour := val(left(cStr1,2)) 
+   cStr1 := cStr1 +" "+iif(nHour>=12,"pm","am")
+endif
+
+if not left(upper(cStr2),2) $ "AMPM"
+   nHour := val(left(cStr2,2)) 
+   cStr2 := cStr2 +" "+iif(nHour>=12,"pm","am")
+endif
+return elaptime(cStr1,cStr2)
+%>

@@ -1,0 +1,34 @@
+<html>
+<!--
+                DBMAX 2.5  by Gianluca Napolitano
+                
+                HELP MODULE ENTRYPOINT
+ //-->
+<%
+xAppId := "dbmax"
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("localbar.htm")%>
+
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h1>DBMAX Help</h1>
+<h4><%=pageName()%><a class="btn btn-primary pull-right" href="home.msp?XY=<%=cSeed%>">Home page</a></h4>
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

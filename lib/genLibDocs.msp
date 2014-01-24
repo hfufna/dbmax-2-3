@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<!-- 
+      DBMax 2.5
+      
+      GENERATING LIBRARY DOCUMENTATION
+      BY SCANNING THE CURRENT LIBRARY FOLDER
+      (notice that this file must reside into /LIB)
+//-->
+<%
+**************************************** DBMAX CROSS-DISTRO MINI-HEADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=include("/parts/html/navbar.htm")%>
+<%
+xWebRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xWebRoot := strTran(p1,p2,"")
+endif
+xLibDir := strTran(xWebRoot,"/","\")+"\lib\"
+
+%>
+<div class="container">
+<div class="well">
+   <h3><%=plainPath(updir(xLibDir))%> library functions</h3>
+   <a data-toggle="modal" href="#div_modal" class="btn btn-default" onclick="popupFile('/info.txt',escape('Hello'));">Modal</a>
+   <a class="btn btn-xs btn-default" title="Click me"
+   data-toggle="modal" href="#div_modal" class="btn btn-default">Open modal window</a>
+</div>
+<%
+$extended
+
+//-- LOADING LIST OF LIBRARIES
+cMask := curdir() + "\lib\*.max"
+nLibs = adir( cMask, aLibs)
+
+//-- LOADING LIST OF SOURCES
+cMask := curdir() + "\lib\*.prg"
+nFiles = adir( cMask, aNames, aSizes, aDates, aTimes, aAttr)
+
+//-- INSPECTS EACH SOURCE FILE
+cTxt := cMask + CR_LF
+for iii=1 to nFiles
+   %>
+   <h4>Module <b> <%=upper(filebone(aNames[iii]))%></b></h4>
+   <%
+   scanLibFile(aNames[iii],iii)
+   ?
+next
+%>
+</div>
+<%=include("/parts/html/modal3.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</body>
+<%=include("/parts/html/footer.htm")%>
+<script src="/js/jmodal.js"></script>
+</html>
+<%
+///////////////////////// DBMAX LOCAL LIBRARY /////////////////////////////////
+// NOTICE: these function may be duplicated by updated library you may  use.
+// In that case the library functions will override the local ones, thus the code
+// here below will be ignored.
+//
+//---------------------------------------------
+function scanLibFile(cFile, nProgr)
+//---------------------------------------------
+nHandle   := fopen(cFile)
+nLastByte := fseek(nHandle,0,2)
+cChunk := ""
+nFirstByte := fseek(nHandle,0,0)
+nThisPos   := fseek(nHandle,0,1)
+cPlain     := filebone(cFile)
+rrr := 0
+lOk :=.f.
+lDiv:=.f.
+nnn := 0
+do while nThisPos < nLastByte
+   rrr++
+   if lower(cChunk)="function"
+      lOk :=.t.
+      cChunk := strTran(cChunk,"function","")
+      cUrl := "genInfoPage.msp?VF="+ cFile +"&VY="+zz(nThisPos) + "&VK=" + alltrim(cChunk)
+      cMsg := ""
+      %>
+      <br>
+      <!-- ---------------------------------------------------------- *RRR <%=rrr%> NNN <%=nnn%> ----------------------------------------//-->
+      <button class="btn btn-default btn-xs" onclick="toggleDiv('div_<%=zz(rrr)%>');">M<%=zz(nProgr)%></button>
+      <a data-toggle="modal" href="#div_modal" class="btn btn-default btn-xs" onclick="loadModal('<%=cUrl%>','<%=cMsg%>');">R<%=rrr%></a>
+
+      <font color="#C0C0C0"><%=cPlain%>:</font>
+      <font color="navy"><%=trimLeftAt(cChunk,"(")%></font>
+      <font color="maroon"><i>(<%=trimRightAt(cChunk,"(")%></i></font>
+      (n=<%=nnn%>)
+      
+      <div class="well" style="display:none; padding:3px 3px 3px 3px; margin-bottom: 5px;" id="div_<%=zz(rrr)%>" style="display:none;">Details:<br>
+      <a target="_blank" 
+      href="genInfoPage.msp?VF=<%=cFile%>&VY=<%=zz(nThisPos)%>&VK=<%=zz(cChunk)%>"><b><%=zz(cChunk)%></b></a>
+      <%
+      lDiv=.t.
+   endif
+   if lOk
+      if cChunk = "//*"
+         %><br><i><%=strTran(cChunk,"//*","")%></i><%
+      endif
+   endif
+   if  lower(cChunk) = "return"
+      lOk := .f.
+      %>
+      <% nnn := rrr%>
+      </div>      <!-- ----------------------------------------------------------END *RRR <%=rrr%> NNN <%=nnn%> ----------------------------------------//-->
+      <%
+   endif
+   if lDiv
+      lDiv :=.f.
+   endif
+   cChunk   := freadstr(nHandle,132, chr(10))
+   nThisPos := fseek(nHandle, nThisPos+len(cChunk)+1, 0)
+enddo
+%></div><%
+fclose(nHandle)
+return ""
+%>

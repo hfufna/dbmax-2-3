@@ -1,0 +1,18 @@
+<html>
+
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>SURVEY MAKER Intro Page - DBFree v3</title>
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+</head>
+
+<frameset cols="245,*" framespacing="0" border="0" frameborder="0">
+<frame name="frm1" src="menu.htm" target="frm2">
+<frame name="frm2" src="splash.msp" scrolling="auto" marginwidth="0" marginheight="0">
+</frameset>
+<noframes>
+<body><p>This page uses frames, but your browser doesn't support them.</p></body>
+</noframes>
+</html>
+
+</html>

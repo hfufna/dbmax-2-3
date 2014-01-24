@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<body>
+<div id="output" style="background-color:#F0F0F0; border:none; height:90%; width:100%;"></div>
+</body>
+</html>
+
+<script>
+if(typeof(Storage)!=="undefined")
+  {
+  localStorage.jnWW=screen.width;
+  localStorage.jnHH=screen.height;
+  document.getElementById("output").innerHTML="Screensize: " + localStorage.jnWW + "x" + localStorage.jnHH;
+  }
+else
+  {
+  document.getElementById("output").innerHTML="Sorry, your browser does not support web storage...";
+  }
+</script>

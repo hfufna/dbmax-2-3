@@ -1,0 +1,435 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+cSelf    := pageName()
+
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+
+//-- 11 MAXOBJECT HANDLING
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+nRec     := val(MSPFieldValue("VAR_REC"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER
+
+
+//-- PERSISTENT VARIABLES
+xcGroups = ""
+
+//-- TABLES TO USE
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+//-- standard DBFree MTX indexes
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not open"
+   return
+endif
+set order to 0
+
+//-- SAVING SETTINGS TO MEMORY FILE
+xMemFile := cDbPath + "wa_command_window.mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+else
+   *-- loading list of possible groups
+   nFld := 3
+   cKey := fieldval(nFld)
+   xcGroups := ""
+   do while not eof()
+      cVal := fieldval(nFld)
+      if cVal <> cKey
+         xcGroups += "[" + zz(cVal) + "]" 
+         cKey := fieldval(nFld)
+      endif
+      skip
+   enddo
+   save all like x* to (xMemFile)
+endif
+
+
+//-- MOVING CURSOR
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+if nRecno <> 0
+   go nRecno
+endif
+
+
+//-- INCOMING WEBVARS
+lEditable := isLocal()
+
+if lEditable
+   do case
+   **********************
+   case cAction="SAVE"
+   **********************
+      ? "SAVING CHANGES"
+      saveRecord(nRecno,aVars)
+      return
+      *
+   **********************
+   endcase
+   **********************
+endif
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<!-------------------------------------- local styles //----------------------------------------->
+<style type="text/css">
+
+.elm {
+  color: #000000;
+  background-color: #FFFFFF;
+  padding: 3px;
+  font-size: 12pt;
+  font-weight: bold;
+  border: none;
+}
+
+.descr  { 
+  color: #000080;
+  background-color: #FFFFFF;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px dotted #0000FF
+}
+
+.example  { 
+  color: #000080;
+  background-color: #FFFFF0;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px dotted #800000;
+  margin-top: 2px
+}
+
+.hover.example { 
+  overflow: auto;
+}
+
+.sintax  { 
+  color: #003300;
+  background-color: #FFFFF2;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px dotted #0000FF;
+}
+
+.param  { 
+  color: #000080;
+  background-color: #FFFFF0;
+  padding: 3px;
+  font-size: 9pt;
+  font-family: courier new;
+  border: 1px dotted #000080;
+}
+
+.seealso  { 
+  color: #000000;
+  background-color: #FFFFEA;
+  padding: 3px;
+  font-size: 9pt;
+  border: 1px dotted #000080;
+}
+
+</style>
+<body>
+
+<div align="center"><font size="3" color="green"><b>MaxScript Language element #<%=zz(recno())%></b></font></div>
+<div style="background-color: #000000; color: #FFFFFF; padding: 2 2 2 2; font-size: 16; font-weight: bold; width:99%; min-height:22;"><%=zz(ELEMENT)%></div>
+
+<!----------------------------------- <%=pageName()%> -- <%=pageFile()%> ------------------------------------ //-->
+<%
+do case
+//-----------------------------------------------------------------
+case cAction="EDIT"
+//-----------------------------------------------------------------
+   showForm(nRecno)
+   *
+//-----------------------------------------------------------------
+case empty(cAction)
+//-----------------------------------------------------------------
+%>   
+<div class="box">
+   <form action="<%=cSelf%>" name="form<%=zz(recno())%>">
+      <font color="green">      
+      <div class="descr">
+      <font size="1" color="green"><%=zz(SECTION)%> <%=zz(GROUP)%></font>
+      <font size="1" color="gray">(<%=zz(LIBRARY)%>)</font>
+      <br><%=zz(DESCR)%>
+      <% if isLocal() %>
+		   <input type="hidden" value="<%=zz(recno())%>" name="VAR_RECNO">
+		   <input type="submit" value="EDIT" name="VAR_ACTION"></form>
+      <% endif %>
+      </div> 
+      
+      <% if not empty(SINTAX) %>
+            <br>Sintax:<br>
+            <div class="sintax"><pre><%=zz(SINTAX)%></pre></div>
+      <% endif %>
+      <% if not empty(PARAM) %>
+            <br>Parameters:<br>
+            <div class="param"><textarea style="width:100%;min-height:150px;"><%=zz(PARAM)%></textarea></div>
+      <% endif %>
+      <% if not empty(EXAMP) %>
+            <br>Example:<br>
+            <textarea style="min-height:200px;" class="example"><%=noBrakets(EXAMP)%></textarea>    
+      <% endif %>
+      <% if not empty(SEE_ALSO) %>
+            <br><br>See also:<br>
+            <div class="seealso"><%=zz(SEE_ALSO)%></div>
+      <% endif %>
+      <hr>
+      <input type="hidden" name="VAR_RECNO" value="<%=wstr(recno())%>">   
+      </font>   
+   </form>
+</div>
+<%
+//-----------------------------------------------------------------
+endcase
+//-----------------------------------------------------------------
+%>
+</body>
+</html>
+<!----------------------------------- END OF HTML -------------------------------------- //-->
+<%
+***************************************************
+function strToLinks( cStr, cSep)
+***************************************************
+local nLen,iii,ccc,eee
+cOut :=""
+nLen := len(cStr)
+aOut := ""
+if empty(cSep)
+   cSep := ","
+endif
+
+eee := 0
+nnn := 0
+if nLen > 0
+   do while len(cStr) > 0 or nnn < 100
+      nnn++
+      nPos := at(cSep,cStr)
+      ccc := subs(cStr,1,nPos-1)
+      eee++
+      cOut += [<a href="] + cSelf + [?VAR_ACTION=XSEARCH&VAR_KEYWORD=]+ zz(ccc) +[">] + ccc + [</a>&nbsp;&nbsp;]
+      cStr := subs(cStr,nPos+1,nLen)
+      if nPos = 0
+         exit
+      endif
+   enddo
+endif
+return cOut
+
+*****************************
+procedure saveHistory(cElem)
+*****************************
+local cTxt, cCont, cFile
+cFile:= curDosDir() + "\history.txt"
+if file(cFile)
+   cTxt := memoread(cFile)
+   cTxt := cTxt + CR_LF + cElem
+else
+   cTxt := cElem 
+endif
+   memowrit(cFile, cTxt)
+return ""
+
+
+***********************
+function urlSafe(cTxt)
+***********************
+cTxt := zz(cTxt)
+cTxt := mspencode(cTxt)
+return cTxt
+
+***********************
+function removeTags(cTxt)
+***********************
+cTxt := strTran(lower(cTxt),"<br>","")
+cTxt := strTran(lower(cTxt),"<hr>","")
+cTxt := strTran(lower(cTxt),"<b>","")
+cTxt := strTran(lower(cTxt),"</b>","")
+cTxt := strTran(lower(cTxt),"<i>","")
+cTxt := strTran(lower(cTxt),"</i>","")
+cTxt := strTran(lower(cTxt),"<p>","")
+return cTxt
+
+***************************
+function noBrakets(cTxt)
+***************************
+local cOp, cCl, cStr
+cStr := cTxt
+cStr := strTran(cStr,"<","<;")
+cStr := strTran(cStr,">",">;")
+return(cStr)
+
+***************************
+function isLocal(cIp)
+***************************
+if pcount()=0
+   cIp := getenv("REMOTE_ADDR")
+endif
+declare aAllowed[4]
+aAllowed[1]:="192.168"
+aAllowed[2]:="172.16"
+aAllowed[3]:="10.0"
+aAllowed[4]:="127.0.0.1"
+for iii=1 to alen(aAllowed)
+   if left(cIp,len(aAllowed[iii])) = aAllowed[iii]
+      return(.t.)
+   endif
+next
+return(.f.)
+
+****************************** 
+function showForm(nRec) 
+******************************
+//-- move to record to edit
+go nRecno 
+//-- xcGroups is a string containing group names surrounded by square brakets 
+%> 
+Table [<%=dbf()%>] Rec:[<%=recno()%>]
+<form action="<%=cSelf%>" method="post"> 
+<input type="submit" name="PB_OK" value="Save changes"> 
+<table border="0" width="100%" class="table1"> 
+<tr> 
+  <td align="right"><font color="#666666">EL_ID&nbsp;(C)5</font></td> 
+  <td align="left"> 
+<input type="text" name="EF_EL_ID" value="<%=zz(recno())%>" size=5> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">ELEMENT&nbsp;(C)80</font></td> 
+  <td align="left"> 
+<input type="text" name="EF_ELEMENT" value="<%=zz(ELEMENT)%>" size=40> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">GROUP&nbsp;(C)35</font></td> 
+  <td align="left"> 
+<select name="EF_GROUP"><option><%=zz(GROUP)%></option><%=str2opt(xcGroups)%></select> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">SECTION&nbsp;(C)35</font></td> 
+  <td align="left"> 
+<input type="text" name="EF_SECTION" value="<%=zz(SECTION)%>" size=35> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">LIBRARY&nbsp;(C)35</font></td> 
+  <td align="left"> 
+<input type="text" name="EF_LIBRARY" value="<%=zz(LIBRARY)%>" size=35> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">SOURCE&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_SOURCE" rows=4 cols=40 class="example"><%=zz(SOURCE)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">SINTAX&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_SINTAX" rows=4 cols=40 class="example"><%=zz(SINTAX)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">DESCR&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_DESCR" rows=4 cols=40 class="example"><%=zz(DESCR)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">PARAM&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_PARAM" rows=4 cols=40 class="example"><%=zz(PARAM)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">EXAMP&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_EXAMP" rows=4 cols=40 class="example"><%=zz(EXAMP)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">SEE_ALSO&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_SEE_ALSO" rows=4 cols=40 class="example"><%=zz(SEE_ALSO)%></textarea> 
+</td> 
+</tr> 
+<tr> 
+  <td align="right"><font color="#666666">MORE_EX&nbsp;(M)</font></td> 
+  <td align="left"> 
+<textarea name="EF_MORE_EX" rows=4 cols=40><%=zz(MORE_EX)%></textarea> 
+</td> 
+</tr> 
+</table> 
+<hr> 
+<input type="hidden" name="VAR_ACTION" value="SAVE"> 
+<input type="hidden" name="VAR_RECNO" value="<%=zz(recno())%>">   
+<input type="submit" name="PB_OK" value="Save changes"> 
+</form> 
+<% 
+return("") 
+
+**************************************
+function arr2opt(aArr)
+**************************************
+local iii,cTxt
+cTxt := ""
+for iii=1 to len(aArr)
+   cTxt := "<option>"|aArr|"</option>"
+next
+return cTxt
+
+**************************************
+function str2opt(cStr, cOpTag, cEnTag)
+**************************************
+if pcount()< 3
+   cOpTag  := "["
+   cEnTag := "]"
+endif
+nnn    := 1
+nCount := 0
+cOut   := ""
+*
+declare aOpts[1]
+do while nnn < 400
+   // cerchiamo i tag di apertura e chiusura nella stringa
+   nPos1  := at(cOpTag  ,cStr)
+   nPos2  := at(cEnTag ,cStr)
+   nSize  := nPos2-nPos1+1
+   nLen   := len(cStr)-nPos1
+   
+   // carichiamo la porzione di testo compresa fra i tag
+   mVal := substr(cStr,nPos1+1,nSize-2)
+   if not empty(mVal)
+      cOut += "<option>" + mVal + "</option>" + CR_LF
+   endif
+   // accorciamo la stringa eliminando la parte già esaminata
+   cStr := substr(cStr,nPos2+1)
+   if at(cOpTag ,cStr)=0
+      exit
+   endif
+   nnn++
+enddo
+return cOut
+%>

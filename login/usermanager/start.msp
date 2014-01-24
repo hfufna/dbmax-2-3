@@ -1,0 +1,50 @@
+<html>
+<%
+********************************************* 
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+****************************************
+xAppId := memoread(webroot()+"\xappid")
+
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   return
+endif
+
+cDir := setDb("myDBMAX")
+
+//-- DATABASE AND RECORDS ARE SET BY LOGIN MODULE
+%>
+<!--
+        DBMAX 2-3 USER MANAGER
+//-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="stylesheet" type="text/css" href="screen.css">
+<title></title>
+</head>
+
+<frameset framespacing="0" border="0" frameborder="0" rows="80,*">
+	<frame name="frm0" scrolling="no" noresize target="frm1" src="usrm_top.msp?XY=<%=cSeed%>">
+	<frameset cols="245,*">
+		<frame name="frm1" target="frm2" src="usrm_navigator.msp?XY=<%=cSeed%>">
+		<frame name="frm2" src="usrm_splash.msp?XY=<%=cSeed%>" scrolling="auto" marginwidth="0" marginheight="0">
+	</frameset>
+	<noframes>
+	<body>
+
+	<p>This page uses frames, but your browser doesn't support them.</p>
+
+	</body>
+	</noframes>
+</frameset>
+
+</html>

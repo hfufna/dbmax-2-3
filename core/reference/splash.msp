@@ -1,0 +1,72 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>REF Splash</title>
+<link rel="stylesheet" type="text/css" href="default.css">
+</head>
+
+<!--- 12 //-->
+<%
+//-- 1 LIBRARY - loading DBFree external library functions
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xRoot := strTran(xRoot,"/","\")
+xcLib   := xRoot + "\lib\dbmax25.max"
+set maxlib to &xcLib
+CR_LF := chr(13)+chr(10)
+
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+if not file(cDb)
+  ainit( "aField","EL_ID","ELEMENT","GROUP","SECTION","LIBRARY","SOURCE","SINTAX","DESCR","PARAM","EXAMP","SEE_ALSO","MORE_EX")
+  ainit( "aType","C","C","C","C","C","M","M","M","M","M","M","M")
+  ainit( "aSize",5,80,35,35,35,10,10,10,10,10,10,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+
+//-- standard DBFree MTX indexes
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not open"
+   return
+endif
+set order to 0
+go top
+use
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="background-color:#f1f1f1;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<div class="jumbotron" style="background-color:white;">
+<h2 align="center">MaxScript language reference</h2>
+	<p>This web site is to provide you a local<b> on-line language reference</b> 
+	and an example of a DBFree application making use of AJAX technologies.</p>
+	<p>Your current webserver is <b><%=getenv("SERVER_SOFTWARE")%></b> and this site 
+	is residing on server <%=getenv("COMPUTERNAME")%> into the folder <b><%=fixslash(webRoot())%></b><br>
+	<p>Your current <b>datasource</b> is <b><%=MSPConfigVar("DATADIR")%> on <%=getenv("COMPUTERNAME")%></b>
+	<br>This application needs updated databases containing <b>reference</b> informations available from Maxsis Updates Centre
+	<br><a class="btn btn-sm btn-primary" href="http://dbmaxserver.com/updates" target="frm3">Download Update File</a>
+</div>
+
+<div class="well">
+	ATTENTION:<br>
+	<ul>
+	<li>Download the compressed file containing the archives</li>
+	<li>EXTRACT THE CONTENT into the folder <font color="#FF0000"> <b><%=cDbPath%></b> of your <%=getenv("COMPUTERNAME")%></font></li>
+	</ul>
+</div>
+
+<iframe name="frm3" id="frm3" src="void.htm" style="position:absolute; bottom:0; left:0; width:100%; height:50%"  border="0" frameborder="0"></iframe>
+
+</body>
+
+</html>

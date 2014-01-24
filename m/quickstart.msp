@@ -1,0 +1,33 @@
+<html><!--
+                DBMAX 2.5  by Gianluca Napolitano
+                
+                GETTING STARTED MODULE ENTRYPOINT
+ //-->
+<%
+xAppId := "dbmax"
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+xAppId := memoread(webroot()+"\xappid")
+
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("localbar.htm")%>
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h1>Getting Started</h1>
+<h4><%=pageName()%><a class="btn btn-primary pull-right" href="home.msp?XY=<%=cSeed%>">Home Page</a></h4>
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

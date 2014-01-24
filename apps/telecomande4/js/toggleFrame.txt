@@ -1,0 +1,17 @@
+<script language="javascript">
+//-- visualizza o nasconde il menu -- settaggio prestabilito da login
+function toggleLeftFrame(nnn){
+var nSize = parseInt(parent.innerFr.cols);
+if (nSize < nnn) {nSize=nnn}
+else {nSize = 1}
+var cSize = nSize+',*'
+parent.innerFr.cols=cSize;
+}
+</script>
+
+<script language="javascript">
+function test(){
+document.getElementById("page").width=localStorage.jnWW;
+document.getElementById("page").height=localStorage.jnHH;
+}
+</script>

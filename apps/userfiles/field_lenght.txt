@@ -1,0 +1,10 @@
+<%
+? libver()
+set dbtype to dbase
+setDb("opc4")
+use opc4_casi
+for iii=1 to fcount()
+   ccc := FIELDNAME(iii) 
+   ? ccc | " (" | fieldlen(ccc) | ")"
+next
+%>

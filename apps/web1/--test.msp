@@ -1,0 +1,8 @@
+<html>
+<body>
+Questo file ha estensione PHP ma non è in PHP
+<%
+? date() | time()
+%>
+</body>
+</html>

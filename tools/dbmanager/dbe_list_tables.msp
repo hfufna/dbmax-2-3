@@ -1,0 +1,259 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+******************************************************** END SECTION
+
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- local variables
+cMsg := "" + MSPFieldValue("VAR_ACTION")
+
+%>
+<%=modInfo()%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;background-color:#000000;color:c0c0c0c;" onload="top.frm2.location='escape(dbe_display_stru.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cTable%>&VAR_DIR=<%=cDir%>&VAR_DBTYPE=<%=cDbType%>');">
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+//-- if bypassed login allows the procedure
+//   by generting a fake
+if type(xcUsrName)="U"
+   xcUsrName := "GUEST"+right(cSeed,4)
+endif
+
+cDir := MSPFieldValue("VAR_DIR")
+cMask := cDir + "\*.dbf"
+
+cDbLabel := upper(cDir)
+if right(cDbLabel,1)="\"
+   cDbLabel := trimRight(cDbLabel,1)
+endif
+cDbLabel := wordRight(cDbLabel,"\",1)
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+%>
+<table border="0" width="100%" id="table2" cellspacing="0" cellpadding="4">
+	<tr>
+		<td colspan="2"><a href="dbe_list_db.msp?XY=<%=cSeed%>" class="btn btn-danger" style="width:100%;"><img border="0" src="img/d81_db_ico.gif" width="23" height="14"> <%=cDbLabel%></a></td>
+	</tr>
+	<tr>
+		<td colspan="2"><font size="1" color="white">User <%=capital(xcUsrName)%> <%=cSeed%></font></td>
+	</tr>	
+	<tr>
+		<td>
+		<a class="btn btn-xs btn-primary" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DBTYPE=DBASE&VAR_DIR=<%=cDir%>">D</a>
+	   <a class="btn btn-xs btn-success" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DBTYPE=FOXPRO&VAR_DIR=<%=cDir%>">F</a>
+	   <a class="btn btn-xs btn-warning" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DBTYPE=&VAR_DIR=<%=cDir%>">X</a>
+	   <br>
+	   <a class="btn btn-xs btn-default" href="dbe_list_db.msp?XY=<%=cSeed%>" style="width:100%;margin-top:3px;">Back</a>
+	   </td>
+		<td align="right" width="10%" nowrap>
+	<a class="btn btn-sm btn-primary" style="width:100%;margin-top:3px;" href="dbe_list_db.msp?XY=<%=cSeed%>&" title="Choose another database or exit this procedure"><img border="0" src="img/d81_changedb_ico.gif" width="23" height="14"> Change DB</a>
+   <br>
+   <a class="btn btn-sm btn-danger" style="width:100%;margin-top:3px;" target="frm2" href="dbe_create_table.msp?XY=<%=cSeed%>&VAR_DIR=<%=cDir%>" title="Create new table"><img border="0" src="img/d8_new_db_ico.GIF" width="27" height="15"> New Table</a>
+      </td>
+	</tr>
+</table>
+
+<%
+$extended
+nFiles = adir( cMask, aName, aSize, aDate, aTime, aAttr )
+rrr := 0
+   %>
+   <table width="100%" id="table0">
+   <tr>
+   <td>
+   <font color="#FFFFFF" size="2">TABLES</font></td>
+   <td width="40%" nowrap>
+   </td>
+	</tr>
+   </table>
+   <!----------------------------------- List of tables -------------------------------------- //-->
+   <table class="table" id="table1" cellspacing="0" cellpadding="0" width="100%" >
+   <%
+   for iii = 1 to nFiles
+      cFile := aName[iii]
+      if left(filebone(cFile),1)="_"
+         *-- hide
+      else
+         rrr++      
+         %>
+         <tr id="tr_<%=str(rrr,2,0,"0")%>" style="background-color:#333333;">
+         
+         <td nowrap><font size="1" color="gray"><%=str(rrr,2,0,"0")%></font>
+         <a target="frm2" href="dbe_display_stru.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cFile%>&VAR_DIR=<%=cDir%>&VAR_DBTYPE=<%=cDbType%>" title="Structure" onclick="setTagsColor('tr','#333333');changeBg('tr_<%=zz(rrr)%>','#990000');">
+            <img border="0" src="img/d81_table_ico.gif" width="23" height="18">
+         </a>
+         <a target="frm2" href="dbe_browse.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cFile%>&VAR_DBTYPE=<%=cDbType%>" title="View or edit table [<%=filebone(cFile)%>]"  onclick="setTagsColor('tr','#333333');changeBg('tr_<%=zz(rrr)%>','#990000');"><%=left(capital(filebone(cFile)),22)%></a>&nbsp;
+         </td>
+         <td>
+         <a target="_self" href="dbe_toolbox.msp?XY=<%=cSeed%>&VAR_TABLE=<%=cFile%>&VAR_DIR=<%=cDir%>&VAR_DBTYPE=<%=cDbType%>" title="Toolbox">
+            <img border="0" src="img/d81_tools_ico.gif" width="23" height="18"></a>         
+         </td>
+         </tr>
+         <% 
+      endif 
+      next
+   %>
+   <tr><td colspan="4" bgcolor="#000000">&nbsp;</td>
+   <tr><td colspan="4"></td></tr>
+   </table>
+   &nbsp;<%
+do case
+case rrr=0
+   %><p>This database is empty!<ul>
+   <li><a href="dbe_list_db.msp?XY=<%=cSeed%>&">Change database</a></li>
+   <li><a href="dbe_delete_db.msp?XY=<%=cSeed%>&VAR_DB=<%=cDir%>" target="frm2">Delete this database</a></li>
+   </ul>
+   <%
+case rrr > 15
+   %>
+   <table cellpadding="4">
+   <tr><td colspan="4" nowrap bgcolor="#FF0000"><a href="dbe_list_db.msp?XY=<%=cSeed%>" title="Choose another database or exit this procedure"><img border="0" src="img/d81_changedb_ico.gif" width="23" height="14">Change DB</a></td></tr>
+   </table>
+   <%   
+endcase
+%>
+<p>&nbsp;</p>
+</body>
+</html>
+
+<%
+**************************************
+function passVars2(aArr)
+**************************************
+local cParm
+cParm := ""
+if len(aArr) > 0
+   for nnn = 1 to len(aArr)
+      if aArr[nnn,1] <> "PB" .and. .not. empty(aArr[nnn,2])
+         cParm += "&" + aArr[nnn,1]+"="+aArr[nnn,2]
+      endif
+   next
+   if left(cParm,1)="&"
+      cParm := subs(cParm,2,len(cParm)-1)
+   endif
+endif
+cParm := cleanUp(cParm)
+cParm := cleanStr(cParm)
+return cParm 
+
+%>

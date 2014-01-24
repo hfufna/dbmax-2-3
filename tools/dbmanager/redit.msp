@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+               SLAVE PAGE - USING GLOBALS.MEM 
+               *********************************
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script language="javascript" src="app-js/jmax.js"></script>
+<title>DATABASE Navigator - DB Manager v.1.0-2013</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+body {font-size:12;}
+td {vertical-align: top;font-size:12;}
+li {margin-top:3px;}
+.dbitem { border-bottom:dotted 1px white;}
+</style>
+<!----------------------------------- MaxScript -------------------------------------- //-->
+<%
+lDebug :=.f.
+**************************************** DBFree 3-0-3-MID-HEADER
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+if lDebug
+? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+restore from(xGlobals) additive
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+//--
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+nRecno  := val(MSPFieldValue("VAR_RECNO"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MID-HEADER
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//--LOCAL VARIABLES
+cIp := getenv("REMOTE_ADDR")
+cUrl := getenv("SERVER_NAME")
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SECTION
+//
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with V1.9-V2.1
+
+//--table for messages (father table)
+cTable  := cDBpath + "BOARD.DBF"
+cIndex  := cDBpath + "BOARD.MTX"
+use (cTable) index (cIndex) key D_END
+
+nRecno   := val(MSPFieldValue("VAR_RECNO"))
+nRecno := min(nRecno,lastrec())
+nRecno := max(nRecno,1)
+if nRecno <>0
+   go nRecno
+endif
+
+%>
+<!----------------------------------- HTML BODY -------------------------------------- //-->
+<body>
+Edit this Notice<form action="some_page.msp?XY=<%=cSeed%>&" method="post" class="webform">
+<table border="0" class="table1">
+<tr>
+   <td class="th1"><font color="#FFFFFF">Field</font></td>
+   <td class="th1"><font color="#FFFFFF">Fieldname</font></td>
+   <td class="th1"><font color="#FFFFFF">Input value</font></td>
+</tr>
+
+<tr>
+   <td class="td1"><font color="#FFFFFF">1</font></td>
+   <td  class="td1" align="right"><font color="#666666">MSG_ID&nbsp;(C)12</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_MSG_ID" value="<%=zz(MSG_ID)%>" size=12>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">2</font></td>
+   <td  class="td1" align="right"><font color="#666666">D_REG&nbsp;(D)12</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_D_REG" value="<%=zz(D_REG)%>" size=12>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">3</font></td>
+   <td  class="td1" align="right"><font color="#666666">T_REG&nbsp;(C)10</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_T_REG" value="<%=zz(T_REG)%>" size=10>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">4</font></td>
+   <td  class="td1" align="right"><font color="#666666">TTL_DAYS&nbsp;(N)10</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_TTL_DAYS" value="<%=zz(TTL_DAYS)%>" size=10>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">5</font></td>
+   <td  class="td1" align="right"><font color="#666666">D_END&nbsp;(D)12</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_D_END" value="<%=zz(D_END)%>" size=12>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">6</font></td>
+   <td  class="td1" align="right"><font color="#666666">ONLY_TO&nbsp;(C)50</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_ONLY_TO" value="<%=zz(ONLY_TO)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">7</font></td>
+   <td  class="td1" align="right"><font color="#666666">MSG_TYPE&nbsp;(C)20</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_MSG_TYPE" value="<%=zz(MSG_TYPE)%>" size=20>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">8</font></td>
+   <td  class="td1" align="right"><font color="#666666">ABSTRACT&nbsp;(C)30</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_ABSTRACT" value="<%=zz(ABSTRACT)%>" size=30>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">9</font></td>
+   <td  class="td1" align="right"><font color="#666666">SUBJECT&nbsp;(C)128</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_SUBJECT" value="<%=zz(SUBJECT)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">10</font></td>
+   <td  class="td1" align="right"><font color="#666666">MSG_BODY&nbsp;(M)25</font></td>
+   <td align="left" class="td1">
+    <textarea name="EF_MSG_BODY" rows=4 cols=40><%=zz(MSG_BODY)%></textarea>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">11</font></td>
+   <td  class="td1" align="right"><font color="#666666">MSG_FILE&nbsp;(C)80</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_MSG_FILE" value="<%=zz(MSG_FILE)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">12</font></td>
+   <td  class="td1" align="right"><font color="#666666">ATTACHMENT&nbsp;(C)80</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_ATTACHMENT" value="<%=zz(ATTACHMENT)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">13</font></td>
+   <td  class="td1" align="right"><font color="#666666">POSTED_BY&nbsp;(C)35</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_POSTED_BY" value="<%=zz(POSTED_BY)%>" size=35>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">14</font></td>
+   <td  class="td1" align="right"><font color="#666666">REPLY_TO&nbsp;(C)35</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_REPLY_TO" value="<%=zz(REPLY_TO)%>" size=35>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">15</font></td>
+   <td  class="td1" align="right"><font color="#666666">PREV_MSG&nbsp;(C)15</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_PREV_MSG" value="<%=zz(PREV_MSG)%>" size=15>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">16</font></td>
+   <td  class="td1" align="right"><font color="#666666">NEXT_MSG&nbsp;(C)15</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_NEXT_MSG" value="<%=zz(NEXT_MSG)%>" size=15>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">17</font></td>
+   <td  class="td1" align="right"><font color="#666666">REQ_CONF&nbsp;(L)1</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_REQ_CONF" value="<%=zz(REQ_CONF)%>" size=1>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">18</font></td>
+   <td  class="td1" align="right"><font color="#666666">VISIB&nbsp;(N)10</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_VISIB" value="<%=zz(VISIB)%>" size=10>
+    </td>
+</tr>
+      
+</table>
+<hr>
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VAR_OPTION" value="">
+<input type="reset" name="PB_ESC" value="Reset form">&nbsp;
+<input type="submit" name="PB_OK" value="Send to server">
+</form>  
+<!-- ================================================================//-->
+
+</body>
+
+</html>

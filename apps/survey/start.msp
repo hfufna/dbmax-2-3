@@ -1,0 +1,38 @@
+<html>
+<!--
+DBFREE DEMO AND TUTORIALS 2013
+
+********************************************************
+SURVEY MAKER DEMO  v.0.0.1 - February 2013
+Written from Hannes "Fuffy" Dalgreen for MaxScript 2.1
+********************************************************
+
+THIS APPLICATION IS ONLY FOR EDUCATIONAL PURPOSE - ALL EMBELLISHMENTS AND MOST OF 
+JAVASCRIPTS HAVE BEEN INTENTIONALLY REMOVED TO COMPLY WITH THE CLASSIC MAXSCRIPT PROGRAMMING STYLE
+
+FOR MORE ADVANCED VERSIONS USING AJAX AND JAVASCRIPTS SEE www.dbfree.org
+THIS VERSION IS AIMED TO PROGRAMMERS THAT WANT TO GET AQUAINTED WITH MAXSCRIPT  
+
+
+Module name.......: start.msp
+Module type.......: static page - framed - standard DBFree 2-frames template
+Purpose...........: ENTRYPOINT OF APPLICATION
+ 
+Notes.............: calls the bootstrap page INIT.msp while mainmenu loads 
+                    a splash page over it: thus the INIT results are not visible
+//-->
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>SURVEY MAKER Intro Page - DBFree v3</title>
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+</head>
+
+<frameset cols="245,*" framespacing="0" border="0" frameborder="0">
+<frame name="frm1" src="usermenu.msp" target="frm2">
+<frame name="frm2" src="init.msp" scrolling="auto" marginwidth="0" marginheight="0">
+</frameset>
+<noframes>
+<body><p>This page uses frames, but your browser doesn't support them.</p></body>
+</noframes>
+</html>

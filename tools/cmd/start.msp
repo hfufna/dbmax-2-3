@@ -1,0 +1,450 @@
+<html>
+<!-- 
+         DBMAX COMMAND CONSOLE WEB APPLICATION
+         For DBBMAX 2.3 -2.5
+         January 2014 ( replacing version of November 2013)
+         
+         ENTRY POINT
+//-->
+<%
+//-- COMMAND PROMPT STARTUP FILE
+//
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- 11 MAXOBJECT HANDLING
+cAction  := upper(MSPFieldValue("VAR_ACTION"))
+cOption  := MSPFieldValue("VAR_OPTION")
+
+//--
+cSeed := MspFieldValue("XY")
+cSelf    := pageName()
+
+CR_LF := chr(13)+chr(10)
+
+set decimals to 0
+set century on
+set hour to 24
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<%
+*********************************************************************
+//-- LOCAL VARS
+cSelf     := pageName()
+cDbPath   := setDb("cmd")
+cTagOpen  := "<" + "%"
+cTagClose := "%" + ">"
+cTagStr   := cTagOpen + CR_LF + CR_LF + cTagClose
+cMsg      := "DBMAX 2.5 CMD PROMPT on " + getenv("COMPUTERNAME") + " " + getenv("SERVER_SOFTWARE") + " Session[" + cSeed + "]"
+cMsg      += " READY!"
+cProgDir  := curDosDir()
+xcRunDir  := curDosDir()
+
+//-- PRELOADED CODE
+cHead    := memoread(cProgDir+"header.txt")
+cFoot    := memoread(cProgDir+"footer.txt")
+
+*********************************************************************
+//-- INCOMING WEBVARS
+cAction  := strTran(upper(cAction)," ","")
+cOption  := MSPFieldValue("VAR_OPTION")
+cCode    := MSPFieldValue("EF_CODE")
+cSnippet := MSPFieldValue("EF_SNIP")
+
+//-- INCOMING CODE CHECKOUT
+*-- checking for code being included into correct tags 
+cCode := alltrim(cCode)
+if len(cCode) > 0
+   if left(cCode,2) <> cTagOpen
+      cCode := cTagOpen + CR_LF + cCode
+   endif
+   if right(cCode,2) <> cTagClose
+      cCode := cCode + CR_LF + cTagClose
+   endif
+endif
+
+
+***********************************************************************
+//-- FILES TO USE
+cIp       := getenv("REMOTE_ADDR")
+cToken    := strtran(cIp,".","-") 
+cRunFile  := xcRunDir + "run_" + cToken + ".msp"
+if not file(cRunFile)
+   memowrit(cRunFile,"No code yet!")
+endif
+cRunPage := dos2web(cRunFile)
+cTmpFile := cDbPath + "tmp_" + cToken + ".txt"
+
+**********************************************************************
+//-- ADDING SNIPPETS
+if not empty(cSnippet)
+   cCode := memoread(cTmpFile)
+   cCode += CR_LF + cSnippet
+endif
+
+**********************************************************************
+//-- PREDEFINED FOLDERS FOR SAVING EXPORTING ETC
+cSaveDir := updir(xcRunDir) + "userfiles\"
+cExpDir  := upDir(xcRunDir) + "userpages\"
+
+
+***********************************************************************
+//-- INTERFACE SETTINGS
+xnBoxHeight  := "90"
+xnSintWidth  := "46"
+xnSintHeight := "89"
+
+//-- GET SAVED SETTINGS 
+xMemFile := cDbPath + "usr_" + cToken + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+***********************************************************************
+
+
+//-- BACKGROUND ACTION
+do case
+*******************************
+case cAction = "CLEAR"
+*******************************
+//-- voiding the blackboard
+   cCode := cTagStr
+   memowrit(cTmpFile,cTagStr)
+   *
+*******************************
+case cAction = "QUICK"
+*******************************
+//-- writing demo code to blackboard
+cTmp := ""
+   cTmp += cTagOpen
+   cTmp += [//-- just click on RUN in the top bar] + CR_LF
+   cTmp += [//   to test this code]  + CR_LF + CR_LF
+   cTmp += [? "Hello world!"] + CR_LF
+   cTmp += [setDb("demo")] + CR_LF
+   cTmp += [use customers] + CR_LF
+   cTmp += [? "Table " + dbf() + " has " | reccount() | " Records."] + CR_LF
+   cTmp += [list STATE, CITY, ZIPCODE, TOT_AMNT off] + CR_LF + CR_LF
+   cTmp += [//-- click on button REFERENCE for more examples] + CR_LF 
+   cTmp += cTagClose
+   memowrit(cTmpFile,cTmp)
+   cCode := cTmp
+   *   
+*******************************
+case cAction = "APPLY"
+*******************************
+   xcRunDir     := MSPFieldValue("EF_RUNDIR")
+   xnBoxHeight  := MSPFieldValue("EF_BOX-H")
+   xnSintWidth  := MSPFieldValue("EF_POP-W")
+   xnSintHeight := MSPFieldValue("EF_POP-H")
+   save all like x* to (xMemFile)
+   cMsg := "New settings were saved. "
+   restore from (xMemFile) additive
+   
+*******************************
+case cAction == "SAVETO"
+*******************************
+cSavePath := updir(filepath(cRunFile))+"userfiles\"
+cOption   := MSPFieldValue("EF_OPTION")
+cSaveCode := MSPFieldValue("EF_CODE")
+
+if not file(cSavePath)
+   md (cSavePath)
+endif
+cSaveTo   := filename(MSPFieldValue("EF_FILENAME"))
+cFile     := cSavePath + cSaveTo + ".mspx"
+if file(cFile)
+   cMsg := "MADE BACKUP COPY - "
+   cBkUp   := cSavePath + cSaveto + "_bak.mspx"
+   copy file (cFile) to (cBkUp)
+endif
+if cOption = "1"
+   cFile := cSavePath + cSaveTo + ".txt"
+   memowrit(cFile, mspdecode(cSaveCode))
+else
+   memowrit(cFile, cSaveCode)
+endif
+cMsg += "Current code saved into:" +cFile
+cCode := mspdecode(memoread(cFile))
+
+*******************************
+case cAction == "LOADFILE"
+*******************************
+cFile := MSPFieldValue("EF_FILENAME")
+if file(cFile)
+   cMsg := "LOADING FILE " + cFile
+   cCode := mspdecode(memoread(cFile))
+endif
+   
+*******************************
+case cAction == "EXPORT"
+*******************************
+cSavePath := updir(filepath(cRunFile))+"userpages\"
+if not file(cSavePath)
+   md (cSavePath)
+endif
+cSaveTo   := filename(MSPFieldValue("EF_FILENAME"))
+cFile     := cSavePath + cSaveTo + ".msp"
+if file(cFile)
+   cMsg := "MADE BACKUP COPY - "
+   cBkUp   := cSavePath + cSaveto + "_bak.msp"
+   copy file (cFile) to (cBkUp)
+endif
+copy file (cRunFile) to (cFile)
+cCode := mspdecode(MSPFieldValue("EF_CODE"))
+*******************************
+endcase
+*******************************
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<body text="#000000">
+<div id="main" style="position:relative; top:0;width:100%; height:100%;">
+
+<!----------------------------------- MAIN -------------------------------------- //-->
+<%
+//-- FOREGROUND ACTIONS
+do case
+*-----------------------------------------------------------------------
+case cAction = "RUN"
+*-----------------------------------------------------------------------
+//-- form to show the RESULTS screen generated launching the code with RUNFILE
+//
+cCode := strTran(cCode,"°°",'"')
+cCode := strTran(cCode,"°","'")
+cRun := cHead + cCode + cFoot
+if not memowrit(cTmpFile,cCode)
+   cMsg += ("Enable to write on temp file " + cTmpCode)
+endif
+if not memowrit(cRunFile,cRun)
+   cMsg += ("Enable to write on runner file " + cRunFile)
+else
+   cMsg := "Code loaded."
+endif
+%>
+<form name="form2" method="post" action="<%=cSelf%>">
+<div class="thumbnail">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input class="btn btn-sm btn-warning" type="submit" name="VAR_ACTION" value="Back">&nbsp;&nbsp;|&nbsp;&nbsp;
+   <input class="btn btn-sm btn-default" type="submit" name="VAR_ACTION" value="Debug">
+</div>
+<iframe name="itarget" style="width:100%; height:<%=xnBoxHeight%>%; border:solid 1px black; background-color:white;" src="<%=cRunPage%>">
+</iframe>
+</form>
+<%
+*-----------------------------------------------------------------------
+case cAction = "SETUP"
+*-----------------------------------------------------------------------
+//-- form for general settings
+%><%=container()%>
+<form name="form3" method="post" action="<%=cSelf%>">
+<h3>General Settings</h3><hr>
+Folder for command execution<br>
+<input type="text" name="EF_RUNDIR" value="<%=zz(xcRunDir)%>" size="<%=len(xcRunDir)+10%>"><br>
+<font size="1" color="gray">(If different from <%=curDosDir()%> must be an <i>Alias</i> recognized by <%=getenv("SERVER_SOFTWARE")%>)</font>
+<hr>
+
+Vertical size of the blackboard
+<input type="text" name="EF_BOX-H" value="<%=zz(xnBoxHeight)%>" size="2">%<br>
+
+Horizontal size ((width) of the Sintax Help pop-up window
+<input type="text" name="EF_POP-W" value="<%=zz(xnSintWidth)%>" size="2">%<br>
+
+Vertical size (height) of the Sintax Help pop-up window
+<input type="text" name="EF_POP-H" value="<%=zz(xnSintHeight)%>" size="2">%<br>
+
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<p>Notice: in this version change of settings is disabled</p>
+<hr>
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input class="btn btn-sm btn-default" type="submit" name="VAR_ACTION" value="Back">
+<input class="btn btn-sm btn-warning" type="submit" name="VAR_ACTION" value="Apply">
+</form>
+<%=container(0)%>
+<%
+*-----------------------------------------------------------------------
+case cAction = "DEBUG"
+*-----------------------------------------------------------------------
+//-- form to show the DEBUG screen generated by external procedure debug.msp
+%>
+<form name="form4"  method="post" action="<%=cSelf%>">
+<div class="thumbnail">
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input class="btn btn-sm btn-warning" type="submit" name="VAR_ACTION" value="Back">
+</div>
+<iframe name="itarget" style="width:100%; height:<%=xnBoxHeight%>%; border:solid 1px black;" src="debug.msp?VAR_FILE=<%=cRunFile%>">
+</iframe>
+</form>
+<%
+*-----------------------------------------------------------------------
+case cAction = "CONFIRM"
+*-----------------------------------------------------------------------
+%>
+<form name="form_conf" action="<%=cSelf%>" method="post" style="form1">
+Please confirm before to proceed!
+<input class="btn btn-sm btn-warning" type="submit" name="VAR_ACTION" value="YES" onclick="this.value='<%=cCode%>'">
+<input class="btn btn-sm btn-default" type="submit" name="PB_ESC" value="No">
+<%=passFields(aVars)%>
+<hr>
+</form>
+<%
+*-----------------------------------------------------------------------
+case cAction = "WLOAD"
+*-----------------------------------------------------------------------
+%>
+<form name="form_load" action="<%=cSelf%>" method="post" style="form1" target="frm2">
+<h3>Load code from file</h3>
+<input type="hidden" name="EF_FILENAME" size="35" readonly>
+<input type="hidden" name="VAR_ACTION" value="LOADFILE">
+<input type="hidden" name="VAR_OPTION" value="">
+<%
+$extended
+cMask := cSaveDir + "*.mspx"
+? "List of " + cMask
+store "" to aName,aSize,aTime,aAttr
+nFiles := adir( cMask, aName, aSize, aDate, aTime, aAttr )
+for iii = 1 to len(aName)
+   cThis := lower(aName[iii])
+   cLink := strTran(cThis,"\","\\")
+   %>
+   <br><%=iii%> <input class="btn btn-sm btn-warning" type="submit" name="PB_OK" value="&gt;|&lt;" onclick="form_load.EF_FILENAME.value='<%=cLink%>';"><%=filename(cThis)%>
+   <%
+next
+%>
+<hr>
+<input class="btn btn-sm btn-default" type="submit" value="Close">
+</form>
+<%
+*-----------------------------------------------------------------------
+case cAction = "WEXPORT"
+*-----------------------------------------------------------------------
+
+
+*-----------------------------------------------------------------------
+case cAction = "WSAVE"
+*-----------------------------------------------------------------------
+
+*-----------------------------------------------------------------------
+otherwise
+*-----------------------------------------------------------------------
+//-- form to show the BLACKBOARD 
+//
+if empty(cCode)
+   cCode := memoread(cTmpFile)
+endif
+%>
+<!----------------------------------- BLACKBOARD MENU -------------------------------------- //-->
+
+<form name="form1" method="post" action="<%=cSelf%>">
+<div class="thumbnail">
+<input type="hidden" name="XY" value="<%=cSeed%>">
+&nbsp;
+<input class="btn btn-sm btn-warning" type="submit" name="VAR_ACTION" value="RUN">
+<input class="btn btn-sm btn-default" type="submit" name="VAR_ACTION" value="Clear">
+&nbsp;|&nbsp;
+<input class="btn btn-sm btn-success" type="button" value="EXIT" onclick="javascript:document.location='booter.msp?XY=<%=cSeed%>';">
+<input class="btn btn-sm btn-default"type="button" value="Load file" onclick="javascript:toggleDiv('div_load');">
+<input class="btn btn-sm btn-default"type="button" value="Save to" onclick="javascript:toggleDiv('div_save');">
+<input class="btn btn-sm btn-default"type="button" value="Export" onclick="javascript:toggleDiv('div_export');">
+&nbsp;|&nbsp;
+<input class="btn btn-sm btn-default"type="button" name="PB_1" value="Reference" onclick="javascript:toggleDiv('div_sintax');">
+&nbsp;|&nbsp;
+<input class="btn btn-sm btn-default"type="submit" name="VAR_ACTION" value="Quick Start" class="">
+<input class="btn btn-sm btn-default"type="button" value="Settings" onclick="document.location='<%=cSelf%>?VAR_ACTION=SETUP';"> 
+<span class="badge pull-right"><%=cSeed%></span>
+</div>
+<!----------------------------------- BLACKBOARD BOX -------------------------------------- //-->
+<textarea id="xcode" name="EF_CODE" style="position:relative;width:100%;height:<%=xnBoxHeight%>%;min-height:400;background-color:black;color:lime;padding:5 5 5 5;border:solid 4px #c0c0c0;font-family:Courier New,
+Lucida Console;">
+<%=cCode%></textarea>
+</form>
+
+<!----------------------------------- status bar -------------------------------------- //-->
+<div id="msg" style="position:relative; top:-5; left:0; min-height:20; width:100%; background-color: #c0c0c0; color: maroon;">
+<%? cMsg html%>
+</div>
+<%
+*-----------------------------------------------------------------------
+endcase
+*-----------------------------------------------------------------------
+%>
+</div>
+<!----------------------------------- *sintax reference popup //----------------------------------------->
+<div id="div_sintax" style="position:absolute; z-order:10; right:10; top:5; height:<%=xnSintHeight%>%; width:<%=xnSintWidth%>%; display:none; background-color:#FFFFFF; border: solid 3px gray; padding:2 5 5 2;">
+<iframe name="frm_sintax" frameborder="0" height="100%" width="100%" src="sintax_form.msp"></iframe>
+</div>
+
+<!----------------------------------- *SAVE to file popup  -------------------------------------- //-->
+<div id="div_save" style="position:absolute; z-order:10; top:20%; left:10%; height:60%; width:80%; background-color: #FFFFFF; display:none; border: solid 3px gray; padding: 5 5 5 5;">
+<form name="form_save" action="<%=cSelf%>" method="post" style="form1">
+<h3>Save the code to file</h3>
+You can save the code actually shown on the blackboard to a file for a later use.<br>Please insert a meaningful name for the file:<br>
+<input type="text" name="EF_FILENAME" id="ef_filename" value="" size="30" title="Insert a name for file to be created" style="background-color:#F7EFAC;"> 
+<br>(File will be placed into folder <%=cSaveDir%>)<br>
+<input type="submit" name="PB_OK" value="Save to file">
+<input type="checkbox" name="EF_OPTION" value="1"><font size="1">as text file</font>
+<input type="hidden" name="VAR_ACTION" value="SAVETO">
+<input type="hidden" name="EF_CODE" value="<%=mspencode(cCode)%>">
+</form>
+<hr><p align="center"><a href="javascript:toggleDiv('div_save');">Close window</a>
+</div>
+<script type="text/javascript">document.getElementById('ef_filename').focus();</script>
+
+<!----------------------------------- *LOAD from file -------------------------------------- //-->
+<div id="div_load" style="position:absolute; z-order:10; top:20%; left:10%; height:100%; width:100%; background-color: #FFFFFF; display:none; border: solid 3px gray; padding: 5 5 5 5;">
+ <iframe src="<%=cSelf%>?VAR_ACTION=WLOAD" frameborder="0" width="100%" height="100%">
+</iframe>
+</div>
+
+
+<!----------------------------------- *EXPORT to file popup  -------------------------------------- //-->
+<div id="div_export" style="position:absolute; z-order:10; top:116px; left:88px; height:60%; width:80%; background-color: #FFFFFF; display:none; border: 3px solid gray; padding: 5;">
+<%
+cExpFile := "test"
+cToken   := cExpFile
+vvv := 0
+do while vvv < 100
+   vvv++
+   cFileChk := cExpDir + cExpFile + ".msp"
+   if file(cFileChk)
+      cExpFile := cToken + "(" + zz(vvv) + ")"
+   else
+      exit
+   endif
+enddo
+%>
+<form name="form_export" action="<%=cSelf%>" method="post" style="form1">
+<h3>Export the code to a full web page</h3><br>
+You can save the code actually shown on the blackboard to a fully functional webpage to be used without the intermediation of Command Window in a standard web application.
+<p>
+<b>Choose a filename</b> for the webpage (extension will be added automatically):<br>
+<input type="text" name="EF_FILENAME" id="ef_filename" value="<%=cExpFile%>" size="20" title="Insert a name for file to be created"> 
+<input type="submit" name="PB_OK" value="Export to webpage">
+<input type="hidden" name="VAR_ACTION" value="EXPORT">
+<input type="hidden" name="EF_CODE" value="<%=mspencode(cCode)%>">
+<hr><p align="center"><a href="javascript:toggleDiv('div_export');">Hide window</a>
+</form>
+</div>
+
+</html>

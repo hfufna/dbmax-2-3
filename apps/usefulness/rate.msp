@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>Was this page useful? - DBFree.org</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<!----------------------------------- MaxScript Header -------------------------------------- //-->
+<%
+cAppId := "usefulness"
+**************************************** DBFree 3-0-3-MINI-HEADER
+zcRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free30.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+*-- uncomment the line below for debugging
+*? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MINI-HEADER
+cSelf := pagename()
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VAR_OPTION")
+
+//-- INCOMING WEBVARS
+cSection := MSPFieldValue("VAR_SECTION")
+cPage    := MSPFieldValue("VAR_PAGE")
+cUsrRate  := MSPFieldValue("EF_USR_RATE")
+cComments := MSPFieldValue("EF_COMMENTS")
+
+//-- DATABASE SECTION
+cDir := setDb(cAppId)
+cDbPath := cDir
+
+cTable  := cDir + "USR_RATINGS.DBF"
+cIndex  := cDir + "USR_RATINGS.MTX"
+if not file(cTable)
+  ainit( "aField","D_REG","T_REG","IP_ADDR","WEBSITE","SECTION","PAGE","USR_RATE","COMMENTS")
+  ainit( "aType","D","C","C","C","C","C","C","M")
+  ainit( "aSize",8,10,15,50,35,35,10,10)
+  ainit( "aDec",0,0,0,0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+use (cTable) in 0 alias TEMP index (cIndex) key IP_ADDR
+
+do case
+**************************
+case cAction = "SAVE"
+append blank
+nRec := recno()
+go nRec
+if rlock(1)
+  repl D_REG         with date()
+  repl T_REG         with time()
+  repl IP_ADDR       with getenv("REMOTE_ADDR")
+  repl WEBSITE       with getenv("REFERER")
+  repl SECTION       with cSection
+  repl PAGE          with cPage
+  repl USR_RATE      with cUsrRate
+  repl COMMENTS      with cComments
+  unlock
+endif
+cAction := "OK"
+*************************
+endcase
+%>
+<!----------------------------------- HTML BODY START -------------------------------------- //-->
+<body>
+<%
+do case
+case empty(cAction)
+*********************************
+%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" class="form1" style="border:solid 1px black; padding: 3 3 3 3;">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<table border="0" width="100%">
+	<tr>
+		<td>Was this information useful?
+		<br><input type="radio" name="EF_USR_RATE" value="Y">Yes
+		<br><input type="radio" name="EF_USR_RATE" value="0">Somewhat
+		<br><input type="radio" name="EF_USR_RATE" value="N">No
+		</td>
+		<td align="left" width="75%">
+		<input type="hidden" name="EF_SECTION" value="<%=cSection%>">
+		<input type="hidden" name="EF_PAGE" value="<%=cPage%>">&nbsp;
+		<input type="submit" name="PB_OK" value="Submit"></td>
+	</tr>
+</table>
+</form>
+<h3>
+<!--- form end //--->
+<%
+case cAction = "OK"
+*****************************
+%>
+Thank you for your feedback!
+<%
+endcase
+*****************************
+%>
+</h3>
+</body>
+
+</html>

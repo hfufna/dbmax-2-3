@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="../../default.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<script language="javascript">
+function go(cKey){
+ajaxRun('aj_counter.msp?VAR_KEY=',cKey,'div_results');
+}
+</script>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+SET DELETED ON
+
+
+//-- INCOMIMG WEBVARS
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VO")
+*
+cCUST_NAME := MSPFieldValue("EF_CUST_NAME")
+cArrivo     := MSPFieldValue("EF_INCOM_T")
+nPosti      := val(MSPFieldValue("EF_N_SEATS"))
+cNumCell    := MSPFieldValue("EF_CELL_PHONE")
+cRilascio   := MSPFieldValue("EF_OUTG_T")
+
+
+//-- LOCAL VARIABLES
+cSelf    := pageName()
+cMsg     := ""
+
+declare aHour[6,2]
+      aHour[1,1] := "19"
+      aHour[1,2] := "30"
+      
+      aHour[2,1] := "20"
+      aHour[2,2] := "00"
+      
+      aHour[3,1] := "20"
+      aHour[3,2] := "30"
+      
+      aHour[4,1] := "21"
+      aHour[4,2] := "00"
+      
+      aHour[5,1] := "21"
+      aHour[5,2] := "30"
+
+      aHour[6,1] := "22"
+      aHour[6,2] := "00"      
+      
+//-- MASSIMO DI POSTI PRENOTABILI
+//
+cDbPath    := setDb("telecomande")
+cIniFile   := cDbPath + "prenotazioni.ini"
+nMaxPrenot := 80 //--val(readIniVar(cIniFIle,"AvailSeats"))
+      
+//-- TABELLE
+//
+cDb  := cDBpath + "RESERV.DBF"
+cXb  := cDBpath + "RESERV_BY_DAY.MTX"
+cXb1 := cDBpath + "RESERV_BY_INCOMT.MTX"
+cXb2 := cDBpath + "RESERV_BY_OUTGT.MTX"
+if not file(cDb)
+  ainit( "aField","ID_RES","INCOM_T","OUTG_T","CUST_NAME","CELL_PHONE","N_SEATS","TABLE_TYPE","THISDAY","D_REG","T_REG","TERM_ID")
+  ainit( "aType","C","C","C","C","C","N","C","D","D","C","C")
+  ainit( "aSize",6,10,10,35,20,2,20,8,8,10,20)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb) from aField, aType, aSize, aDec
+endif
+
+//-- opening table and indexes
+use (cDb) in 0 alias MASTER index (cXb) key THISDAY, (cXb1) key dtoc(THISDAY)+INCOM_T, (cXb2) key dtoc(THISDAY)+OUTG_T
+set filter to THISDAY = date()
+go top 
+sum all N_SEATS to nTotPrenot
+
+//-- moving the cursor
+nRec := val(MSPFieldValue("VAR_REC"))
+nRec := max(1,nRec)
+nRec := min(nRec,lastrec())
+go nRec
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<%
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+//-- CERCA APPARATO
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()      
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+
+   return
+endif
+******************************************* OK **
+
+*####################################################
+
+//-- FIRST GROUP 
+//   NON INTERACTIVE ACTIONS
+do case
+********************************************
+case cAction = "SAVE"
+********************************************
+lError := .f.
+if empty(cArrivo)
+   %>
+   <p align="center">You forgot the arrival time!</p>
+   <%
+   lError :=.t.
+endif
+if nPosti < 1
+   %>
+   <p align="center">You didn't specify how many seats!</p>
+   <%
+   lError :=.t.
+endif
+if empty(cCUST_NAME)
+   %>
+   <p align="center">You forgot the nickname of customer!</p>
+   <%
+   lError :=.t.
+endif
+
+if not lError
+   set filter to THISDAY = date()
+   go top
+   count to nProgr
+   nProgr++
+   if cOption="APPEND"
+      append blank
+   endif
+   if rlock(2)
+      repl THISDAY      with date()
+      repl ID_RES       with str(nProgr,3,0,"0")
+      repl CUST_NAME    with cCUST_NAME
+      repl N_SEATS      with nPosti
+      repl INCOM_T      with cArrivo
+      repl OUTG_T       with cRilascio
+      repl CELL_PHONE   with cNumCell
+      repl D_REG        with date()
+      repl T_REG        with time()
+      repl TERM_ID      with getenv("REMOTE_ADDR")
+      unlock
+   else
+      cMsg := "ERRORE: impossibile registrare transazioni!"
+   endif
+   %>
+   <div align="center">
+   <h2>Reservation recorded</h2>
+   for nickname <b><%=CUST_NAME%></b> <%=N_SEATS%> persons arriving at <%=INCOM_T%>
+   </div>
+   <% 
+else
+   %>
+   <div align="center">
+   <p>Reservation aborted.<br>
+   <a href="<%=cSelf%>?EF_CUST_NAME=<%=cCUST_NAME%>&EF_N_SEATS=<%=zz(nPosti)%>">
+   <img border="0" src="img/pb_dinner.gif" width="125" height="112" title="Make a new reservation">
+   </a></div>
+   <%
+endif
+
+********************************************
+case cAction = "UPDATE"
+********************************************
+%>
+<!----------------------------------- ACTUATOR OF CHANGES TO RESERVATION -------------------------------------- //-->
+<div align="center">
+Reservation of <b><%=CUST_NAME%></b> for <%=N_SEATS%> persons at <%=INCOM_T%>
+<%
+if cOption = "DEL"
+   if rlock(4)
+      repl N_SEATS  with 0
+      delete
+      unlock
+      sum all N_SEATS to nTotPrenot
+      %>
+      <p><img border="0" src="img/ico_deleted.gif" width="147" height="132">
+      <br>Reservation DELETED 
+      <%
+      else
+      cMsg := "ERROR R03: table stuck!"
+   endif
+else
+   if rlock(2)
+      repl N_SEATS  with val(MSPFieldValue("EF_N_SEATS"))
+      repl INCOM_T  with MSPFieldValue("EF_INCOM_T")
+      repl OUTG_T   with MSPFieldValue("EF_OUTG_T")
+      repl T_REG    with time()
+      repl TERM_ID  with getenv("REMOTE_ADDR")
+      unlock
+      %>
+      <br>Reservation UPDATED
+      <p><%=N_SEATS%> seats at <%=INCOM_T%>
+      <%   
+   else
+      cMsg := "ERROR R04: table stuck!"
+   endif
+endif
+%>
+<p>
+<img border="0" src="pw5_menu.gif" height="50">
+</div>
+<%
+********************************************
+endcase
+********************************************
+%>
+<body>
+<!----------------------------------- *HTML START --------------------------------------- //-->
+<%
+if empty(cArrivo)
+   cArrivo := aHour[2,1] + ":" + aHour[2,2]
+endif
+%>
+
+</body>
+<table border="0" width="100%" id="table1" cellspacing="0" cellpadding="2" bgcolor="#339966">
+	<tr>
+		<td><a href="prenota.msp?VAR_ACTION=NEW">NUOVA</a></td>
+		<td><a href="prenota.msp?VAR_ACTION=LIST">ELENCO</a></td>
+		<td>&nbsp;</td>
+	</tr>
+</table>
+<p>
+<body>
+
+<%
+*--- FOREGROUND ACTIONS
+do case
+*==================================================================================
+case empty(cAction)
+*----------------------------------------------------------------------------------
+
+*----------------------------------------------------------------------------------
+case cAction = "NEW"
+*----------------------------------------------------------------------------------
+%>
+PRENOTAZIONE TAVOLO
+</p>
+<form name="form1" action="<%=cSelf%>" method="post" class="tablet">
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VO" value="APPEND">
+Nominativo:
+<input type="text" name="EF_CUST_NAME" value="<%=cCUST_NAME%>" size="18">
+<br>
+Posti prenotati:
+<input type="text" name="EF_N_SEATS" value="" size="3" onkeyup="javascript:ajaxRun('aj_counter.msp?VAR_KEY=',form.EF_INCOM_T.value,'div_results');"> 
+<select name="EF_INCOM_T" size="1" class="select" onchange="javascript:ajaxRun('aj_counter.msp?VAR_KEY=',this.value,'div_results');"><%=arr2opt(aHour,":")%><option selected><%=cArrivo%></option></select>
+
+<br>
+Orario:<input type="button" value="19:30" class="pb" onclick="form.EF_INCOM_T.value=this.value;go(this.value);">
+
+</form>
+<%
+*----------------------------------------------------------------------------------
+endcase
+*==================================================================================
+%>
+</body>
+
+</html>

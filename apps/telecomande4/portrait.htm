@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<title>TELECOMANDE WI-FI</title>
+<link rel="stylesheet" type="text/css" href="default.css">
+</head>
+<!----------------------------------- *PORTRAIT--------------------------------------- //-->
+<body>
+<div align="center">
+<a href="index.msp"><img id="ico0" src="images/telecomande_logo_ww.gif" style="max-width:100%;"></a>
+		<br>
+<a href="apps/comande/index.htm"><img id="ico1" src="images/ico_comande.gif" style="height:100;"></a>
+<a href="apps/monitor"><img id="ico2" src="images/ico_monitor.gif" style="height:100;"></a>
+<a href="apps/impostazioni"><img id="ico3" src="images/ico_impostazioni.gif" style="height:100;"></a>
+<a href="apps/cassa/apri_chiudi.msp"><img id="ico4" src="images/ico_strumenti.gif" style="height:100;"></a>
+		
+<div id="output"></div>
+
+</div>
+
+<!----------------------------------- *MENU --------------------------------------- //-->
+<script>
+var jnWW   = window.innerWidth;
+var jnHH   = window.innerHeight;
+var jnRows = Math.ceil(jnHH/200);
+var jnCols = Math.ceil(jnWW/200);
+var nRatio = jnWW/jnHH;
+
+var nAlt = Math.ceil(jnWW/jnCols)-40;
+//document.getElementById("ico0").height=nAlt;
+document.getElementById("ico1").height=nAlt;
+document.getElementById("ico2").height=nAlt;
+document.getElementById("ico3").height=nAlt;
+document.getElementById("ico4").height=nAlt;
+document.getElementById("output").innerHTML=""+jnWW+"x"+jnHH+"("+screen.width+"x"+screen.height+") R="+jnRows + " C="+jnCols + "A=" + nAlt;
+</script>
+
+</body>
+
+</html>

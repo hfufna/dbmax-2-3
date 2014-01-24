@@ -1,0 +1,51 @@
+<html>
+
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+
+<body onload="top.frm2.location='basic_gmaps.msp';"  bgcolor="#DEEED7">
+
+	
+<table border="0" cellpadding="3" cellspacing="1" width="100%" id="table1" 
+ height="27">
+	<tr>
+		<td align="center" height="5" width="100%" bgcolor="#000080"><font color="#FFFFFF"><b>The basics</b></font></td>
+	</tr>
+	</table>
+
+
+<table border="0" cellpadding="3" cellspacing="1" id="table3" width="100%">
+      <tr>
+      <td align="left"><a href="../menu.htm">Back to menu</a></td>
+		</tr>
+		<tr>
+			<td width="844"><img border="0" src="basic_22.jpg" align="right"><b>Welcome <br>
+			</b>This demo shows the basics of the MaxScript 
+			integrations with Google Maps API 1.3.2. Experiment at will: modifications are lost.<b><br>
+			</b><br>
+			<b>Place a pinpoint </b>anywhere on the map on the right: you'll see the geo-coordinates 
+			appearing on the floating box. This is javascript only. So far MaxScript is not involved 
+			at all.<br>
+			If you <b>type your own coordinates</b> and press <span style="background-color: #F0F0F0">
+			<b>&nbsp;</b>place there<b> </b>
+			&nbsp;</span>you'll see a new pinpoint 
+			appearing at the corrispondent point.<p>Click on 
+			<span style="background-color: #F0F0F0"> <b>
+			&nbsp;</b>Polulate from DB<b>
+			</b> </span>&nbsp;to load from the DBF table associated with this application
+			 all the position previously saved (this is MaxScript at work)</p>
+			<p>To see an example of how MaxScript can take advantage of Goggle Maps see the next 
+			demo.</td>
+		</tr>
+	</table>
+
+
+</body>
+
+</html>

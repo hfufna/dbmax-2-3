@@ -1,0 +1,104 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+cSeed := MspFieldValue("XY")
+
+*************************************************************************
+xAllEdit := MSPFieldValue("ALLOW")
+cDbPath := setDb("reference")
+%>
+<%=include("/parts/html/header.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<body bgcolor="#FFFFFF" style="margin-top:-40px;" onload="top.frm2.location='splash.msp';">
+<div style="width:95%; height:95%; margin:5px 5px 5px 5px;border:solid 1px gray;">
+
+<table border="0" width="100%" id="table1" cellpadding="3" cellspacing="0" bgcolor="#FFFFFF">
+<tr><td><img src="img/t-rex_maxscript.gif" align="left" width="70" height="47">
+<i><font face="Times New Roman" size="4"><b>MaxScript</b> Reference</font></i></td></tr>
+</table>	
+
+<div class="panel panel-body">
+<a class="btn btn-sm btn-primary pull-left" target="_top" href="/home.msp?XY=<%=cSeed%>">Exit</a>
+<a class="btn btn-sm btn-default pull-right" target="_top" href="<%=link2menu()%>?XY=<%=cSeed%>">Reload</a>
+</div>
+<form name="form1" class="form"  action="browse.msp" method="post" class="rec" target="frm2">
+<div class="panel" style="background-color:#f3f3f3;margin:0px 0px 0px 0px; padding:3px 3px 3px 3px;">
+<div class="panel panel-body">
+Language elements:<br>
+   <select id="var_group" name="VAR_GROUP" size="1">
+   <option>All</option>
+      <option>Commands</option>
+      <option>Functions</option>
+      <option>Operators</option>
+		<option>Directives</option>
+      <option>Javascripts</option>
+      <option>UDFs</option>
+   <option>Code Snippets</option>
+	<option>Scripts</option>
+      <option>ErrorCodes</option>
+      <option>Examples</option>
+   </select>
+</div>
+<div class="panel panel-body">
+for handling:<br>
+   <select name="VAR_SECTION" size="1">
+   <option></option>
+   <option>Strings</option>
+	<option>Numerics</option>
+	<option>Arrays</option>
+	<option>Dates</option>
+	<option>Databases</option>
+	<option>Files</option>
+	<option>ErrorCodes</option>
+	<option>Operators</option>
+	<option>WebVars</option>
+	<option>Program_Flow</option>
+	<option>Specific_Tasks</option>
+   </select><br>
+   <font size="1">List for keyword:</font><br>
+   <input type="text" name="VAR_KEYWORD" value="" size="12">
+</div>
+<div class="panel panel-body">
+into field:
+   <select name="VAR_KEYFIELD" size="1">
+   <option>ELEMENT</option>
+   <option>DESCR</option>
+   <option>SINTAX</option>
+   <option>EXAMP</option>
+   <option>SEE_ALSO</option>
+   </select>
+</div>
+<div class="panel panel-footer">
+   <input type="hidden" name="ALLOW" value="<%=xAllEdit%>">
+   <input type="hidden" name="VAR_ACTION" value="SEARCH">
+   <input type="reset" name="PB_ESC" value="Reset query" class="btn btn-sm btn-default pull-left">&nbsp;
+   <input type="submit" name="PB_OK" value="Apply" class="btn btn-sm btn-primary pull-right"><br>
+   <a target="frm2" class="btn btn-sm btn-default" href="search_form.htm">Advanced search</a></form>
+</div>
+</div>
+</form>
+
+<!----------------------------------- *FORM NAVIGATOR //----------------------------------------->
+<a name="a2" onclick="toggleDiv('div_2');" class="link"><u>Other options</u></a><br>
+<div id="div_2" style="display:none;">
+<form name="form2" action="browse.msp" method="post" class="rec">
+   <input type="button" name="PB_GOTOP" value="First" onclick="setSubmit('GOTOP');">
+   <input type="button" name="PB_GOBOTT" value="Last" onclick="document.form2.VAR_ACTION.value='GOBOTT';submit();">&nbsp;
+   <input type="text" name="VAR_RECNO" value="" size="4">
+   <input type="button" name="PB_GORECNO" value="Go" onclick="document.form1.ALLOW.value=document.form2.VAR_RECNO.value;setSubmit('GORECNO');">
+   <input type="hidden" name="VAR_ACTION" value="">
+</form>
+</div>
+<p>Visit <a target="_blank" href="http://www.maxscript.org">MaxScript.org</a></p>
+<%=container(0)%>
+</body>
+</html>

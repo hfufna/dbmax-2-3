@@ -1,0 +1,104 @@
+html {
+  font-family: sans-serif;
+  -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+}
+
+body {
+   font-size:10pt;
+}
+
+.code {          
+  font-family: Courier New, Monospace, Lucida Console;                     
+  font-family: Courier New;
+  font-size: 9pt;
+  overflow: hidden;
+  color: maroon;
+  background-color: #FFFFF0;
+  padding: 3px;
+  border: 1px solid black;
+  cursor: default;
+  max-height: 900px;
+  width: 97%;
+  min-height: 35px;
+}
+
+.code:hover { 
+  overflow: auto;
+}
+         
+.cmd {          
+  overflow: hidden;
+  color: lime;
+  background-color: #000000;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px solid black;
+  cursor: default;
+  max-height: 900px;
+  width: 100%;
+  min-height: 35px;
+  font-family: Courier, Monospace, Lucida Console;                     
+}
+
+          
+.centeredImage
+{
+  text-align:center;
+  margin-top:0px;
+  margin-bottom:0px;
+  padding:0px;
+}
+    
+.textbox {
+	width:90%; 
+	background-color:#FFFFFF; 
+	color:black; 
+	border:solid 1px black;
+	margin-top:3px;
+	padding: 5 5 5 5;
+	font-size: 10pt;
+}
+
+.rec {
+  color: #000000;
+  background-color: #ECF5FF;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px solid #000080;
+  margin-top: 2px;
+  cursor: default;
+  width: 100%;
+}
+
+.browse {
+  overflow: hidden;
+  color: #000000;
+  background-color: #EDFAFE;
+  padding: 3px;
+  font-size: 10pt;
+  border: 1px dotted #0000FF;
+  margin-top: 2px;
+  cursor: default;
+
+  width: 100%;
+  min-height: 35px;
+}
+
+table {
+border-collapse: collapse
+}
+
+th {
+   background-color: #EDFAFE;
+   font-size: 8pt;
+   font-weight: normal;
+}
+
+td {
+      font-size: 10pt;
+}
+
+p {
+      font-size: 11pt;
+}

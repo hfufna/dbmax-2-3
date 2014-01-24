@@ -1,0 +1,479 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOX DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+
+//-- CHECKING GLOBAL VARS
+if vtype("xnRec")="U"
+   xnRec := 1
+endif
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+//-- local variables
+cMsg := "" + MSPFieldValue("VAR_ACTION")
+
+%>
+<%=modInfo()%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+
+<%
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+//-- INCOMING WEBVARS
+cDir       := MSPFieldValue("VAR_DIR")
+cTable     := MSPFieldValue("VAR_TABLE")
+cNewTable  := MSPFieldValue("EF_NEWTABLE")
+if empty(cNewTable)
+   cNewTable := "copy_of_" + upper(filebone(cTable))
+endif
+if "\." $ cNewTable
+   cNewTable := filebone(cNewTable)
+endif
+
+
+//-- LOCAL VARS
+cMsg := ""
+cSource := filebone(cTable)
+cTarget := cDir + "\" + cNewTable + ".dbf"
+if cSource = cNewTable
+   cTarget := cDir + "\copy_of_" + cNewTable + ".dbf"
+endif
+
+do case
+*************************
+case cAction="CLONE"
+*************************
+   copy file (cTable) to (cTarget)
+   cMemo := trimRight(cTable,4) + ".dbt"
+   if file(cMemo)
+      cMemoCopy := trimRight(cTarget,4) + ".dbt"
+      copy file (cMemo) to (cMemoCopy)
+   endif
+   cAction := "CLONEOK"
+
+*************************
+case cAction="CREATE"
+*************************
+   use (cTable)
+   copy to (cTarget)
+   cAction := "CREATEOK"
+   
+*************************
+case cAction="COPY"
+*************************
+   use (cTable)
+   copy structure to (cTarget)
+   cAction := "COPYOK"
+   
+*************************
+case cAction="SDF"
+*************************
+   use (cTable)
+   cSource   := filebone(cTable)
+   cTarget   := cDir + "\" + cSource + ".sdf"   
+   cInfoFile := cDir + "\" + cSource + ".txt"
+   copy to (cTarget) sdf
+
+   cOut := "Structure definition of " + cSource + ".dbf" + CR_LF
+   for iii=1 to afields()
+      cOut += fieldname(iii)| " (" | fieldtype(fieldname(iii)) | ") " | fieldsize(iii) + CR_LF
+   next   
+   memowrit(cInfoFile,cOut)
+   cAction := "SDFOK"
+
+*************************
+case cAction="XML"
+*************************
+   use (cTable)
+   cSource   := filebone(cTable)
+   cGridName := filebone(cTable)
+   cTarget   := cDir + "\" + cSource + ".xml"   
+   cFileDef := cDir + "\" + cSource + ".dtd"
+   cFileXSL := cDir + "\" + cSource + ".xsl"
+   
+   ******************************************************************* XML
+   //-- creating the XML main file
+   //
+   set printer to (cTarget)
+   set printer on
+   set console off
+
+   //-- don't change the line below: xml declaration MUST
+   //   absolutely be the FIRST LINE of document
+   //
+   %><%=[<?xml version="1.0" encoding="ISO-8859-1"?>]%>
+<%='<?xml-stylesheet type="text/xsl" href="' + cGridName + '.xsl"?>'%>
+
+   <%='<GRID>'%>
+   <%
+   go top
+   do while not eof()
+      %>
+      <%='<RECORD>'%>
+      <%=rec2xlm()%>
+      <%="</RECORD>"%>
+      <%
+      skip
+   enddo
+   %>
+   <%="</GRID>"%>
+   <%
+   set printer off
+   set console on
+   set alte to
+   
+   
+  ********************************************************************** DTD
+   
+   //-- generating XML DTD companion
+   //
+
+   
+   //-- preambole
+   cOut := '<!DOCTYPE ' + cGridName + CR_LF + "["
+   cOut += '<!ELEMENT ' + cGridName + '('
+   for iii=1 to afields()-1
+     cOut += fieldname(iii) + ','
+   next   
+   cOut += fieldname(afields()) 
+   cOut += ')>' + CR_LF + CR_LF
+   
+   //-- fields
+   cTyp := fieldtype(fieldname(iii))
+   cOut += "[" + CR_LF
+   for iii=1 to afields()
+      cOut += '<!ELEMENT '
+      cOut += fieldname(iii) + " ("
+      do case
+         case cTyp ="L"
+      otherwise
+         cOut += "#PCDATA"
+      endcase
+      cOut += ")>" + CR_LF
+   next   
+   
+   cOut += ']>' + CR_LF
+      
+   memowrit(cFileDef,cOut)
+   
+   ***************************************************************************** XSL
+   //-- generating style XSL file
+   //   
+
+   //-- preambole
+   cOut := '<?xml version="1.0" encoding="ISO-8859-1"?>'+CR_LF
+   cOut += '<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'+CR_LF
+   cOut += '<xsl:template match="/">' + CR_LF
+   cOut += '<html><body><h2>'+ cGridName +'</h2>' + CR_LF
+   cOut += '<table border="1">' + CR_LF
+   *-- table header
+   cOut += '<tr>' + CR_LF
+   for iii=1 to afields()
+      cOut += '<th bgcolor="#9acd32">'+capital(fieldname(iii))+'</th>' + CR_LF
+   next
+   cOut += '</tr>' + CR_LF
+   *-- table rows
+   cOut += '<xsl:for-each select="' + cGridName + '">' + CR_LF
+   cOut += '<tr>' + CR_LF
+   for iii=1 to afields()
+      cOut += '<td>' + '<xsl:value-of select="' + fieldname(iii) + '"/>' + '</td>' + CR_LF
+   next
+   cOut += '</tr>' + CR_LF
+   cOut += '</xsl:for-each>' + CR_LF
+   *
+   cOut += '</table>' + CR_LF
+   cOut += '</body></html>' + CR_LF
+   cOut += '</xsl:template>' + CR_LF
+
+   cOut += '</xsl:stylesheet>' + CR_LF
+
+   memowrit(cFileXSL,cOut)
+  
+   cAction := "XMLOK"
+
+*************************
+case cAction="TXT"
+*************************
+   cSource   := filebone(cTable)
+   cTarget   := cDir + "\" + cSource + ".txt"   
+
+%>
+<form name="form3" action="<%=cSelf%>" method="post" style="form1">
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>">
+
+<h3>Copy table to plain text file</h3>
+You're about to copy the whole content of table <b> <%=filebone(cTable)%></b> to a text file named:<font color="#FF0000"> <%=cTarget%> </font>
+<p>If you want to use a <i><b>delimiter</b></i> insert the character to use here:
+<input type="text" size="1" name="VAR_DELIM">
+<br>This character will be surrounded by double quotes.
+<p>If you wish to use an additional character as delimiter choose it here below:
+<br><input type="radio" name="VAR_SING">Single quotes
+<br><input type="radio" name="VAR_BRAC">Square brackets
+<br><input type="radio" name="VAR_SINGLE">Brackets
+<br>
+<p><font color="#808080">(left selection empty if you don't want to use delimiters) </font>
+<hr>
+<input type="submit" name="PB_OK" value="Proceed">
+<input type="hidden" name="VAR_ACTION" value="GOTXT">
+<input type="hidden" name="VAR_TABLE" value="<%=cTable%>">
+<input type="hidden" name="VAR_DIR" value="<%=cDir%>">
+</form>
+<%
+*************************
+case cAction="GOTXT"
+*************************
+   use (cTable)
+   cSource   := filebone(cTable)
+   cTarget   := cDir + "\" + cSource + ".txt"   
+   cInfoFile := cDir + "\" + cSource + "_info.txt"
+   copy to (cTarget) delimited with ","
+
+   cOut := "Structure definition of " + cSource + ".dbf" + CR_LF
+   for iii=1 to afields()
+      cOut += fieldname(iii)| " (" | fieldtype(fieldname(iii)) | ") " | fieldsize(iii) + CR_LF
+   next   
+   memowrit(cInfoFile,cOut)
+   cAction := "TXTOK"
+
+*************************
+endcase
+*************************
+%>
+<body>
+<%
+do case
+*---------------------------------
+case empty(cAction)
+*---------------------------------
+%>
+<p><font size="4">Export Table <font color="#800000"> <b><%=capital(filebone(cTable))%></b></font></font><br>
+The file will be save in this folder: <b><%=cDir%></b><br>
+<font color="#808080">Your current position for downloads is: <%=MspConfigVar("EXPORT")%>
+</font>
+</font>
+<br>
+<font color="#808080"><font size="1">To change this setting use Server Manager</font> </font>
+<hr>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+Name of exported file to be generated: <input type="text" name="EF_NEWTABLE" value="<%=cNewTable%>" size="35">
+<hr>
+<table border="0" cellspacing="5">
+	<tr>
+		<td bgcolor="#F0F0F0"><b>SDF</b> file: Standard Data Format. Universally recognized. Preferred choice if you need to re-import data into another DBMS.</td>
+		<td><input type="submit" name="VAR_ACTION" value="SDF"></td>
+	</tr>
+	<tr>
+		<td bgcolor="#F0F0F0"><b>TXT</b> file: ASCII Format. Universally recognized, but not directly importable from DBMS.</td>
+		<td><input type="submit" name="VAR_ACTION" value="TXT"></td>
+	</tr>
+	<tr>
+		<td bgcolor="#F0F0F0"><b>XML </b>file: Exchangeable with the majority of office applications, but also immediately displayable on browsers.</td>
+		<td><input type="submit" name="VAR_ACTION" value="XML"></td>
+	</tr>
+</table>
+<br>
+<br>
+<br>
+<input type="hidden" name="VAR_DIR" value="<%=cDir%>">
+<input type="hidden" name="VAR_TABLE" value="<%=cTable%>">
+</form>
+<!--- form end //--->
+
+<%
+*---------------------------------
+case cAction = "CLONEOK"
+*---------------------------------
+%>
+<h2>Clone generated</h2>
+Table <b><%=filebone(cTable)%></b> copied to [<font color="red"><%=cTarget%></font>]<hr>
+<%
+*---------------------------------
+case cAction = "CREATEOK"
+*---------------------------------
+%>
+<h2>Copy generated</h2>
+Table content of <b><%=filebone(cTable)%></b> copied to [<font color="red"><%=cTarget%></font>]<hr>
+<%
+*---------------------------------
+case cAction = "COPYOK"
+*---------------------------------
+%>
+<h2>Structure generated</h2>
+The <b>structure</b> of table <b><%=filebone(cTable)%></b> has been copied to [<font color="red"><%=cTarget%></font>]<hr>
+<%
+*---------------------------------
+case cAction = "SDFOK"
+*---------------------------------
+%>
+<h2>SDF file generated</h2>
+The table <b><%=filebone(cTable)%></b> has been copied to [<font color="red"><%=cTarget%></font>] in SDF format<hr>
+<a href="/core/file_edit.msp?XY=<%=cSeed%>&VF=<%=cTarget%>">Open the file as SDF text</a>
+<%
+*---------------------------------
+case cAction = "XMLOK"
+*---------------------------------
+%>
+<h2>XML file generated</h2>
+The table <b><%=filebone(cTable)%></b> has been copied to [<font color="red"><%=cTarget%></font>] in XML format<hr>
+<a href="/core/file_edit.msp?XY=<%=cSeed%>&VF=<%=cTarget%>">Open the file as text file</a>
+<%
+*---------------------------------
+case cAction = "TXTOK"
+*---------------------------------
+%>
+<h2>TXT file generated</h2>
+The table <b><%=filebone(cTable)%></b> has been copied to [<font color="red"><%=cTarget%></font>] in TXT format (delimited)<hr>
+<a href="/core/file_edit.msp?XY=<%=cSeed%>&VF=<%=cTarget%>">Open the file as text</a>
+<%
+*---------------------------------
+otherwise
+*---------------------------------
+   %>
+   <p>Action requested [<%=cAction%>]?</p>
+   <%
+*----------------------------------
+endcase
+*----------------------------------
+%>
+</body>
+
+</html>
+<%
+*********************
+function rec2xlm()
+*********************
+local cOut := "", iii
+for iii=1 to afields()
+   cOut += "<" + fieldname(iii) + ">"
+   cOut += zz(fieldval(iii))
+   cOut += "</" + fieldname(iii) +">"
+next 
+return cOut
+%>

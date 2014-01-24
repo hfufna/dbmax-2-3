@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>DBFree Active Page</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<!----------------------------------- MaxScript Header -------------------------------------- //-->
+<%
+lDebug :=.f.
+xAppId := "dbmax"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   *return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- INCOMING WEBVARS
+cKey := MSPFieldValue("VAR_KEY")
+cRows := MSPFieldValue("VAR_ROWS")
+
+
+//--DATABASE TO USE
+cTable := cDir + "TRACKER.DBF"
+cNdx1  := cDir + "TRACKER_BY_IP.MTX"
+cNdx2  := cDir + "TRACKER_BY_LAST.MTX"
+cNdx3  := cDir + "TRACKER_BY_REG.MTX"
+use (cTable) in 1 alias TRACKER index (cNdx1) key IP_ADDR, (cNdx2) key LAST_ACC, (cNdx3) key D_REG 
+set order to 0
+%>
+<body bgcolor="#D7ECEE">
+<a href="home_left.msp?VAR_ROWS=<%=cRows%>">Back</a><hr>
+<table style="border-collapse: collapse" border="1" width="100%" bgcolor="#FFFFFF">
+<tr><td colspan="2" bgcolor="#0001A8"><b><font color="#FFFFFF">Customer <%=cKey%></font></b></td></tr>
+<tr><td colspan="2" bgcolor="#FFFFFF">Has visited this page on:</td></tr>
+<%
+set filter to IP_ADDR = cKey
+go top
+do while not eof()
+   %>
+   <tr>
+     <td></td><td><%=LAST_ACC%></td>
+   <%
+   skip      
+   %></tr><%
+enddo
+%>
+<tr><td colspan="2" bgcolor="#0001A8"><b><font color="#FFFFFF">Orders status</font></b></td></tr>
+<tr><td colspan="2" bgcolor="#FFFFFF" align="right"><a href=""><font size="1">Details</font></a></td></tr>
+<%
+for iii=1 to 5
+   %>
+   <tr><td><%=zz(iii)%></td><td></td></tr>
+   <%
+next
+%>
+<tr><td colspan="2" bgcolor="#0001A8"><b><font color="#FFFFFF">Delivery status</font></b></td></tr>
+<tr><td colspan="2" bgcolor="#FFFFFF" align="right"><a href=""><font size="1">Details</font></a></td></tr>
+<%
+for iii=1 to 3
+   %>
+   <tr><td><%=zz(date()-10+iii)%></td><td></td></tr>
+   <%
+next
+%>
+
+</table>
+
+<p>
+<a href="home_left.msp?VAR_ROWS=<%=cRows%>">Back</a></p>
+
+</body>
+</html>

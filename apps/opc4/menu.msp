@@ -1,0 +1,282 @@
+<html>
+<%
+lDebug :=.f.
+xAppId := "opc4"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+set dbtype to DBASE
+set hour to 24
+set century on
+set decimals to 0
+set dele on
+
+//-- 2 EXPORT SYSTEM 
+//   default folder to pick up files from is DATADIR
+//   remember that must match to an alias of webserver
+cXiAlias    := "/export/"
+cPathExport := MspConfigVar("EXPORT")
+if empty(cPathExport)
+   cPathExport := MspConfigVar("DATADIR")
+endif
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 4 RECURSIVE SYSTEM
+cAction := upper(alltrim(MSPFieldValue("VAR_ACTION")))
+cOption := upper(alltrim(MSPFieldValue("VAR_OPTION")))
+cSelf   := pageName()
+cBack   := callingPage()
+
+//-- 5 SAFETY SYSTEM 
+cUsrName := MSPFieldValue("VAR_USR_NAME")
+cUsrGrp  := upper(MSPFieldValue("VAR_USR_GRP"))
+cUsrRole := MSPFieldValue("VAR_USR_ROLE")
+cUrl     := setId(cSelf,cUsrName,cUsrGrp,cUsrRole)
+cSafeKey := setId("",cUsrName,cUsrGrp,cUsrRole)
+
+//-- 6 SEARCH SYSTEM
+cKeyVal  := MSPFieldValue("VAR_KEYVAL")
+cKeyFld  := MSPFieldValue("VAR_KEYFLD")
+if empty(cKeyfld)
+   cKeyval :=""
+endif
+
+//-- 7 PERSONALIZATION -- background and sub-webs
+cEntryPoint := dos2web(upDir(curDosDir()))   //--subweb
+cBkg := MspFieldValue("VAR_BKG")
+if empty(cBkg)
+   cBkg := "/start/default_bg.gif"
+endif
+
+//-- 8 DATABASE - setting DBF working folder for this page
+cSetDb     := MSPFieldValue("VAR_SETDB")
+cTable     := MSPFieldValue("VAR_TABLE")
+nRecno     := val(MSPFieldValue("VAR_RECNO"))
+nIndexList := val(MSPFieldValue("VAR_INDEXLIST"))
+
+nIndexOrd  := val(MSPFieldValue("VAR_INDEXORD"))
+nRows      := val(MSPFieldValue("VAR_ROWS"))
+cDbRoot    := MSPConfigVar("DATADIR")
+if empty(cSetDb)
+   cSetDb  := cDbRoot
+   cDBroot := cSetDb  +"\"
+endif
+
+//-- 9 SAFETY SYSTEM
+*-- uncomment to abort page if username was not passed
+if empty(cUsrName)
+   *? "ERROR: No USERNAME supplied: your group is [" + cUsrGrp + "]"
+   return
+endif
+
+*************************************************************DBFREE-2-23**
+cDbPath := cDbRoot
+
+*-- pagina a latere da aprire in avvio
+cSplash := "/apps/opc4/common/show_stats.msp?" + passVars(aVars)
+cGoBack := MSPFieldValue("VAR_BACK")
+%>
+
+<body topmargin="0" leftmargin="0" text="#000000" style="border-right:solid 1px #E0E0E0">
+<div style="margin-left:3">
+<script language="javascript">top.frm2.location='splash.msp?X=<%=cSafeKey%>';</script>
+
+<table border="0" width="100%" cellspacing="0">
+  <!------------------------ intestazione del menu //----------------------------->
+  <tr>
+    <td width="100%" colspan="2" height="19" align="center" bgcolor="#F5F6F9">
+      <font size="1" color="#3B5998"><b>Sei nel </b>MENU8</font></td>
+  </tr>
+  <tr>
+    <td width="100%" height="21" colspan="2" align="center">
+    <font color="#3B5998" size="1">
+    <marquee scrolldelay="0" width="100%" height="13" loop="0" onmouseover="this.stop()" onmouseout="this.start()">
+    Utente [<b><%=cUsrName%></b>] gruppo di lavoro [<b><%=cUsrGrp%></b>] ruolo [<b><%=cUsrRole%></b>]
+    </marquee> </font>
+    </td>
+  </tr>  
+</table>
+  
+<table border="0" width="100%" cellspacing="3" cellpadding="3">  
+  <!------------------------ uscita dal menu //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_home.gif" width="21" height="20"></td>
+    <td width="100%" bgcolor="#FFFFD7">
+    <a href="/login/usermenu.msp?X=<%=cSafeKey%>" target="_self">
+    <font color="#3B5998" size="1">Esci da questo menu</font></a></td>
+  </tr>
+  
+
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">  
+	<img border="0" src="../../images/ico_fb_notes.gif" width="19" height="21"></td>
+    <td width="100%">
+    <a href="/apps/opc4/common/promemoria.msp?X=<%=cSafeKey%>" target="frm2" onMouseOver="return escape('Gestione del tuo blocco promemoria personale');">
+    <font color="#3B5998" size="1">Promemoria </font>
+    </a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_cerca.gif" width="18" height="20"></td>
+    <td width="100%">
+    <a target="frm2" onMouseOver="return escape('Cerca un caso per nome utente o per luogo');" href="/apps/opc4/common/ricerca_semplice.msp?X=<%=cSafeKey%>">
+    <font color="#3B5998" size="1">Ricerca semplice </font> </a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center" height="28">
+	<img border="0" src="../../images/ico_fb_cerca.gif" width="18" height="20"></td>
+    <td width="100%">
+    <b>
+    <a href="/apps/opc4/query_txt/menu_base.msp?X=<%=cSafeKey%>" target="frm1" onMouseOver="return escape('');">
+    <font color="#3B5998" size="1">Ricerca avanzata</font></a></b></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_addnew.gif" width="20" height="22"></td>
+    <td width="100%">
+    <b>
+    <a target="frm1" onMouseOver="return escape('Menu di lavoro classico OPC');" href="/apps/opc4/input_common/menu.msp?X=<%=cSafeKey%>">
+    <font size="1" color="#3B5998">Inserimento casi</font></a><font size="1" color="#3B5998">*</font></b></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_pagsimili.gif" width="21" height="21"></td>
+    <td width="100%">
+    <a href="/apps/opc4/common/lista_inseriti.msp?X=<%=cSafeKey%>" target="frm2">
+	<font color="#3B5998" size="1">Ultime schede inserite </font></a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <!------------------------ //----------------------------->
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_notes.gif" width="19" height="21"></td>
+    <td width="100%">
+    <font color="#000000"><b>
+	<a target="_self" href="/apps/opc4/query_transiti/menu_transiti.msp?X=<%=cSafeKey%>">
+	<font color="#3B5998" size="1">Ricerca nei transiti</font></a></b></font></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_cerca.gif" width="18" height="20"></td>
+    <td width="100%">
+    <a href="/apps/opc4/query_bdpi/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>" target="_self">
+	<font color="#3B5998" size="1">Archivio storico OPC</font></a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_cerca.gif" width="18" height="20"></td>
+    <td width="100%">
+    <b>
+    <a href="/apps/opc4/query_stat/menu_stat.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>" target="frm1">
+    <font size="1" color="#3B5998">Vista Statistiche</font></a><font size="1" color="#3B5998">*</font></b></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_lavori.gif" width="21" height="19"></td>
+    <td width="100%">
+    <a target="frm1" onMouseOver="return escape('');" href="/apps/opc4/query_prog/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font size="1" color="#3B5998">Lavori </font> </a>
+	<a href="query_prog/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font size="1" color="#3B5998">Programmati</font></a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center" height="26">
+	<img border="0" src="../../images/ico_fb_cerca.gif" width="18" height="20"></td>
+    <td width="100%">
+    <a target="_top" href="/apps/opc4/query_maps/start.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font color="#3B5998" size="1">
+	Ricerca su mappe</font></a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="center">
+	<img border="0" src="../../images/ico_fb_dito.gif" width="21" height="19"></td>
+    <td width="100%">
+    <b>
+	<a target="frm1" href="/apps/opc4/query_error/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font color="#3B5998" size="1">Errori segnalati</font></a></b></td>
+  </tr>
+  <!------------------------ //----------------------------->
+  <tr>
+    <td width="20" align="right">
+	<img border="0" src="../../images/ico_app_script.gif" width="19" height="20"></td>
+    <td width="100%">
+    <b>
+    <a target="frm1" onMouseOver="return escape('');" href="/apps/opc4/relitti/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font size="1" color="#3B5998">Gestione relitti</font></a><font size="1" color="#3B5998">*</font></b></td>
+  </tr>
+  <!------------------------ //----------------------------->
+   <tr>
+    <td width="20" align="right">
+	<img border="0" src="../../images/ico_app_script.gif" width="19" height="20"></td>
+    <td width="100%">
+    <a target="frm1" href="/apps/opc4/progetti/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+    <font size="1" color="#3B5998">Modulo Progetti</font></a><font size="1" color="#3B5998">
+	</font>
+    </td>
+  </tr>
+  <!------------------------ //----------------------------->
+   <tr>
+    <td width="20" align="right">
+	<img border="0" src="../../images/ico_app_script.gif" width="19" height="20"></td>
+    <td width="100%">
+    <a target="frm1" href="/apps/opc4/query_sas/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+    <font size="1" color="#3B5998">Modulo SAS</font></a><font size="1" color="#3B5998">
+	</font>
+    </td>
+  </tr>
+  <tr>
+    <td width="20" align="right">
+	<img border="0" src="../../images/ico_fb_calend.gif" width="22" height="21"></td>
+    <td width="100%">
+    <a href="/apps/opc4/query_crono/menu.msp?X=<%=cSafeKey%>&VAR_BACK=<%=cSelf%>">
+	<font color="#3B5998" size="1">Cronoprogramma</font></a></td>
+  </tr>
+  <!------------------------ //----------------------------->
+</table>
+
+<!--- comunicazioni interne //--->
+<div align="center" style="position: relative; bottom: 0; left: -1;">
+&nbsp;</div>
+<div id="blink" style="display:block"></div>
+</div>
+</html>
+

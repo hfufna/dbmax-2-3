@@ -1,0 +1,4 @@
+WAM - WEB ADMINISTRATION MODULE
+DBMAX 2.3.3 rev.0 build 20140122-1450
+(c)2004-2014 by G.Napolitano
+www.maxsis.it

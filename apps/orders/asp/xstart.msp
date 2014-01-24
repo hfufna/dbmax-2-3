@@ -1,0 +1,521 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!----------------------------------- PETES ORDER ENTRYPOINT -------------------------------------- //-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/screen.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>Orders Entry Point</title>
+
+<style type="text/css">
+td {vertical-align: top;}
+#lrg {font-size:1.5em;}
+.lrg {font-size:1.5em;}
+</style>
+
+</head>
+
+<script type="text/javascript">
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+</script>
+<!----------------------------------- end HTML header -------------------------------------- //-->
+<body onload="top.frm1.location='localmenu.msp';">
+<!-- body onload="parent.document.getElementById('columns').cols='10,*';" //-->
+<body>
+<%
+*   AVAILABLE ACTION CODES FOR THIS OBJECTS ARE:
+*
+* GETCUSTID   
+* ADDORD
+* LISTRANS
+* SHOWDET
+* LISTPRODS
+* STOCK
+* DOSEARCH
+* 66
+*
+**************************************** DBFree 2-22-MINI-HEADER
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set decimals to 0
+set century on
+set hour to 24
+set date british
+
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+cDbPath  := MspConfigVar("DATADIR")
+
+cUserName := MSPFieldValue("VAR_USR_NAME")
+
+cCustNum := alltrim(MSPFieldValue("VAR_CUST"))
+cCustNum :=str(val(alltrim(MSPFieldValue("VAR_CUST"))),6,0,"0")
+if empty(cCustNum) .or. VAL(cCustNum)=0
+   cCustNum:=str(val(alltrim(MSPFieldValue("EF_MSG2"))),6,0,"0")
+endi
+if empty(cCustNum) .or. VAL(cCustNum)=0
+   cCustNum:="NONE"
+endi
+cCustName:="NO CUSTOMER SELECTED"
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<%
+//-- DATABASE STORAGE POSITION (FOR ALL PROCEDURES OF THIS APP)
+//
+cDbPath := setDb("petes")
+cDb1 := cDbPath + "wscust1.dbf"
+cXb1 := cDbPath - "wscust1.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+
+//-- POSITIONING THE CURSOR
+//
+seek cCustNum
+if found()
+   cCustName:=CUST_NAME 
+endi
+
+*cDb2 := cDbPath + "wstran1.dbf"
+*cXb2 := cDbPath - "wstran1.mtx"
+*use (cDb2) index (cXb2) key CUST_NUM
+
+*cDb3 := cDbPath + "wshist1.dbf"
+*cXb3 := cDbPath - "wshist1.mtx"
+*use (cDb3) index (cXb3) key DEXKEY
+
+//-- SEPARATOR STRING FOR MENU ITEMS
+cSep := "&nbsp;&nbsp;|&nbsp;&nbsp;"
+%>
+<!----------------------------------- Module start point -------------------------------------- //-->
+<%
+//-- BACKGROUND ACTIONS
+
+do case
+*************************************************************************
+case cAction == "66"
+*************************************************************************
+? "<font class='lrg'>Order submitted </font>" html
+ 
+cDb := cDBpath + "WSORDER.DBF"
+if not file(cDb)
+	ainit( "aField","T_DATE","CUST_NUM","CUST_ORD","REPNAME","PRODCODE","QTY","PRICE","DETAIL","IS_ACTIVE")
+	ainit( "aType","D","C","C","C","C","C","C","C", "L")
+	ainit( "aSize",8,6,20,20,15,8,12,120,1)
+	ainit( "aDec",0,0,0,0,0,0,0,0,0)
+	create (cDb) from aField, aType, aSize, aDec
+	*? "Created table " + cDb
+endif 
+use (cDb)  
+ 
+vvv    := 0.00
+lOrder :=.f.
+lList  :=.f.
+nnn    :=len(aVars)-6  
+
+for iii = 1 to nnn  step 3
+   if val(aVars[iii+1,2]) <> 0.00
+      lOrder :=.t.
+      if val(aVars[iii+2,2]) = 0.00
+         ?  aVars[iii+1,2] + " x " + upper(aVars[iii,2]) + "    @ $LIST" html
+         lList:=.t.
+      else
+         ?  aVars[iii+1,2] + " x " + upper(aVars[iii,2]) + "    @ $"+ aVars[iii+2,2] html
+      endi
+      vvv += val(aVars[iii+1,2]) * val(aVars[iii+2,2])
+      
+      *** ADDING A NEW RECORD 
+      append blank
+      if rlock(2)
+         replace T_DATE with date()
+         replace CUST_NUM with cCustNum
+         replace CUST_ORD with aVars[n+1,2]
+         replace REPNAME with aVars[n+2,2]
+         replace DETAIL with aVars[n+3,2] 
+         replace PRODCODE with upper(aVars[iii,2])
+         replace QTY with aVars[iii+1,2]
+         replace PRICE with aVars[iii+2,2]   
+         unlock
+      endif //* rlock
+   endif //* val aVars
+next
+%><br><%
+if lOrder
+   ? "Order Value   : $"+ str(v,12,2)+ iif(lList, "+ List Priced Items","") html
+   ? "Cust Order No : "+ aVars[n+1,2] html
+   ? "Salesperson   : "+ aVars[n+2,2] html
+   ? "Notes         : "+ aVars[n+3,2] html
+else
+   ? "The order has no content..." html
+endif //* lOrder
+cAction := ""
+
+*************************************************************************
+endcase
+*************************************************************************
+//-- END OF BACKGROUND ACTIONS
+
+%>
+<!----------------------------------- HTML BODY START -------------------------------------- //-->
+<body onload="">
+<font class="lrg">WEB SALES ORDER ENTRY  [AUCKLAND]</font> [<span style="background-color: #FFFF00">Current Customer:<font color="#FF0000">  <%=cCustNum%> , <%=cCustName%></font></span>]
+
+<hr>
+<a href="<%=cSelf%>?VAR_ACTION=GETCUSTID&VAR_CUST=<%=cCustNum%>">Select Customer</a><%=cSep%>
+<a href="<%=cSelf%>?VAR_ACTION=ADDORD&VAR_CUST=<%=cCustNum%>">Place Order</a><%=cSep%>
+<a href="<%=cSelf%>?VAR_ACTION=LISTRANS&VAR_CUST=<%=cCustNum%>">Transactions</a><%=cSep%>
+<a href="<%=cSelf%>?VAR_ACTION=SHOWDET&VAR_CUST=<%=cCustNum%>">Customer Details</a><%=cSep%>
+<a href="<%=cSelf%>?VAR_ACTION=LISTPRODS&VAR_CUST=<%=cCustNum%>">Catalogue</a><%=cSep%>
+<a href="<%=cSelf%>?VAR_ACTION=">Refresh</a><%=cSep%>
+<a href="/login/login.msp?VAR_ACTION=LOGOUT&VAR_USR_NAME=<%=cUserName%>"> Logout</a>
+<hr>
+<!----------------------------------- FOREGROUND ACTIONS -------------------------------------- //-->
+<%
+do case
+*=================================================================================================
+case empty(cAction)
+*-------------------------------------------------------------------------------------------------
+   ? "<p>No action selected.<br><b>Please select an action from the menu above.</b>" html
+   //-- THIS BRANCH COULD BE OMITTED
+   //   BECAUSE IN FACTS THERE ARE NO DEFAULT ACTIONS
+   //
+*-------------------------------------------------------------------------------------------------
+case (cAction = "GETCUSTID" or cAction = "1")
+*-------------------------------------------------------------------------------------------------
+//-- DISPLAY THE MAIN FORM FOR SELECTING CUSTOMERS -- CALLS *DOSEARCH* ACTION
+//   THAT SHOWS A LIST TO PICK UP A CUSTOMER NUMBER FROM
+//   First time is called that value is empty so to permit the user to enter his text to search
+//
+   cSelCustNum := MSPFieldValue("VAR_SELCUSTNO")
+   if empty(cSelCustNum)
+      cButtText := "Search"
+      cMsg := "Please enter text to search (at least 3 chars):"
+   else
+      cButtText := "Go with this"
+      cMsg := "A/C Selected:"
+   endif
+   %>
+   <form id="form1" action="#" method="post" style="margin-top_0;margin-bottom:0;">
+      <font class='lrg'>Select Customer</font><br>
+      <font color="#FF0000"><%=cMsg%></font><br>
+      <input type="text" name="EF_MSG2" value="<%=cSelCustNum%>" size="20" >
+      <input type="hidden" name="VAR_ACTION" value="DOSEARCH">
+      <input type="submit" name="PB_OK" value="<%=cButtText%>">
+   </form>
+   <%
+*-------------------------------------------------------------------------------------------------
+case cAction = "ADDORD"
+*-------------------------------------------------------------------------------------------------
+//-- open tables
+cDb1 := cDbPath + "wshist1.dbf"
+cXb1 := cDbPath - "wshist1.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+%>
+<!----------------------------------- POP-UP BOX FOR PRODUCT SELECTION -------------------------------------- //-->
+<%
+nW := 85
+nH := 70
+%>
+<iframe id="popupbox" name="popupbox" src="" style="position:absolute; top:<%=(100-nH)/2%>%; left:<%=(100-nW)/2%>%; display:none; width:<%=nW%>%; height:<%=nH%>%; background-color: #E0E0E0; border:solid 3px red;"></iframe>
+<!----------------------------------- end POP-UP -------------------------------------- //-->
+
+<form id="form2" name="form2" action="#" method="post" style="margin-top_0;margin-bottom:0;">
+<font class='lrg'>Place Order</font>
+- <a href="javascript:toggleDiv('div1');"><font color="red">Open PURCHASE HISTORY</font></a>
+<!----------------------------------- PURCHASE HISTORY BOX -------------------------------------- //-->
+<div id="div1" style="display:none">
+<%
+nnn:=0  
+seek cCustNum
+if found()
+   do while CUST_NUM==cCustNum .and. .not. eof()
+      nnn++
+      %>
+      <input type="text" 
+      name=<%="EF_COD"+str(nnn,3,0,"0")%> 
+      value=<%=PRODCODE%> size="20" readonly >
+
+      <input type="text" 
+      name=<%="EF_QTY"+str(nnn,3,0,"0")%> 
+      value="" size="4" >
+
+      <input type="text" 
+      name=<%="EF_SEL"+str(nnn,3,0,"0")%> 
+      value=<%=EACH_SELL%> size="8" readonly >
+      [<%=SALESQTY%>] [<%=LIST_SELL%>] <%=SALE_DATE%> [<%=SALESMADE%>] <%=DESCRIPT%>
+      <br>
+      <%
+      skip
+   enddo  
+else
+   ? cCustNum+ " has no sales history!"
+endif //* found
+%>     
+</div>
+<!----------------------------------- ITMES ORDER BOX -------------------------------------- //-->
+<hr>ADD ITEMS: Enter code, quantity and price. If price is left at $0.00, the order will be supplied at current list.<br>
+<%
+for iii= 1 to 12
+   cActuatorPage := "showprods.msp" 
+   cFormField    := "EF_COD"+str(nnn+iii,3,0,"0")
+   %>
+   <!--- POP UP WINDOW FOR SELECTING PRODUCTS //-->
+   <a href="javascript:vvv=document.getElementById('popupbox');vvv.src='<%=cActuatorPage%>?CALLBACK=<%=cFormField%>';showDiv('popupbox',1);">[?]</a>
+   
+   <input type="text" 
+   name=<%="EF_COD"+str(nnn+iii,3,0,"0")%> 
+   value="" size="20">
+
+   <input type="text" 
+   name=<%="EF_QTY"+str(nnn+iii,3,0,"0")%> 
+   value="" size="4" >
+
+   <input type="text" 
+   name=<%="EF_SEL"+str(nnn+iii,3,0,"0")%> 
+   value="0.00" size="8" >
+   <br>
+   <%
+next iii
+%>
+<hr>
+Customer Order No : <input type="text" name="EF_REF" value="" size = 20> 
+Salesperson: <input type="text" name="EF_ORD" value="" size = 20><br>
+Notes: <input type="text" name="EF_MSG" value="" size = 120>
+<br>
+<input type="submit" name="PB_OK" value="Send order">
+<input type="hidden" name="VAR_CUST" value=<%=cCustNum%>>
+<input type="hidden" name="VAR_ACTION" value="66">
+</form>
+<%
+*-------------------------------------------------------------------------------------------------
+case cAction = "LISTRANS"
+*-------------------------------------------------------------------------------------------------
+? "<font class='lrg'>Active Transactions</font>" html
+
+n:=0.00
+cDb1 := cDbPath + "wstran1.dbf"
+cXb1 := cDbPath - "wstran1.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+  
+seek cCustNum
+if found()
+   *do while CUST_NUM==cCustNum .and. .not. eof()
+   *nnn:=nnn+val(T_VALUE)
+   ***************************************
+   *  ? "Details=" | T_DETAILS | "-" | "Amount=" | T_VALUE | "-" | "Created on " | T_DATE html
+   %>
+   <table border="0">
+   <%
+   do while not eof() .and. CUST_NUM==cCustNum
+      %><tr bgcolor="<%=iif(mod(recno(),2)=0,'#ECECEC','#FFFFFF')%>"><%
+      n:=n+val(T_VALUE)
+      for iii=2 to afields()
+         %>
+         <td><%=zz(fieldval(iii))%></td>
+         <%
+      next
+      skip      
+      %></tr><%
+   enddo
+   %>
+   </table>
+   <%
+   ***************************************
+   *   skip
+   *enddo  
+   ? " "
+   ? "Balance is "+str(n,10,2)
+else
+   ? cCustNum+ " has no active transactions!"
+endif //* found   
+   
+   
+*-------------------------------------------------------------------------------------------------
+case cAction = "SHOWDET"
+*-------------------------------------------------------------------------------------------------
+? "<font class='lrg'>Customer Details</font>" html
+cDb1 := cDbPath + "wscust1.dbf"
+cXb1 := cDbPath - "wscust1.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+
+seek cCustNum
+if found()
+   ? "A/C_Num=" | CUST_NUM   html
+   ? "Account=" | CUST_NAME html
+   ? "Address=" | CUST_ADDR  html
+   ? "Contact=" | CUST_WHO  html
+   ? ""
+else
+   ? cCustNum+ " Not found!"
+endif 
+*-------------------------------------------------------------------------------------------------
+case cAction = "LISTPRODS"
+*-------------------------------------------------------------------------------------------------
+? "<font class='lrg'>Select Product Item</font>" html
+%>
+<form id="form2" action="#" method="post" style="margin-top_0;margin-bottom:0;">
+      <input type="text" name="EF_MSG2" value="" size="20" >
+      <input type="hidden" name="VAR_CUST" value=<%=cCustNum%>>
+      <input type="hidden" name="VAR_ACTION" value="STOCK">
+      <input type="submit" name="PB_OK" value="Submit">
+</form>
+ <%
+*-------------------------------------------------------------------------------------------------
+case cAction = "STOCK"
+*-------------------------------------------------------------------------------------------------
+   *cCustNum := alltrim(MSPFieldValue("EF_MSG2"))
+   cProd:=upper(MSPFieldValue("EF_MSG2"))
+   ? "<font class='lrg'>Product Item Query </font>" html
+   cDb1 := cDbPath + "wsprod1.dbf"
+   cXb1 := cDbPath - "wsprod1.mtx" 
+   use (cDb1) index (cXb1) key PRODCODE
+
+   seek pad(cProd,15, " ")
+   if found()
+      ? "Product Code: ["+ PRODCODE +"]" html 
+      ? "List Sell: ["+ SELLPRICE +"]" html 
+      ? "Sale Unit:"+ SALE_UNIT html
+      ? "Description:" +DESCRIPT html
+      ? ""
+   else 
+     //-- REPEATS SEARCH BY LOOKING EACH RECORD 
+     cProd := alltrim(cProd)
+     use (cDb1) 
+     %>
+     Matches for [<b><%=cProd%></b>]<br>
+     <table border="0">
+     <%
+     do while not eof() 
+         if cProd $ DESCRIPT
+            %><tr bgcolor="<%=iif(mod(recno(),2)=0,'#ECECEC','#FFFFFF')%>"><%
+            for iii=1 to afields()
+               %><td><%=zz(fieldval(iii))%></td><%
+            next
+         endi 
+         skip      
+         %></tr><%
+      enddo
+      %>
+   </table>
+   <hr>
+   <!----------search form start ----- //--> 
+   <form id="form2" action="#" method="post" style="margin-top_0;margin-bottom:0;">
+      <input type="text"   name="EF_MSG2"    value="" size="20" >
+      <input type="hidden" name="VAR_ACTION" value="STOCK">
+      <input type="submit" name="PB_OK"      value="Submit">
+   </form>
+   <%
+endi
+*-------------------------------------------------------------------------------------------------
+case cAction = "DOSEARCH"
+*-------------------------------------------------------------------------------------------------
+*cCustNum := alltrim(MSPFieldValue("EF_MSG2"))
+cDb1 := cDbPath + "wscust1.dbf"
+cXb1 := cDbPath - "wscust1.mtx"
+use (cDb1) index (cXb1) key CUST_NUM
+
+cCustName:=upper(alltrim(MSPFieldValue("EF_MSG2")))
+? "<font class='lrg'>Customer </font>" html
+
+if val(cCustNum) > 999
+   //-- INDEXED SEARCH
+   seek cCustNum
+   if found()
+      %>
+      A/C_Num=<%=CUST_NUM%>   
+      Account=<b><%=CUST_NAME%></b>
+      Address=<%=CUST_ADDR%>  
+      Contact=<%=CUST_WHO%>  
+      <hr>
+      <a href="<%=cSelf%>?VAR_ACTION=ADDORD&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Place an order</font></a><%=cSep%>
+      <a href="<%=cSelf%>?VAR_ACTION=LISTRANS&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Transactions</font></a><%=cSep%>
+      <a href="<%=cSelf%>?VAR_ACTION=SHOWDET&VAR_CUST=<%=CUST_NUM%>"><font color="maroon">Customer details</font></a><%=cSep%>
+      <%
+   else
+      ? cCustNum+ " Not found!"
+   endif
+else 
+   //-- FULL (NOT INDEXED SEARCH)
+   set order to 0
+   ? "Matches for <b>[" + cCustName + "]</b> - Click on A/C to select:" html
+   
+   //-- THIS FORCES FULL LISTING - REMOVE TO DISABLE THIS FEATURE
+   if empty(cCustName)
+      cCustName =" "
+   endif
+   rrr := 0
+   do while ! eof()
+      if cCustName $ CUST_NAME 
+         rrr++
+         //-- NOTICE THE RECURSIVE CALL TO THE ORIGNAL FORM ADDING THE CUSTOMER CODE
+         %>
+         <font size="1" color="gray"><i><%=str(rrr,5,0,"0")%></i></font>
+         <a href="<%=cSelf%>?VAR_ACTION=GETCUSTID&VAR_SELCUSTNO=<%=zz(CUST_NUM)%>"><font color="red"><%=CUST_NUM%></font></a> 
+         <font color="gray"><b><%=CUST_NAME%></b></font> - <%=initCap(CUST_ADDR)%><br>
+         <%    
+      endi
+      skip
+   enddo
+   %>
+   <hr>
+   End of listing - <%=rrr%> customers found
+   <%
+endif  
+*-------------------------------------------------------------------------------------------------
+otherwise
+*-------------------------------------------------------------------------------------------------
+   ? "<p>Action code was <b>" + cAction + "</b><br>Sorry.This is not a valid action request." html
+*-------------------------------------------------------------------------------------------------
+endcase
+*=================================================================================================
+%>
+</body>
+</html>

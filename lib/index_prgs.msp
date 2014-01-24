@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!----------- INDEX COMPACT ------------------ //-->
+<%
+**************************************** DBMAX MINI-HEADER backward compatible
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<div class="container">
+<%=navbar(0)%>
+<!-- ------------------------------------- PAYLOAD -----------------------------------//-->
+<div class="well"><h4>Menu <b><%=plainPath(curDosDir())%></b></h4></div>
+<%
+$extended
+cFolder := curDosDir()
+cMask := cFolder + "*.msp"
+cExclList := "start boot " + filebone(pagename())+ " "
+nnn   := 0
+nFiles = adir( cMask, aName)
+for iii = 1 to nFiles
+   cFileName := dos2web(aName[iii])
+   cFileDesc := filebone(cFileName)
+   if left(cFileDesc,1)="_"
+      //-- files starting with an uderscore are ignored
+      //  as well as itself and similar service files
+   elseif (cFileDesc $ cExclList)
+   else
+      nnn++
+      %>
+      <p class="btn btn-default" style="margin-top:3px;">
+      <a href="<%=cFileName%>">
+      <img border="0" src="/images/ico_prg.gif">
+      <%=cFileDesc%></a></p>
+      <%
+   endif
+next
+%>
+<div class="alert">(<%=zz(nnn)%> choices)&nbsp;<a href="../" class="btn btn-default">Back</button></a>
+</div>
+<!-- -----------------------------------------PAYLOAD END ----------------------------------//-->
+<%=include("/parts/html/footer.htm")%>
+</body>
+</html>
+<!-- --------------------------------- LOCAL LIBRARY ----------------------------------------//-->
+<%
+******************************
+function plainPath(cPath)
+**************************
+local c1, c2
+c1 := fixslash(cPath)
+c1 := filebone(c1)
+c2 := wordRight(c1,"\")
+return strTran(c2,"\","")
+%>

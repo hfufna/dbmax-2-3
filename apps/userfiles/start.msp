@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<%
+**************************************** DBMAX MINI-HEADER backward compatible
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<div class="container">
+<%=include("/parts/html/navbar-simple.htm")%>
+<!-- ------------------------------------- PAYLOAD -----------------------------------//-->
+<div class="well"><h4>Menu <b><%=plainPath(curDosDir())%></b></h4></div>
+<%
+$extended
+cFolder := curDosDir()
+cMask := cFolder + "*.*"
+nnn   := 0
+nFiles = adir( cMask, aName)
+for iii = 1 to nFiles
+   cFileName := dos2web(aName[iii])
+   cFileDesc := filebone(cFileName)
+   if left(cFileDesc,1) $ "_."
+      //-- files starting with an underscore are ignored
+      //   as well as those named index and start
+   elseif ((cFileDesc $ "index start booter") or (left(cFileDesc,5) $ "app-a app-c app-i _vti"))
+   else
+      if fileext(aName[iii]) $ ".txt .mspx"
+      nnn++
+      %>
+      <p class="btn btn-default" style="margin-top:3px;">
+      <a href="/core/file_edit.msp?VF=<%=aName[iii]%>&VB=<%=cSelf%>&VO=0" title="<%=(cFileName)%>">
+      <img border="0" src="../images/ico_prg.gif">
+      <%=cFileDesc%></a></p>
+      <%
+      endif
+   endif
+next
+%>
+<div class="alert">(<%=zz(nnn)%> choices)&nbsp;<a href="<%=link2menu()%>" class="btn btn-default">Back</button></a>
+</div>
+<!-- -----------------------------------------PAYLOAD END ----------------------------------//-->
+<%=include("/parts/html/footer.htm")%>
+</body>
+</html>
+<!-- --------------------------------- LOCAL LIBRARY ----------------------------------------//-->

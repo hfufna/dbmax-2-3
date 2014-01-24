@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title></title>
+</head>
+<!----------------------------------- comment -------------------------------------- //-->
+<%
+cAppId := "take5"
+lDebug := .f.
+**************************************** DBFree 3-0-3-MINI-HEADER
+zcRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free30.max"
+set maxlib to &zcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) | "=" | MSPFieldValue(iii)
+   endif
+next
+
+//-- DATA STORAGE
+cDir    := setDb(cAppId)
+cDbPath := cDir
+
+//-- STD WEBVARS
+cSelf   := pagename()
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VAR_OPTION")
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MINI-HEADER
+set century on
+set date to italian
+set decimals to 0
+set hours to 24
+
+//--LOCAL VARIABLES
+cIp  := getenv("REMOTE_ADDR")
+cUrl := getenv("SERVER_NAME")
+
+//-- INCOMING WEBVARS
+cKey := MSPFieldValue("VAR_GRP")
+
+//-- DATABASE
+cDir := setDb("take5")
+cDbPath := cDir  //-- for compatibility with V1.9-V2.1
+
+%>
+<!----------------------------------- HTML BODY -------------------------------------- //-->
+<body>
+<%
+do case
+***************************************************************
+case empty(cAction)
+***************************************************************
+cTable  := cDir + "GRUPPI.DBF"
+cIndex  := cDir + "GRUPPI.MTX"
+use (cTable) index (cIndex) key GRP_ID
+seek cKey
+if found()
+   %>
+   Gruppo <font size="5"><%=NOME_GRP%></font>
+   <p><%=DESC_GRP%></p>
+   <p><a href="<%=cSelf%>?VAR_ACTION=LIST&VAR_KEY=<%=GRP_ID%>">Membri di questo gruppo</a></p>
+   <% if not empty(MEETUP) %>
+   MeetUp di riferimento:<%=MEETUP%>
+   <% endif %>
+   <hr>
+   <% if not empty(URL_GRP) %>
+       <a href="<%=URL_GRP%>">Vai al sito del gruppo</a>
+   <% endif
+endif
+***************************************************************
+case cAction = "LIST"
+***************************************************************
+%>
+<style type="text/css">
+td {vertical-align: top; font-size: 11;}
+</style>
+<%
+cKey := upper(MSPFieldValue("VAR_KEY"))
+cTable  := cDir + "RUBRICA.DBF"
+cIndex  := cDir + "RUBRICA.MTX"
+use (cTable)
+set filter to upper(GRP_ID)=cKey
+go top
+%>
+<font size="4"><%=cKey%></font>
+<table border="1" style="border-collapse: collapse" width="100%"><tr><td></td><%
+for iii=1 to afields()
+   %><td><%=fieldname(iii)%></td><%
+next
+%></tr><%
+do while not eof()
+   if (cKey $ upper(NOME) or cKey $ upper(COGNOME))
+      %><tr><td><button>..</button></td><%
+      for iii=1 to afields()
+         %><td><%=fieldcont(fieldname(iii))%></td><%
+      next
+   endif
+   skip
+   %></tr><%
+enddo
+%>
+</table>
+<%
+***************************************************************
+endcase
+***************************************************************
+%>
+</body>
+</html>

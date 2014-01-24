@@ -1,0 +1,245 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<link rel="stylesheet" type="text/css" href="cassa.css">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<title>TELECOMANDE WI-FI</title>
+</head>
+
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 3 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+if type(xDB)="U"
+   ? '<a target="_top" href="/index.msp"><h3>RICHIEDI AUTORIZZAZIONE</h3></a>' html
+   return
+endif
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+********************************************************************** END
+
+
+
+
+//-- RECUPERA LA CONFIGURAZIONE DEL DEVICE
+//
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+endif
+
+//-- APRE LE TABELLE CHE SERVONO
+//-- tabella cassa
+dbOpen(xDB,"5")
+sele cassa
+
+go bottom
+cCurrSess := NSESSIONE
+set filter to NSESSIONE = cCurrSess
+go top
+
+nTotContanti := 0
+nTotIncasso  := 0
+nTotResti    := 0
+nEpay        := 0
+nTickets     := 0
+do while not eof()
+   if COD_OP="CONTO" 
+      nTavOcc++
+   endif
+   nTotResti    += IMP_REST
+   nEpay        += IMP_EPAY
+   nTickets     += (IMP_TKT1+IMP_TKT2)
+   nTotContanti += VAL_CONT
+   nTotIncasso  += IMP_CONT
+   skip
+enddo
+nTotContanti := nTotIncasso-nTotResti
+nTotIncasso  := nTotIncasso + nEpay + nTickets -nTotResti
+
+//-- tabella tavoli
+dbOpen(xDB,"2")
+sele tavoli
+sum all COPERTI to nCopAtt
+count to nTavOcc for STAT_TAV="OCC"
+
+//-- TIMER SET
+nMins    := 0
+nSecs    := 15
+nTimeSet := nMins*60+nSecs*1000
+%>
+<script language="javascript">var int=self.setInterval("clock()",'<%=zz(nTimeSet)%>');
+function clock()
+  {
+  window.location.reload(true);
+  }
+</script>
+
+<script language="javascript">
+top.frm1.formx.SF_COM_TOT.value='<%=zz(nCopAtt)%>';
+top.frm1.formx.SF_TAV_OCC.value='<%=zz(nTavOcc)%>';
+top.frm1.formx.SF_TOT_CONT.value='<%=zz(nTotContanti)%>';
+top.frm1.formx.SF_TOT_INC.value='<%=zz(nTotIncasso)%>';
+</script>
+
+<%
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if val(zcSession)=0
+   %>
+   <script language="javascript">document.location='apri_chiudi.msp';</script>
+   <%
+endif
+
+//-- BACKGROUND ACTIONS
+
+//-- WEBVARS PER IL FILTRO
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+%>
+</head>
+
+<body background="../../images/sf-v.gif">
+<!----------------------------------- *BODY START --------------------------------------- //-->
+<form name="form1">
+<!----------------------------------- *GRID --------------------------------------- //-->
+<%
+do case
+*****************************************************************************
+case empty(cAction)
+*****************************************************************************
+%>
+<table border="0" cellpadding="2" width="100%" bgcolor="#660066">
+<tr>
+<th align="left">&nbsp;</th>
+<th>Prepara conto</font></th>
+<th><font size="2" color="#FFFFFF">Servito da</font></th>
+<th><font size="2" color="#FFFFFF">Coperti</font></th>
+<th><font size="2" color="#FFFFFF">Comande</font></th>
+<th><font size="2" color="#FFFFFF">Totale</font></th>
+<th><font size="2" color="#FFFFFF">Stato</font></th>
+<th><font size="2" color="#FFFFFF">Richiesto</font></th>
+</tr>
+<%
+select tavoli
+//-- tavoli da visualizzare
+set filter to alltrim(STAT_TAV)="CNT"
+go top
+cCondStr := "" 
+cQuery := cKeyFld + "=" + "'" + cKeyVal + "'"
+if empty(cKeyFld) or empty(cKeyVal)
+   cQuery := "1=1"
+endif
+go top
+rrr :=0
+do while not eof()
+   if &cQuery
+      rrr++
+      %>
+      <tr bgcolor="#000000">
+      <td colspan="2"><a href="prepara_conto.msp?VAR_TAV=<%=zz(ID_TAV)%>">Tavolo <%=zz(ID_TAV)%></a></td>
+      <td><%=capital(ID_OP)%> (S<%=ID_SALA%>)</td>
+      <td><%=COPERTI%></td>
+      <td><%=NUM_COM%></td>
+      <td><%=TOT_CNT%>E</td>
+      <td><%=STAT_TAV%></td>
+      <td><%=T_START%></td>
+      </tr>
+      <%
+   endif
+   skip
+enddo
+
+cAction :=""
+
+*****************************************************************************
+case cAction="LISTA"
+*****************************************************************************
+%><table width="100%" border="0"><%
+sele scontrini
+rrr := 0
+nnn := afields()
+go top
+do while not eof()
+   rrr++
+   %><tr><%
+   for iii=1 to nnn
+      %><td><%=fieldval(iii)%></td><%
+   next 
+   %></tr><%
+   skip
+enddo
+%></table><%
+cAction := ""
+*****************************************************************************
+endcase
+*****************************************************************************
+%>
+</table>
+<script language="javascript">
+document.form1.EF_COM_TOT.value='<%=zz(nCopAtt)%>';
+document.form1.EF_TAV_OCC.value='<%=zz(nTavOcc)%>';
+</script>
+</form>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+<font size="2" color="lime"><%=pagename()%> <%=xnWW%>x<%=xnHH%> <%=xcScreen%> </font>
+<font size="2" color="orange" size="2"> Term:<%=xcDevId%> <%=time()%></font>
+
+
+</body>
+</html>

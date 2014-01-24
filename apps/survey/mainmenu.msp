@@ -1,0 +1,64 @@
+<html>
+<!DOCTYPE html>
+<%
+**************************************** DBMAX MINI-HEADER backward compatible
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+
+<!--
+DBFREE DEMO AND TUTORIALS 2013
+
+********************************************************
+SURVEY MAKER DEMO  v.0.0.1 - February 2013
+Written from Hannes "Fuffy" Dalgreen for MaxScript 2.1
+********************************************************
+
+Module name.......: MAINMENU.htm
+Purpose...........: Left menu of Home Page (frm1)
+
+//-->
+<head>
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>SURVEY MAKER Intro Page - DBFree v3</title>
+<link rel="stylesheet" type="text/css" href="/css/default.css">
+<base target="frm2">
+</head>
+
+<body bgcolor="#B6D1F5" onload="top.frm2.location='void.htm'">
+
+<font size="4">Main menu
+</font>
+<hr>
+<p><a href="manage/create.msp">Create new survey</a></p>
+<p> <a target="_self" href="views/views_left.htm">Review existing ones</a></p>
+<p> <a target="_self" href="take/takemenu.msp">Take a survey (test mode)</a></p>
+<!----------------------------------- debug info -------------------------------------- //-->
+<div style="position:fixed; width:100%; height:13px; background-color:#C0C0C0; bottom:0; left:0; font-size:10; color: black; text-align:left;">survey/mainmenu.htm</div>
+
+<p><b>Utility</b></p>
+<hr>
+<p><a href="init.msp">Create database</a></p>
+
+<hr>
+<p><a href="<%=link2menu()%>" target="_top">EXIT</a></p>
+
+
+</body>
+
+</html>

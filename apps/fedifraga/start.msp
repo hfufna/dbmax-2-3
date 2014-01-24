@@ -1,0 +1,238 @@
+<html>
+<%
+xDb := "fedifraga"
+lDebug :=.f.
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+
+cMemFile := getMemFile(cSeed) 
+if file(cMemFile)
+   restore from (cMemFile) additive
+   //-- INITIALIZE THE CARGO
+   if empty(xCargoFile)
+      xCargoFile := xMemDir + "\" + cSeed + "_maxplanner.mem"
+      save all like x* to (xMemFile)
+   endif
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- APPLICATION SPECIFIC SESSION FILE
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+else
+   ainit("zaMonths","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre")
+   ainit("zaDays","Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato")
+   ainit("zaWeekDays","Dom","Lun","Mar","Mer","Gio","Ven","Sab")
+   znCurrYear  := year(date()) //-- YEAR TO USE
+   znCurrMonth := 1
+   znCurrWeek  := 1
+   zdCurrDay   := date()
+   ***
+   save all like z* to (xCargoFile)
+endif
+
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable1  := cDir + "DETTAGLI.DBF"
+cIndex1  := cDir + "DETTAGLI.MTX"
+cIndex2  := cDir + "DETTAGLI-D.MTX"
+if not file(cTable1)
+  ainit( "aField","DATA","GIORNO","ORA","POSIZIONE","VALORE","MESE","SETTIM","ANNO","COMMENTO","TIPOLOGIA")
+  ainit( "aType","D","C","C","C","N","N","N","N","M","C")
+  ainit( "aSize",8,10,10,80,10,2,2,4,10,25)
+  ainit( "aDec",0,0,0,0,2,0,0,0,0,0)
+  create (cTable1) from aField, aType, aSize, aDec
+endif
+if not file(cIndex1) or not file(cIndex2)
+   use (cTable1) in 0 index (cIndex1) key (GIORNO+ORA), (cIndex2) key DATA
+endif
+
+
+//-- DATABASE IN USE
+cTable  := cDir + "GIORNI.DBF"
+cIndex  := cDir + "GIORNI.MTX"
+if not file(cTable)
+  ainit( "aField","DATA","REPORT","MESE","SETTIM","ANNO")
+  ainit( "aType","D","M","N","N","N")
+  ainit( "aSize",8,8,2,2,4)
+  ainit( "aDec",0,0,0,0,0)
+  create (cTable) from aField, aType, aSize, aDec
+endif
+
+use (cTable) alias GIORNI index (cIndex) key DATA
+
+
+
+//-- INCOMING PARAMETERS
+
+//-- setting year to work with
+znYear := MSPFieldValue("VAR_YEAR")
+if empty(znYear)
+   znYear := year(date())
+else
+   znYear := val(znYear)
+endif
+
+//--PRELOADING
+preloadDays(znYear)
+
+//-- saving
+save all like z* to (xCargoFile)
+
+//-- page to show when clicking on month
+cLink1 := "view_day.msp?XY="+cSeed
+cLink2 := "view_month.msp?XY="+cSeed
+
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_YEAR=2012" class="btn btn-sm btn-primary">2012</a>
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_YEAR=2013" class="btn btn-sm btn-primary">2013</a>
+
+<div class="row">
+<table border="2" width="100%">
+<tr>
+<%
+//-- MONTS CYCLING
+nWeek    := 1
+nTotDays := 0
+dFirst   := ctod("01/01/" + zz(znYear))
+
+for nThisMonth = 1 to len(zaMonths)
+   nnn := daysOfMonth(nThisMonth)  %>
+   <td valign="top">
+   <div align="center">
+   <!----------- * link to month display page //---------------->
+   <a href="<%=cLink2%>&VAR_MONTH=<%=zz(nThisMonth)%>"><font size="3" color="navy"><b><%=zaMonths[nThisMonth]%> <%=znYear%></b></font></a>
+
+   <!----------------------------------- *boxing a month//----------------------------------------->
+    <table border="0" id="tbmonth" cellspacing="5" cellpadding="2">
+    <!-- dayweek column labels //-->
+	 <tr><% for iii=1 to len(zaWeekDays) %><td><%=zaWeekDays[iii]%></td><% next %></tr><tr>
+	 <!-- columns with days //-->
+    <%
+    //-- cells to skip to get correct alignement 
+    //   under the dayweek column label
+    //
+    dThisDay := dFirst + nTotDays
+    nSkip    := dow(dThisDay)  //-- empty cells to insert
+    if nSkip > 1
+       for ccc=1 to nSkip-1
+       %>
+       <td>&nbsp;</td>
+       <%
+       next
+    endif
+    rrr := nSkip-1
+    //-- place a day link for each remaining column
+    for ccc=1 to nnn
+       dThisDay := dFirst + nTotDays
+       cClr := "#000000"
+       cBgr := "#EFEFEF"
+       do case
+       case dThisDay < date()
+          cClr := "#C0C0C0"
+          cBgr := "#EFEFEF"
+       case dow(dThisDay)=1
+          cClr := "red"
+       case dow(dThisDay)=7
+          cClr := "navy"
+       endcase
+       if dThisDay = date()
+          cBgr := "yellow"
+       endif
+       rrr++
+       nTotDays++
+       %>
+       <!----------- *link to day display page //---------------->
+       <td align="right" bgcolor="<%=cBgr%>">
+       <a href="<%=cLink1%>&VAR_MONTH=<%=zz(nThisMonth )%>&VAR_DAY=<%=dThisDay%>">
+       <font size="2" color="<%=cClr%>"><b><%=day(dThisDay)%></b></font></a>
+       </td>
+       <!------ *counter for days placed over seven columns //------->
+        <%
+        if rrr > 6
+           %></tr><tr><%
+           rrr := 0
+           nWeek++
+       endif
+    next 
+    %></tr>
+   </table>
+   </div>
+   <!----------- *counter for months placed over three columns //---------------->
+   <% if mod(nThisMonth,3)=0%></td><td><tr><% endif %>
+   <% 
+next 
+%>
+</tr>
+</table>
+
+</div>
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+</html>
+
+<%
+********************************************
+function preloadDays(nThisYear)
+********************************************
+local dThisDay, nWeek, dNow, nnn
+nWeek := 1
+select GIORNI
+count for ANNO=nThisYear to nnn
+if nnn=0
+   for mmm=1 to 12
+      dThisDay := "01/"+ str(mmm,2,0,"0") + "/" + str(nThisYear,4,0,"0")
+      dThisDay := ctod(dThisDay)
+      dNow := dThisDay
+      for ddd=1 to daysOfM(dThisDay)
+         if cdow(dNow)="M"  //-- week starts from Monday
+            nWeek++
+         endif
+         *? dNow | nWeek | cdow(dNow)
+         append blank
+         if rlock()
+            repl DATA   with dNow
+            repl SETTIM with nWeek
+            repl MESE   with mmm
+            repl ANNO   with nThisYear
+            unlock
+         endif
+         dNow++ 
+      next
+   next
+endif
+return nnn
+**
+%>

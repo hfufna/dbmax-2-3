@@ -1,0 +1,97 @@
+<html>
+<!--
+          DBMAX 2.5  by Gianluca Napolitano
+                
+          HOME PAGE FOR MOBILES
+                
+          This page is only for first use: it shows basic informations
+          and performs some initial configuration and maintenance tasks.
+          For security reasons links are enabled only for local IP addresses.
+          
+          THIS PAGE DOES NOT MAKE USE OF DATABASES!
+ //-->
+<%
+xMaxLib  := "dbmax25.max"   //-- name of library to use
+xMinLib  := "2.5.2"         //-- minimum required version (id string)
+
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\"+xMaxLib
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+cSeed := MspFieldValue("XY")
+if empty(cSeed)
+   cSeed := makeSeed()  //-- temporary seed
+endif
+cSelf := pagename()
+%>
+<%=modInfo()%>
+<head>
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Checkup DBMAX first setup</title>
+<script type="text/javascript">
+//-- enable clock
+function ShowTime() {
+var dt = new Date();
+document.getElementById("div_clock").innerHTML= dt.toLocaleTimeString();
+window.setTimeout("ShowTime()", 1000);
+}
+window.setTimeout("ShowTime()", 1000);
+</script>
+</head>
+
+<%=include("/parts/html/header.htm")%>
+<%=include("/parts/html/navbar.htm")%>
+<body>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<span class="badge badge-inverse pull-right" style="margin:3px 3px 0px 0px;"><%=cdow(date())%> <%=day(date())%> <%=left(cMonth(date()),3)%> <%=year(date())%> 
+<span id="div_clock" style="background-color:red;">00:00:00</span></span>
+<div class="row">
+ <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+   <div align="center"><img src="/logo.jpg"></div>
+ </div>
+ <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+ <div class="panel panel-body">
+    <!-- ------- MOBILES GET PUBLIC ONLY -----------//-->   
+   <a class="btn btn-lg btn-default" href="/m/quickstart.msp?XY=<%=cSeed%>" style="margin:3px;width:100%;">Quick Start</a><br>
+   <a class="btn btn-lg btn-default" href="/m/gethelp.msp?XY=<%=cSeed%>" style="margin:3px;width:100%;">Get Help</a><br>
+   <% if isDir(webroot()+"\login")%>
+         <a class="btn btn-lg btn-primary" href="/login/login.msp?XY=<%=cSeed%>" style="margin:3px;width:100%;">LOGIN</a>
+   <% endif %>
+ </div>
+ </div>
+</div>
+<%=container()%>
+<div class="panel panel-heading" style="margin:-40px 0px -10px 0px;">
+   <h3><%=getenv("COMPUTERNAME")%><br>
+   <small> actually hosting <strong><%=getenv("SERVER_NAME")%></strong>
+   <br>This server is ready to be configured to host your applications!</small>
+   </h3>
+</div>
+
+<div class="row">
+<!-- WEBSITE INFO //-->
+<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+   Website info:
+   <pre><%=memoread(webroot()+"\info.txt")%></pre>
+   <font size="1"><%=libVer()%></font>
+</div>
+<!-- BROWSER INFO //-->
+<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+   <a href="javascript:toggleDiv('div_brw')" class="btn btn-sm btn-default">Browser info</a>
+   <div id="div_brw" style="display:none;">
+   <%
+   cTxt := MspFieldValue("brw_info")
+   if not empty(cTxt)
+     %><div class="well"><p align="left">Info collected from your browser:<br><%=cTxt%></div><%
+   endif
+   %>
+</div>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+</body>
+</html>

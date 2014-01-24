@@ -1,0 +1,234 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "fedifraga"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable1  := cDir + "DETTAGLI.DBF"
+cIndex1  := cDir + "DETTAGLI.MTX"
+cIndex2  := cDir + "DETTAGLI-D.MTX"
+
+
+*************************************************************
+//-- AJAX STANDARD WEBVARS FOR DBFREE
+nFld      := val(MSPFieldValue("V_FLD"))  //-- Field to update
+nAjRec    := val(MSPFieldValue("V_REC"))  //-- record to move to
+cAjaxVar  := MSPFieldValue("AJX")         //-- value to write
+lAjaxRun  := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX ACTUATOR FOR IN-PLACE EDITING)
+cAjxTable    := MSPFieldValue("VAR_TABLE")
+cAjxIndex    := MSPFieldValue("VAR_INDEXLIST")
+cValCbEdit  := iif(empty(MSPFieldValue("CB_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCbEdit),"readonly","")
+if lAjaxRun 
+   *use (cAjxTable) index (cAjxIndex)
+   use (cTable1) in 0 alias DETTAGLI index (cIndex1),(cIndex2)
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+**************************************************************
+
+use (cTable1) in 0 alias DETTAGLI index (cIndex1),(cIndex2)
+set order to 1
+
+//-- INCOMING WEBVARS
+dToday     := ctod(MspFieldValue("VAR_DAY"))
+
+select DETTAGLI
+do case
+case cAction = "ADD"
+   append blank
+   if rlock()
+      repl DATA with dToday
+      repl GIORNO with dtoc(dToday)
+      repl SETTIM with week(dToday)
+      repl MESE   with month(dToday)
+      repl ANNO   with year(dToday)
+      unlock
+   endif
+endcase
+%>
+<%=include("/parts/html/header.htm")%>
+<script src="/js/jmax.js"></script> 
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h2><a href="show_week.msp?XY=<%=cSeed%>&VAR_DAY=<%=dow(dToday)%>"><u><%=itdow(dToday,.t.)%></u></a> <%=day(dToday)%> 
+<a href="view_month.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>"><u><%=itmonth(dToday,.t.)%></u></a> 
+<a href="start.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>"><u><%=year(dToday)%></u></a> 
+<a class="btn btn-xs btn-default" href="view_month.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>&VAR_WEEK=<%=zz(week(dToday))%>">Mostra la settimana</a>
+<a class="btn btn-xs btn-default" href="report.msp?XY=<%=cSeed%>&VAR_DAY=<%=zz(dToday)%>">GG</a>
+<a class="btn btn-xs btn-default" href="report.msp?XY=<%=cSeed%>&VAR_WEEK=<%=zz(week(dToday))%>">SS</a>
+<a class="btn btn-xs btn-default" href="report.msp?XY=<%=cSeed%>&VAR_MONTH=<%=zz(month(dToday))%>">MM</a></h2>
+</h2>
+
+<a class="btn btn-sm btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=<%=zz(dToday-1)%>">Precedente</a>
+<a class="btn btn-sm btn-default" href="<%=cSelf%>?XY=<%=cSeed%>&VAR_DAY=<%=zz(dToday+1)%>">Successivo</a>|
+<a class="btn btn-sm btn-success" href="<%=cSelf%>?XY=<%=cSeed%>&VA=ADD&VAR_DAY=<%=zz(dToday)%>">Nuova riga</a>
+<a class="btn btn-sm btn-danger" href="<%=cSelf%>?XY=<%=cSeed%>&VA=DEL">Cancella selezionati</a>|
+<%
+cLink3 := "comment_day.msp?XY=" + cSeed + "&VAR_DAY=" + zz(dToday)
+cMsg3  := "Commenta " + itdow(dToday,.t.) + " " + zz(day(dToday)) + " " + itmonth(dToday)
+%>
+<a data-toggle="modal" href="#div_modal" class="btn btn-sm btn-default" onclick="popupFile('<%=cLink3%>','<%=cMsg3%>')">Commenta giorno</a>
+
+</h2>
+
+<a class="btn btn-sm btn-primary pull-right" href="start.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>">Calendario <%=znYear%></a>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<div class="row">
+   <form name="form1" action="<%=cSelf%>" method="post" style="form">
+   <input type="hidden" name="VAR_ACTION" value="SAVE">
+   <input type="hidden" name="VAR_OPTION" value="">
+   <table class="table">
+   <tr><th></th><th>Ora</th><th>Posizione</th><th>Spesa</th><th>Tipo</th></tr>
+   <%
+   select DETTAGLI
+   set order to 1
+   rrr := 0
+   set filter to GIORNO=dtoc(dToday)
+   go top
+   do while not eof()
+      rrr++
+      nRec := recno()
+      *********************
+      displRec(nRec,nRec,"03,04,05, 10")
+      *********************
+      skip
+   enddo
+   %>
+   </table>
+   </form>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal.htm")%>
+
+</body>
+</html>
+<%
+
+
+**************************************************
+procedure displRec(nThisRec, nRowNum, cFieldList)
+**************************************************
+//-- PROCEDURE FOR DISPLAYING A SINGLE RECORD - RE-USABLE CODE
+//   LOOPS ALL THE FIELDS AND BUILDS A ROW WITH THE AJAX HOOK FOR IN-PLACE EDITING
+//-- ATTENTION: cIsReadOnly sets if editing is allowed and must be declared from the caller
+//
+local nFld, cAjIdentifier, cAjHook
+cParms := "VAR_TABLE=" | MspEncode(cTable1) | "&VAR_REC=" | zz(nRec)
+cCBRchecked := deleted()
+set decimals to 2
+%>
+<!----------------------------------- *Record <%=zz(nThisRec)%>--------------------------------------- //-->
+<tr>
+<td nowrap>
+<%
+cLink  := "comment_pos.msp?XY=" + cSeed + "&VAR_REC=" + zz(recno())
+cMsg   := itdow(DATA,1) | " " | str(day(DATA),2,0) | " " | itmonth(DATA) | " " | ORA
+cLabel := "/"
+%>
+<input type="checkbox" <%=cCBRchecked%> name="CBR_<%=zz(recno())%>" title="check to select">
+<a title="R.<%=str(recno(),4,0)%>" data-toggle="modal" href="#div_modal" class="btn btn-xs btn-default" onclick="popupFile('<%=cLink%>','<%=cMsg%>')"><%=cLabel%></a>
+<%
+for nFld=1 to afields()
+   if str(nFld,2,0,"0") $ cFieldList
+      ***
+      cAjIdentifier := "div_" + zz(nThisRec)+"-"+zz(nFld)
+      cAjHook := "&V_REC="+zz(nThisRec)+"&V_FLD="+zz(nFld)
+      xVal := zz(fieldval(nFld))
+      %>
+      <td>
+      <div id="<%=cAjIdentifier%>" style="border:solid 1px #EFEFEF"></div>
+      <% if nFld=10 %>
+         <select name="EF_<%=fieldname(nFld)%>" onchange="javascript:ajaxRun('<%=cSelf%>?XY=<%=cSeed%>&AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cTable1)%>&VAR_INDEXLIST=<%=MspEncode(cIndex2)%>','<%=cAjIdentifier%>');">
+         <% if not empty(xVal) %>
+               <option><%=xVal%></option>
+         <% endif %>
+            <option></option>
+            <option>Transazione</option>
+            <option>Chiamata</option>
+            <option>Messaggio</option>
+            <option>Transito</option>
+         </select>
+      <% else %>
+         <input type="text" class="borded"
+            <% if nFld=4 %>
+               title ="<%=zz(COMMENTO)%>"
+            <% endif %>
+            name="EF_<%=fieldname(nFld)%>" 
+            value="<%=xVal%>" 
+            size="<%=zz(fieldsize(nFld))%>"
+            title="Field: <%=fieldname(nFld)%>"   
+            onchange="javascript:ajaxRun('<%=cSelf%>?XY=<%=cSeed%>&AJX=',this.value+'<%=cAjHook%>&VAR_TABLE=<%=MspEncode(cTable1)%>&VAR_INDEXLIST=<%=MspEncode(cIndex2)%>','<%=cAjIdentifier%>');">
+      <% endif %></td><%
+   endif
+next
+set decimals to 0
+%></tr><%
+return
+
+
+
+%>

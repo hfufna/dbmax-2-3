@@ -1,0 +1,27 @@
+<html>
+<%
+cAppId := "myApp"
+lDebug := .t.
+********************************************* 
+zcLib := mspconfigvar("LIB")+"\dbmax23.max"
+set maxlib to &zcLib
+freeslot()
+****************************************
+CR_LF := chr(13)+chr(10)
+%>
+<%=modInfo()%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+<body>
+<h2>Actuator Page for FormBuilder.js</h2>
+<%
+lDebug :=.f.
+
+//-- WEBVARS STACK
+for iii = 1 to mspfieldcount()
+   ? mspdecode(MSPFieldName(iii)) | "=" | mspdecode(MSPFieldValue(iii))
+next
+
+%>
+</body>
+
+</html>

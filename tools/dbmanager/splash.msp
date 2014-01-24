@@ -1,0 +1,44 @@
+<html>
+<%
+lDebug :=.t.
+********************************************* 
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+****************************************
+CR_LF := chr(13)+chr(10)
+
+cSelf   := pagename()
+cAction := MspFieldValue("VA")
+**************************************** END HEADER
+set decimals to 0
+%>
+<!---------(<%=pagename()%>) <%=pagefile()%> ---------//-->
+
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+
+<body>
+
+<div class="heading" style="background-image:url('/images/wallpaper_big.jpg');height:100%;margin-top:-65px;margin-bottom:0px;">
+<%=container()%>
+<div class="jumbotron" style="margin-top:5%;">
+   <h1>
+   <small>MaxScript's</small><br>
+   Database Manager
+   </h1>
+</div>
+<%=container(0)%>
+</div>
+
+</body>
+
+</html>

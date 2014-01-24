@@ -1,0 +1,104 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  ? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+cDbPath  := MspConfigVar("DATADIR")
+
+cDbPath := setDb("cmd")
+
+cFile := MSPFieldValue("VAR_FILE")
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<%
+if not file(cFile)
+   %>
+   <h4>Nothing to debug!</h4>
+   The file is empty.<p>If you think this is an error check [<%=cFile%>]
+   <%
+   return
+endif
+
+%>
+<p style="background-color:#EF0021;color:white;border: solid 1px #EF0021;">Content of file <b><%=cFile%></b>
+<div style="font-face:courier,monospaced; color:maroon; background-color:#FCFCFC; margin-right:10px;">
+<%
+nHandle   := fopen(cFile)
+nLastByte := fseek(nHandle,0,2)
+cChunk := ""
+nFirstByte := fseek(nHandle,0,0)
+nThisPos   := fseek(nHandle,0,1)
+rrr := 0
+do while nThisPos < nLastByte
+   rrr++
+   cChunk   := freadstr(nHandle,132, chr(10))
+   nThisPos := fseek(nHandle, nThisPos+len(cChunk)+1, 0)
+   ? str(rrr,4,0,"0")+": "+ cChunk
+enddo
+fclose(nHandle)
+%>
+</div>
+</table>
+
+
+<!--------------------------------------- end 2-1 //--------------------------------------------->
+</body>
+</html>
+<%
+****************************
+function readMemoFld(cFile)
+****************************
+* This function replaces MEMOREAD() for memo fields 
+* while discharging the unwanted EOF marker chr(26) 
+* placed by MaxScript
+*
+nHandle    := fopen(cFile)
+nFirstByte := 1
+nLastByte  := fseek(nHandle,0,2)
+nPos := fseek(nHandle,nLastByte-1)
+EOF := freadstr(nHandle,nPos)
+cChunk := ""
+nPos := fseek(nHandle,1)
+cChunk := freadstr(nHandle, nLastByte, EOF)
+fclose(nHandle)
+return cChunk
+
+
+******************************
+function len_file(cFile)
+******************************
+private nHandle, nSize
+nHandle := fopen( cFile )
+if nHandle != -1
+   nSize := fseek( nHandle, 0, 2 )
+   fclose( nHandle )
+else
+   nSize := 0
+   print "File open error"
+endif
+return nSize
+%>

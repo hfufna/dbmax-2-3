@@ -1,0 +1,181 @@
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 SLAVE HEADER 0201
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 02 -- GETTING SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- 012 -- GETTING CARGO VARS
+if not empty(xCargoFile) 
+   if file(xCargoFile)
+      restore from (xCargoFile) additive
+   else
+      ? "ERROR: Cargo file [" + xCargoFile + "] missing!"
+      *return   
+   endif
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- 014 - DEFAULT REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- 015 -- DEFAULT DATABASE SETTINGS
+if type(xDbSet)="C" and not empty(xDbSet)
+   cDir := setDb(xDbSet)
+else
+   cDir := setDb("cmd")
+endif
+if type(xDbType)="C" and not empty(xDbType)
+   xDbType := upper(trimRight(xDbType,1))
+   if not xDbType $ "MAX XBASE"
+      set dbtype to (xDbType)
+   endif
+endif
+
+//-- 020 -- MISC SETTINGS
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER 0201
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%=modInfo()%>
+<!-- ---------------------------------------- END DBMAX SLAVE HEADER ----------------------------------------//-->
+<%
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- INCOMING WEBVARS
+cUserKey := alltrim(MSPFieldValue("EF_USERNAME"))
+
+//-- DATABASE SETTINGS
+//-- usermenu uses XBASE dbtype
+//
+set dbtype to ""
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- TABLE TO USE
+cTable_a  := cDir + "USR_MENUS.DBF"
+cIndex_a  := cDir + "USR_MENUS.MTX"
+use (cTable_a) in 0 alias MENUS index (cIndex_a) key USR_ID
+
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("navbar.htm")%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%=container()%>
+<div class="row">
+<h3><img src="img/menulogo_dbmax.jpg" width="52" height="60" align="left"><%=capital(xUser)%>'s Apps
+<a href="/login/login.msp?XY=<%=cSeed%>&VA=RELOAD&EF_USERNAME=<%=xUser%>" class="btn btn-primary pull-right">Welcome page</a>
+</h3>
+</div>
+<div class="row">
+   <!-------- LEFT COLUMN---------------------//-->
+   <div class="col-sm-3 col-md-3 col-lg-2" style="background-color:#F9F9F9;"> 
+   <small>List of available applications:</small><br>
+      <%=listItems()%>
+      <span class="badge pull-right"><%=cSeed%></span>
+   </div>
+   <!------ RIGHT COLUMN---------//-->
+   <div class="col-sm-9 col-md-9 col-lg-10">
+      <iframe frameborder="0" id="frm2" height="400px" style="width:100%;" src="void.htm"></iframe>
+   </div>
+</div>
+
+<%=container(0)%>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+</body>
+<!-- adjusting the iframe height //-->
+<script type="text/javascript">
+var hh = curHeight()*0.9; document.getElementById('frm2').height=''+hh+'px';
+</script>
+<%
+************************************************
+function listItems()
+************************************************
+%>
+<table class="table">
+<%
+cUsr := xUser
+rrr := 0
+if empty(cUsr)
+   cUsr := zz(USR_NAME)
+endif
+set order to 1
+
+cUsr := upper(cUsr)
+seek cUsr
+if not found()
+   append blank
+   if rlock(1)
+      repl USR_NAME with upper(cUsr)
+      repl USR_GRP  with "STD" 
+      repl MOD_ID   with str(recno(),5,0,"0")
+      repl MOD_NAME with "Welcome Applications"
+      repl APP_DIR  with "/apps/"
+      repl START_PAGE with "index_apps.msp"
+      repl TARGET   with "_top"
+      unlock
+   endif
+endif
+
+seek cUsr
+if found()
+   rrr := 0
+   do while upper(USR_NAME) = cUsr
+      rrr++
+      cLink := zz(APP_DIR) + zz(START_PAGE) + "?XY=" + cSeed
+      cMsg :=  zz(MOD_NAME)
+      %>
+   <tr><td width="5%"><a href="<%=cLink%>" class="btn btn-xs btn-danger"><%=zz(rrr)%></a></td><td><a href="<%=cLink%>"><big><u><%=cMsg%></u></big></a></td></tr>
+      <%
+      skip
+   enddo
+endif
+%>
+</table>
+<%
+return ""
+%>
+</html>

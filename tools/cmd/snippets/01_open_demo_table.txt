@@ -1,0 +1,3 @@
+setDb("demo")
+use "customers"
+? "Table:" | dbf() | " Records:" | reccount()

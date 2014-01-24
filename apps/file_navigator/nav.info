@@ -1,0 +1,11 @@
+<p>This example implements a <b>File Navigator</b> for your web server.<br>
+The code is simplified for educational purpouses but can be used as-is in your applications.</p>
+<p>The module is made out of five files grouped into a framed page.</p>
+<ul>
+	<li>navigator.msp: the frame page</li>
+	<li>nav_top.msp: frame 0 - banner and form for choosing start folder (root)</li>
+	<li>nav_left.msp: frame 1 - list of folders</li>
+	<li>nav_body.msp: frame 2 - list of files in current folder</li>
+	<li>nav_edit.msp: external text editor</li>
+</ul>
+<p>&nbsp;</p>

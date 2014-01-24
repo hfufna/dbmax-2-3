@@ -1,0 +1,45 @@
+DBFree-DEV MaxScript reference manual
+version BETA 0.1
+Agust 21, 2011
+
+This web is a porting of an existing application written for
+DBMax and currently in use on our website, merged with the
+existing CMD.local web application.
+
+The whole porting required about 2 hours, including redesigning 
+the user interface, but excluding debug (that is not done yet).
+
+All porting consisted into creating a folder and copying in 
+it the structure of CMD web, plus the necessary pages taken 
+from the REFERENCE web.
+
+Most of the time has been spent for amalgamating the appearence
+so to hide that pages are coming from different applications.
+
+MaxScript code has been modified slightly, mainly to move the 
+check-up routine at the beginning of the application (splash.msp)
+from its original location (browse.msp) so to perform a checkup
+as soon as the application is started.
+
+Another time-consuming job has been harmonizing texts and dialogs
+and making all pages to refer at the same library.
+
+To avoid problems we loaded the /LIB folder with all libraries
+currently available, so should a page call other than dbmax25.max
+it will not generate errors.
+This is due to the fact that the "donor" application itself has 
+been made by some new pages and some "inherited" from other apps,
+
+This is an example of "rough" but highly efficient modularity
+"a-la-Clipper".
+
+Feel free to modify this application to fit your needs or/and
+to eliminate bugs and unwanted behaviours.
+
+For example there are several parts of code for adding new
+records or editing those already existing.
+This part is not necessary for purpouses of this application
+and is an unwanted legacy of the "donor" app.
+
+Eliminating this code would have been easy, but we intentionally 
+left it in place for educational purpouses.

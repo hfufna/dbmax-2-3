@@ -1,0 +1,4 @@
+nFields := afields()
+for nnn=1 to nFields
+   ? fieldname(nnn) | "=" | fieldcont(fieldname(nnn))
+next

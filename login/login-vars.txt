@@ -1,0 +1,14 @@
+Variables pool stored into Seed file:
+
+xAppId
+xRoot
+xcLib
+xMemDir
+xMemFile
+xGlobals
+xStarter
+xDateTime
+xUser
+xPsw
+
+

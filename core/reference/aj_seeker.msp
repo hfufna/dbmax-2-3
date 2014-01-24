@@ -1,0 +1,58 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<title>Ajax seeker</title>
+</head>
+
+<body>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+
+//-- standard DBFree MTX indexes
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not opened"
+   return
+endif
+set order to 0
+go top
+
+
+cKey := upper(MSPFieldValue("VAR_KEY"))
+rrr:=0
+go top
+do while not eof()
+   if cKey $ upper(ELEMENT)
+      rrr++
+      %>
+      <a href="#" id="id_<%=zz(rrr)%>" onclick="top.frm1.form1.VAR_KEYWORD.value='<%=zz(ELEMENT)%>';top.frm1.form1.submit();">
+      <b><%=zz(ELEMENT)%></b>
+      </a>
+      <br> 
+      <font color="navy"><%=zz(DESCR)%></font>><hr>
+      <%
+   endif
+   skip
+enddo
+if rrr = 0
+   ? "No match!"
+endif
+%>
+</html>
+</body>
+
+</html>

@@ -1,0 +1,34 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/navbar.htm")%>
+<body>
+<div class="container">
+
+<%=container()%>
+<div class="jumbotron">
+<h2>Chat Demo</h2>
+<a href="login.msp">
+<img border="0" src="app-img/chat_logo.gif" width="183" height="175"></a>
+</div>
+
+<div align="center">
+<a class="btn btn-default" href="info.msp">Overview</a>&nbsp; |&nbsp; 
+<a class="btn btn-primary" href="login.msp">Login</a>&nbsp;&nbsp; |&nbsp; 
+<a class="btn btn-default" target="_top" href="<%=link2menu(0)%>"><font color="#FF0000">EXIT</font></a></font></span></h1>
+<hr>
+<small>Originally written (2006) for DBFree </small>
+</div>
+<%=container(0)%>
+</body>
+
+</html>

@@ -1,0 +1,354 @@
+<html>
+<%
+lDebug :=.f.
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+xAppId := memoread(webroot()+"\xappid")
+
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+cDbType    := MspFieldValue("DBT")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- DATABASE SETTINGS OVVERRIDE
+//   (usermanager uses XBASE indexes)
+cDir := setDb(xAppId)
+set dbtype to ""
+
+
+//-- INCOMING WEBVARS
+cUsr := MspFieldValue("VK")
+nRec := val(MspFieldValue("VR"))
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+
+//-- TABLE TO USE
+cTable  := cDir + "USR_MENUS.DBF"
+cIndex  := cDir + "USR_MENUS.MTX"
+use (cTable) in 0 alias MENUS index (cIndex)
+
+cUsr_name   := MspFieldValue("EF_USR_NAME")
+cMod_name   := MSPFieldValue("EF_MOD_NAME")
+cApp_dir    := MSPFieldValue("EF_APP_DIR")
+cStart_page := MSPFieldValue("EF_START_PAGE")
+cTarget     := MSPFieldValue("EF_TARGET")
+cFull_descr := MSPFieldValue("EF_FULL_DESCR")
+
+
+//-- BACKGROUND OPERATIONS
+do case
+**************************************************************************************************************
+case cAction = "ES"  //-- EDIT SAVE
+**************************************************************************************************************
+go nRec
+if rlock()
+   repl APP_DIR    with cApp_dir
+   repl MOD_NAME   with cMod_name
+   repl START_PAGE with cStart_page
+   repl TARGET     with cTarget
+   repl FULL_DESCR with cFull_descr
+endif
+cAction := ""
+
+**************************************************************************************************************
+case cAction = "DOK"  //-- REMOVE APP
+**************************************************************************************************************
+go nRec
+cUsr := USR_NAME
+*
+if rlock()
+   repl USR_NAME with "NONE"
+   repl APP_DIR    with ""
+   repl MOD_NAME   with ""
+   repl START_PAGE with ""
+   repl TARGET     with ""
+   repl FULL_DESCR with ""   
+   unlock
+endif
+cAction := ""
+
+**************************************************************************************************************
+case cAction = "AOK"  //-- APPEND OK
+**************************************************************************************************************
+*
+if empty(cUsr_name)
+   ? "ERROR: USER MENU NEEDS A KEY FIELD FOR INDEX!"
+endif
+set order to 1
+seek "NONE"
+if not found()
+   append blank
+endif
+nRec := recno()
+go nRec
+if rlock(2)
+   repl USR_NAME   with cUsr_name
+   repl MOD_ID     with "A-" + str(recno(),4,0,"0")
+   repl MOD_NAME   with cMod_name
+   repl APP_DIR    with cApp_dir
+   repl START_PAGE with cStart_page
+   repl TARGET     with cTarget
+   repl FULL_DESCR with cFull_descr
+   unlock
+endif
+cUsr := cUsr_name
+cAction := ""
+**************************************************************************************************************
+endcase
+**************************************************************************************************************
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;margin-bottom:3px;background-color:#FFFFFF;">
+<hr>
+<!-- ---------------------------------------------------------- * ----------------------------------------//--><%
+//-- FOREGROUND ACTIONS
+//
+
+do case
+**************************************************************************************************************
+case empty(cAction)
+**************************************************************************************************************
+%>
+<div class="container">
+<form name="form_nav" id="curr_form" action="<%=cSelf%>" method="post">
+<h2><img src="ico_user.JPG"> <small>Applications assigned to <%=cUsr%></small>
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VA=A&VR=0&VK=<%=cUsr%>" class="btn btn-sm btn-warning pull-right" style="margin-bottom:5px;">Add new application</a></h2>
+</h2>
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VR" value="<%=recno()%>">
+<input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>">
+</form>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+rrr := 0
+if empty(cUsr)
+   go nRec
+   cUsr := zz(USR_NAME)
+endif
+set order to 1
+cUsr := upper(cUsr)
+seek cUsr
+if found()
+   rrr := 0
+   do while cUsr == upper(zz(USR_NAME))
+      rrr++
+      %>
+      <div class="thumbnail">
+      <span class="badge"><%=recno()%></span>
+      <b><%=capital(MOD_NAME)%></b>
+      <% 
+      cLink := zz(APP_DIR) + zz(START_PAGE) + "?XY=" + cSeed
+      cMsg := "TESTING " + zz(MOD_NAME)
+      %>
+      <div class="row">
+      <div class="col-sm-8 col-md-8" style="padding 5px 5px 5px 5px;">
+      <%
+      if left(MOD_NAME,1)="/"
+         %><br>Application is not configured yet: please press <font color="#008000">modify </font>and check all settings<%
+      endif
+      %>         
+      <%=FULL_DESCR%>
+      </div>
+      <div class="col-sm-4 col-md-4">
+         <a class="btn btn-xs btn-success" href="<%=cSelf%>?XY=<%=cSeed%>&VA=EA&VR=<%=zz(recno())%>">Modify</a>&nbsp;
+         <a title="<%=cLink%>" data-toggle="modal" href="#div_modal3" class="btn btn-xs btn-primary" onclick="popupFile('<%=cLink%>','<%=cMsg%>')">Preview</a>&nbsp;
+         <a class="btn btn-xs btn-danger" href="<%=cSelf%>?XY=<%=cSeed%>&VA=AD&VR=<%=zz(recno())%>">Remove</a>
+      </div>
+      </div>
+      </div>
+      <%
+      skip
+   enddo
+else
+   ? "ATTENTION: " + cUsr + "'s menu is empty!"
+endif
+%>
+<font size="1" color="#808080">The personal menu of this user contains <%=rrr%> items.
+</font>
+</div>
+<%
+**************************************************************************************************************
+case cAction = "EA"  //-- EDIT APP RECORD
+**************************************************************************************************************
+go nRec
+%>
+<div class="container">
+<h2><img src="ico_user.JPG"> <small>Modify application #<%=recno()%> of user <%=USR_NAME%></small> 
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VA=AD&VR=<%=zz(recno())%>&VK=<%=cUsr%>" class="btn btn-sm btn-danger pull-right" style="margin-bottom:5px;">Remove application</a>
+</h2>
+<form name="form_edit_app" id="curr_form" action="<%=cSelf%>" method="post" style="form">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input type="hidden" name="VR" value="<%=nRec%>">
+   <input type="hidden" name="VK" value="<%=zz(USR_NAME)%>">
+   <input type="hidden" name="VA" value="ES">
+   <input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>">
+   <br>
+   <p>Application:
+   <%=doFormFiles()%>
+   <hr>
+   <input class="btn btn-sm btn-primary" type="submit" name="PB_OK" value="Save changes">
+</form>
+</div>
+<%
+**************************************************************************************************************
+case cAction == "A"  //-- ADD A NEW APPLICATION TO USERMENU
+**************************************************************************************************************
+%>
+<div class="container">
+<h2><img src="ico_user.JPG"> <small>Add an application to the menu of user <%=USR_NAME%></small> </h2>
+<form name="form_add_app" id="curr_form" action="<%=cSelf%>" method="post" style="form">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input type="hidden" name="VA" value="AOK">
+   <input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>">
+   <p>Choose the application to add:
+   <%=doFormFiles()%>
+   <hr>
+   <input class="btn btn-sm btn-primary" type="submit" name="PB_OK" value="Save changes">
+</form>
+</div>
+<%
+**************************************************************************************************************
+case cAction = "AD"  //-- APPLICATION DELETE
+**************************************************************************************************************
+go nRec
+%>
+<div class="container">
+<h2><img src="ico_user.JPG"> <small>Removing application <%=MOD_NAME%> from the menu of user <%=USR_NAME%></small> </h2>
+<form name="form_del_app" id="curr_form" action="<%=cSelf%>" method="post" style="form">
+   <input type="hidden" name="XY" value="<%=cSeed%>">
+   <input type="hidden" name="VA" value="DOK">
+   <input type="hidden" name="VR" value="<%=zz(recno())%>">
+   <input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>">
+   Remove this application from user's menu?<br>
+   <input class="btn btn-sm btn-primary" type="submit" name="PB_OK" value="Confirm delete">
+</form>
+</div>
+<%
+
+**************************************************************************************************************
+endcase
+**************************************************************************************************************
+%>
+
+<!-- HTML FOOTER //-->
+</div><!-- container //-->
+</body>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal3.htm")%>
+</html> 
+<!-- --------------------------------------------------END OF PAGE ----------------------------------------//-->
+<%
+
+
+********************************************
+procedure doFormFiles
+********************************************
+cThisUrl := cSelf + "?XY=" + cSeed + "&VA=EA" + "&VK=" + cUsr_name + "&VR=" + zz(recno())
+$extended
+   cFolder := fixslash(webroot()+"\apps\")
+   cMask := cFolder + "*."
+   nApps = adir( cMask, aFolders)
+   cPath := trimRight(updir(cFolder),1)
+   cPath := plainpath(cPath)
+   %>
+   <br><input type="hidden" name="EF_USR_NAME" value="<%=iif(empty(cUsr),zz(USR_NAME),cUsr)%>">
+   <select 
+   name="EF_APP_DIR" size="1" 
+   onchange="top.frm2.curr_form.EF_MOD_NAME.value=this.value;top.frm2.curr_form.submit();">
+   <option selected value="<%=strTran(APP_DIR,cFolder,"")%>"><%=strTran(APP_DIR,cFolder,"")%></option>
+   <% for iii=1 to len(aFolders) 
+         cVal := dos2web(aFolders[iii])
+         cShow := cVal%>
+      <option value="<%=cVal%>/"><%=cShow%></option>
+   <% next %>
+   </select>
+   </p>
+<p>Choose the ignitor page: [<%=cPath%>]<br>
+<select name="EF_START_PAGE">
+   <option value="<%=zz(START_PAGE)%>"><%=zz(START_PAGE)%></option>
+   <option value="start.msp">start.msp</option>
+   <option value="home.msp">home.msp</option>
+   <option value="index.msp">index.msp</option>
+   <%=LoadOpt()%>
+</select>
+
+<p>Choose the target frame:<br>
+<select name="EF_TARGET">
+  <option value="<%=zz(TARGET)%>"><%=zz(TARGET)%></option>
+  <option value="_self">Auto (_self)</option>
+  <option value="_top">Full page (_top)</option>
+  <option value="frm1">Left panel (frm1)</option>
+  <option value="frm2">Central frame (frm2)</option>
+</select>
+
+<p>Description for the user (will appear in the menu):<br>
+<% 
+cName := zz(MOD_NAME)
+if right(cName,1) ="/"
+   cName := trimRight(cName,1)
+   cName := upper(wordRight(cName,"/",1))
+endif 
+%>
+<input type="text" name="EF_MOD_NAME" value="<%=cName%>" size="80" title="" placeholder="App Name">
+   <br>
+   <%
+return ""
+
+***************************
+function LoadOpt()
+***************************
+local cFileMask,nFiles,hhh,cThis,nElem
+local cOut := ""
+   cFileMask := fixslash(webroot() + alltrim(APP_DIR))+"*.msp"
+   if not empty(cFileMask)
+      nFiles := adir( cFileMask+"*.*", aFiles)
+      nElem := 0
+      for hhh = 1 to nFiles
+         cThis  := filebone(aFiles[hhh])
+         if cThis $ "start home booter go index"
+            nElem++
+            cOut += '<option value="' + cThis + '.msp">' + cThis + '</option>'
+         endif
+      next
+   endif
+return cOut
+%>

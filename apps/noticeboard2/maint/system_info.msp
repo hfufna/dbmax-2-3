@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- 
+Written by G.Napolitano (www.dbfree.org)
+Florence (ITALY) - March 2011
+ //--->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<META NAME="COPYRIGHT" CONTENT="G.Napolitano & MAXSIS ITALY (www.maxsis.it)- partly based on DBFREE (www.dbfree.org)">
+<META NAME="AUTHOR" CONTENT="G.Napolitano & Associates - MAXSIS ITALY (www.maxsis.it) and DBFree Team (www.dbfree.org)">
+<title>Display System Info</title>
+
+<link rel="stylesheet" type="text/css" href="/default.css">
+</head>
+<%
+**************************************** DBFree 2-22-MINI-HEADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+**************************************** DBFree 2-22-MINI-HEADER
+cDbPath := MspConfigVar("DATADIR")
+cSelf      := pageName()
+
+//-- establishing a flag
+lLocal :=.f.
+
+//-- getting IP address from caller
+cIp := getenv("REMOTE_ADDR")
+
+//-- using an array to store the IP allowed
+declare aAllowed[4]
+aAllowed[1]:="192.168"
+aAllowed[2]:="172.16"
+aAllowed[3]:="10.0"
+aAllowed[4]:="127.0.0.1"
+
+//-- checking the user IP against the list
+for iii=1 to alen(aAllowed)
+   if left(cIp,len(aAllowed[iii])) = aAllowed[iii]
+      lLocal :=.t.
+   endif
+next
+
+
+//-- checking to be connected from server
+cServerIP := getenv("SERVER_NAME")
+if cServerIP = cIp
+   lConsole :=.t.
+else
+   lConsole :=.f.
+endif
+%>
+<!----------------------------------- *vars //----------------------------------------->
+<%
+cPubDir := upDir(documentRoot())
+cLocDir := upDir(cPubDir)+"local"
+
+Private aValues[22]
+	ainit("aValues" , ;;
+		  "GATEWAY_INTERFACE"   ,
+		  "SERVER_NAME"         ,
+		  "SERVER_SOFTWARE"     ,
+		  "SERVER_PROTOCOL"     ,
+		  "SERVER_PORT"         ,
+		  "REQUEST_METHOD"      ,
+		  "PATH_INFO"           ,
+		  "PATH_TRANSLATED"     ,
+		  "SCRIPT_NAME"         ,
+		  "DOCUMENT_ROOT"       ,
+		  "QUERY_STRING"        ,
+		  "REMOTE_HOST"         ,
+		  "REMOTE_ADDR"         ,
+		  "AUTH_TYPE"           ,
+		  "REMOTE_USER"         ,
+		  "REMOTE_IDENT"        ,
+		  "CONTENT_TYPE"        ,
+		  "CONTENT_LENGTH"      ,
+		  "HTTP_FROM"           ,
+		  "HTTP_ACCEPT"         ,
+		  "HTTP_USER_AGENT"     ,
+		  "HTTP_REFERER"        )
+	      ;.
+	%>
+
+<body bgcolor="#FFFFFF" text="#000000" bgproperties="fixed">
+
+<%=include("header.tpl")%>
+
+<h2>System Info</h2>
+<table border="0" width="100%" id="table1" cellspacing="0" cellpadding="3">
+	<tr>
+		<td bgcolor="#000000">
+		<a target="_top" href="/"><font color="#FFFFFF">Home Page</font></a><font color="#FFFFFF"> | <a href="javascript:history.back();"><font color="#CCCCCC">
+		Back</font></a></font></td>
+	</tr>
+</table>
+
+<hr>
+
+<table border="0" celpadding="3" cellpadding="3">
+   <tr> 
+     <td><b><font size="2">Webserver in use</font></b></td>
+     <td bgcolor="#EBEBEB"><b><% ? getenv("SERVER_SOFTWARE") HTML %></b> Remote:<%=cIp%>  Local:<%=cServerIp%>
+   </td>
+   </tr>
+   <tr> 
+     <td><b><font size="2">This WEBSITE</font></b></td>
+     <td bgcolor="#EBEBEB"><b><% ? documentRoot() HTML %></b> <font size="1">(root of this website)</font></td>
+   </tr>
+   <tr>
+     <td><b><font size="2">webs installed</font></b> <font size="1"><br>
+		under <%=cPubDir%></font></td>
+     <td bgcolor="#EBEBEB"><%=listWebs(cPubDir)%></td>
+   </tr>
+   <tr>
+     <td><font size="1">under <%=cLocDir%></font></td>
+     <td bgcolor="#EBEBEB"><%=listWebs(cLocDir)%></td>
+   </tr>   
+   <tr>
+   <td colspan="2" align="center"><b>Interpreter</b> Variables <font size="1" color="#808080">[by using
+      MSPConfigVar()]</font></td></tr>
+   <tr> 
+     <td><font size="1">MSPDIR</font></td>
+     <td bgcolor="#EBEBEB"><% ? MSPConfigVar("MSPDIR") HTML %></td>
+   </tr>
+   <tr> 
+     <td><font size="1">DATADIR</font></td>
+     <td bgcolor="#FFF0F0"><% ? MSPConfigVar("DATADIR") HTML %></td>
+   </tr>
+   <tr> 
+     <td><font size="1">WEBSERVER (claimed)</font></td>
+     <td bgcolor="#EBEBEB"><% ? MSPConfigVar("WEBSERVER") HTML %></td>
+   </tr>
+   <tr> 
+     <td><font size="1">EXPORT</font></td>
+     <td bgcolor="#EBEBEB"><% ? MSPConfigVar("EXPORT") HTML %></td>
+</tr>
+
+<tr><td colspan="2" align="center"><b>Webserver</b> Variables<font color="#808080"> <font size="1">[by using
+	Getenv()]</font></font></td></tr>
+<%
+for iii = 1 to alen( aValues ) 
+   cResult := getenv(aValues[iii])
+   if not empty(cResult)
+      %>  
+      <tr> 
+         <td><font size="1"><%=aValues[iii]%></font></td>
+         <td bgcolor="#EBEBEB"><% ? cResult HTML %> </td>
+      </tr>
+   <% 
+   endif
+next 
+%>
+<tr><td colspan="2" align="center"><b>OS</b> Variables<font color="#808080"> <font size="1">[by using
+	Getenv()]</font></font></td></tr>
+<%
+//-- build a list of environment variables to get
+ainit("aString" , ;;
+   "COMPUTERNAME",
+   "USERPROFILE",
+   "ProgramFiles(x86)",
+   "WINDIR",
+	"ComSpec",
+	"FP_NO_HOST_CHECK",
+	"NUMBER_OF_PROCESSORS",
+	"OS",
+	"SYSTEMROOT",
+	"Path",
+	"PATHEXT",
+	"PROCESSOR_ARCHITECTURE",
+	"PROCESSOR_IDENTIFIER",
+	"PROCESSOR_LEVEL",
+	"PROCESSOR_REVISION",
+	"TEMP",
+	"TMP",
+	"windir")
+	;.
+%>
+<%
+//-- retrieving values for variables
+for iii=1 to len(aString)
+   cResult := getenv(aString[iii])
+   if not empty(cResult)
+   %>
+   <tr>
+   <td><font size="1"><%=aString[iii]%></font></td><td bgcolor="#EBEBEB"><%=cResult%></td>
+   </tr>
+   <%
+   endif
+next
+
+//-- uncomment to activate creation of MaxScript variables
+//   with same name of OS variables
+//
+for iii=1 to len(aString)
+  * xVAR := aString[iii] 
+  * &xVAR := getenv(aString[iii])
+next
+
+//-- variables now should be saved somewhere
+* save to "DEMO.MEM"
+
+
+//-- additional informations
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib   := xRoot + "\lib\dbmax25.max"
+
+if file(xRoot)
+   %>
+   <tr><td colspan="2" align="center"><b>&nbsp;MaxScript</b> libraries</td></tr>
+   <%    
+   ainit("aValues" , ;;
+		  "dbfree47"   ,
+		  "dbfree50"   ,
+		  "dbfree52"   ,
+		  "dbfree55"   ,
+		  "dbfree56"   ,
+		  "free2"   ,
+		  "max2")
+	      ;.
+   for iii = 1 to alen( aValues ) 
+      cLibrary := xRoot + "\lib\" + aValues[iii]+ ".max"
+      if file(cLibrary )
+         %>
+         <tr><td><%=aValues[iii]%></td><td bgcolor="#EBEBEB">OK</td></tr>
+         <%
+      endif
+   next
+endif
+  
+if file(xRoot)
+   %>
+   <tr><td colspan="2" align="center"><b>&nbsp;JavaScript</b> libraries</td></tr>
+   <%    
+   ainit("aValues" , ;;
+		  "max-ajax.js"   ,
+		  "dbfree47.js"   ,
+		  "dbfree50.js"   ,
+		  "dbfree52.js"  ,
+		  "dbfree53.js"  ,
+		  "dbfree53.js"  ,
+		  "dbfree56.js")
+	      ;.
+   for iii = 1 to alen( aValues ) 
+      cLibrary := xRoot + "\js\" + aValues[iii]
+      if file(cLibrary )
+         %>
+         <tr><td><%=aValues[iii]%></td><td bgcolor="#EBEBEB">OK</td></tr>
+         <%
+      endif
+   next
+endif
+
+//--
+freeslot()
+%>  
+</table>
+</body>
+</html>
+<%
+******************************************
+function listWebs(cRoot)
+******************************************
+local cStart
+$extended
+if type(cRoot)="U"
+   cRoot := curDosDir()
+endif
+cMask := "*."
+cStart := cRoot + cMask
+nFiles = adir( cStart, aName, aSize, aDate, aTime, aAttr )
+for iii = 1 to nFiles
+   cFile := aName[iii]
+   cThis := lower(aName[iii])
+   cThis := strTran(cThis,lower(cRoot),"")
+   if not "." $ cThis
+      if lConsole
+         %>[<a href="http://<%=cThis%>.public"><%=cThis%></a>] <%
+      else
+         %>[<%=cThis%>]<%
+      endif
+   endif
+next
+return ""
+%>

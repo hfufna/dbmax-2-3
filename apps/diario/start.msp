@@ -1,0 +1,261 @@
+<html>
+<%
+xDb := "diario"
+lDebug :=.f.
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+
+cMemFile := getMemFile(cSeed) 
+if file(cMemFile)
+   restore from (cMemFile) additive
+   //-- INITIALIZING THE CARGO
+   if empty(xCargoFile)
+      xCargoFile := xMemDir + "\" + cSeed + "_maxplanner.mem"
+      save all like x* to (xMemFile)
+   endif
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- APPLICATION SPECIFIC SESSION FILE
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+else
+   ainit("zaMonths","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre")
+   ainit("zaDays","Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato")
+   ainit("zaWeekDays","Dom","Lun","Mar","Mer","Gio","Ven","Sab")
+   znCurrYear  := year(date()) //-- YEAR TO USE
+   znCurrMonth := 1
+   znCurrWeek  := 1
+   zdCurrDay   := date()
+   ***
+   znSpeseMese := 0
+   znSpeseAnno := 0
+   save all like z* to (xCargoFile)
+endif
+
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable20  := cDir + "DETTAGLI.DBF"
+cIndex21  := cDir + "DETTAGLI.MTX"
+cIndex22  := cDir + "DETTAGLI-D.MTX"
+if not file(cTable20)
+  ainit( "aField","DATA","GIORNO","ORA","POSIZIONE","VALORE","MESE","SETTIM","ANNO","COMMENTO","TIPOLOGIA","USER","U_M","ATTIVITA","VALUTAZ","SFERA","COMPARTO","PUNTI")
+  ainit( "aType","D","C","C","C","N","N","N","N","M","C","C","C","C","C","C","C","N")
+  ainit( "aSize",8,10,10,80,10,2,2,4,10,25,20,12,20,20,20,10,6)
+  ainit( "aDec",0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cTable20) from aField, aType, aSize, aDec
+endif
+if not file(cIndex21) or not file(cIndex22)
+   use (cTable20) in 0 index (cIndex21) key (GIORNO+ORA), (cIndex22) key DATA excl
+   delete all for POSIZIONE = "ERROR"
+   pack
+   close DETTAGLI
+endif
+
+//-- DATABASE IN USE
+cTable10  := cDir + "GIORNI.DBF"
+cIndex10  := cDir + "GIORNI.MTX"
+if not file(cTable10)
+  ainit( "aField","DATA","REPORT","MESE","SETTIM","ANNO","USER","TITOLO","LUOGO","VALUTAZ","ATTIV_PR","ATTIV_SEC","SALUTE","LAVORO","SESSO","PRODPERS","PERSONE")
+  ainit( "aType","D","M","N","N","N","C","C","C","C","C","C","C","C","C","C","C")
+  ainit( "aSize",8,10,2,2,4,22,100,50,2,50,50,50,50,50,50,100)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cTable10) from aField, aType, aSize, aDec
+endif
+use (cTable10) alias GIORNI index (cIndex10) key DATA
+
+cTable30  := cDir + "SPESE.DBF"
+cIndex30  := cDir + "SPESE.MTX"
+if not file(cTable30)
+  ainit( "aField","REC_ID","ANNO","MESE","DESCRIZ","U_M","VALORE","USER","USERKEY")
+  ainit( "aType","C","N","N","C","C","N","C","C")
+  ainit( "aSize",20,4,2,80,10,10,20,20)
+  ainit( "aDec",0,0,0,0,0,0,2,0,0)
+  create (cTable30) from aField, aType, aSize, aDec
+endif
+use (cTable30) in 0 alias SPESE index (cIndex30) key REC_ID
+
+//-- INCOMING PARAMETERS
+
+//-- setting year to work with
+znYear := MSPFieldValue("VAR_YEAR")
+if empty(znYear)
+   znYear := year(date())
+else
+   znYear := val(znYear)
+endif
+
+//--PRELOADING
+//
+preloadDays(znYear)
+
+select SPESE
+count for USER=xUser to nnn
+if nnn=0
+   for iii=1 to 12
+      append blank
+      repl REC_ID with str(znYear,4)+"-"+str(iii,2,0,"0")+"-"+xUser
+      repl ANNO with znYear
+      repl MESE with iii
+      repl USER with upper(xUser)
+   next
+endif
+
+
+//--BACKGROUND ACTIONS
+//
+do case
+case cAction = "STAT"
+   znSpeseAnno := 0
+   use (cTable20) in 0 alias DETTAGLI index (cIndex21) key (GIORNO+ORA), (cIndex22) key DATA
+   select DETTAGLI
+   set filter to USER=xUser and U_M="E"
+   go top
+   declare aSum[12]
+   afill(aSum,0)
+   do while not eof()
+      nMese := MESE
+      znSpeseMEse := VALORE
+      aSum[nMese] += znSpeseMEse
+      znSpeseAnno += znSpeseMEse
+      skip
+   enddo
+
+   select SPESE
+   for iii=1 to len(aSum)
+      cId := str(znYear,4)+"-"+str(iii,2,0,"0")+"-"+xUser
+      seek cId
+      if found() and rlock(1)
+         repl VALORE with aSum[iii]
+         unlock
+      endif
+   next     
+   close DETTAGLI
+endcase
+
+
+//-- saving
+save all like z* to (xCargoFile)
+
+//-- page to show when clicking on month
+cLink1 := "view_day.msp?XY="+cSeed
+cLink2 := "view_month.msp?XY="+cSeed
+
+select GIORNI
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h2>
+<a href="/login/usermenu.msp?XY=<%=cSeed%>" class="btn btn-lg btn-success pull-right">Exit</a>
+<span style="font-size: 1em; color:red;"><%=capital(xUser)%>'s</span> Diary<br>
+</h2>
+<div class="row">
+<div class="container">
+<h2>
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_YEAR=<%=zz(year(date())-1)%>" class="btn btn-primary"><%=zz(year(date())-1)%></a>&nbsp;
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_YEAR=<%=zz(year(date()))%>" class="btn btn-primary"><%=zz(year(date()))%></a>&nbsp;
+<a href="<%=cSelf%>?XY=<%=cSeed%>&VAR_YEAR=<%=zz(year(date())+1)%>" class="btn btn-primary"><%=zz(year(date())+1)%></a>&nbsp;
+</h2></div>
+</div>
+
+<div class="row">
+<div class="container" style="margin-top:20px;">      
+    <div class="row" style="margin-top:5px;">
+       <div class="col-sm-6 col-md-6">
+          <div class="well">
+          <a href="view_year.msp?XY=<%=cSeed%>&VAR_USR=<%=xUser%>&VAR_YEAR=<%=znYear%>">
+          <h1><%=znYear%></h1></a>
+          <a href="<%=cSelf%>?XY=<%=cSeed%>&VA=STAT">Aggiorna le statistiche</a>
+          </div>
+       </div>
+       <div class="col-sm-6 col-md-6">
+          <div class="well">
+             <a href="view_spese.msp?XY<%=cSeed%>">Spese totali <%=znYear%>: E.<%=znSpeseAnno%></a>
+             <table class="table">
+             <%
+             set decimals to 2
+             select SPESE
+             set order to 0
+             set filter to ANNO=znYear and USER=xUser
+             go top
+             do while not eof()
+                %><tr><td><%=zaMonths[MESE]%></td><td align="right"><a href="view_cash.msp?XY=<%=cSeed%>&VM=<%=zz(MESE)%>"><%=VALORE%></a></td></tr>
+                <%
+                skip
+             enddo
+             %>
+             </table>
+          </div>
+       </div>
+    </div>
+  </div>
+</div>
+</div>l
+
+
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+</html>
+<%
+********************************************
+function preloadDays(nThisYear)
+********************************************
+local dThisDay, nWeek, dNow, nnn
+nWeek := 1
+select GIORNI
+count for ANNO=nThisYear .and. USER=upper(xUser) to nnn
+if nnn=0
+   for mmm=1 to 12
+      dThisDay := "01/"+ str(mmm,2,0,"0") + "/" + str(nThisYear,4,0,"0")
+      dThisDay := ctod(dThisDay)
+      dNow := dThisDay
+      for ddd=1 to daysOfM(dThisDay)
+         if cdow(dNow)="M"  //-- week starts from Monday
+            nWeek++
+         endif
+         *? dNow | nWeek | cdow(dNow)
+         append blank
+         if rlock()
+            repl DATA   with dNow
+            repl SETTIM with nWeek
+            repl MESE   with mmm
+            repl ANNO   with nThisYear
+            repl USER   with xUser
+            unlock
+         endif
+         dNow++ 
+      next
+   next
+endif
+return nnn
+**
+%>

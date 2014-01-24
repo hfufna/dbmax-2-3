@@ -1,0 +1,72 @@
+<html>
+<html>
+<%
+**************************************** 
+**                                       DBMAX-2-5-1 SLAVE HEADER 0201
+*************************************************************************
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- 01 -- GETTING GLOBALS
+xGlobals := webroot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+else
+   ? "<h2>The global memory file is missing: " + xGlobals + "</h2>" html
+   return
+endif
+
+//-- 
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+
+//-- 014 - DEFAULT REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- 015 -- DEFAULT DATABASE SETTINGS
+if type(xDbSet)="C" and not empty(xDbSet)
+   cDir := setDb(xDbSet)
+else
+   cDir := setDb("cmd")
+endif
+if type(xDbType)="C" and not empty(xDbType)
+   xDbType := upper(trimRight(xDbType,1))
+   if not xDbType $ "MAX XBASE"
+      set dbtype to (xDbType)
+   endif
+endif
+
+//-- 020 -- MISC SETTINGS
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER 0201
+
+
+//-- INCOMING WEBVARS
+cSeed := MspFieldValue("XY")
+%>
+<!-- HTML HEADER <%=libVer()%> //-->
+
+<%=modInfo()%>
+<!-- ---------------------------------------- END DBMAX SLAVE HEADER ----------------------------------------//-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<h1>About this server
+<a class="btn btn-primary pull-right" href="<%=callingPage()%>">Back</a>
+</h1>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

@@ -1,0 +1,98 @@
+<html>
+<%
+********************************************* 
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+****************************************
+
+//-- 3 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+
+//-- 11 MAXOBJECT HANDLING
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VAR_OPTION")
+nRec     := val(MSPFieldValue("VAR_REC"))
+
+CR_LF := chr(13)+chr(10)
+**************************************** END HEADER 2-995
+set date to british
+set century on
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!----------------------------------- <%=pagename()%> <%=pagefile()%> -------------------------------------- //-->
+<%
+cDbPath := setDb("reference")
+cDb  := cDBpath + "ELEMENTS.DBF"
+cXb  := cDBpath + "ELEMENTS.MTX"
+
+if not file(cDb)
+   %><h3>Attention!</h3><b>Reference database is not installed.</b>
+   <p>Sintax reference database is supposed to be placed in this location: [<b><%=cDbPath%></b>]</p>
+   <p><b>A new empty database will be created</b></p>
+   <p>You may download an updated reference from 
+   <a target="_blank" href="http://www.dbfree.org/updates">www.dbfree.org</a><hr>
+   Missing file: [<%=cDb%>]
+   <%
+   ainit( "aField","EL_ID","ELEMENT","GROUP","SECTION","LIBRARY","SOURCE","SINTAX","DESCR","PARAM","EXAMP","SEE_ALSO","MORE_EX")
+   ainit( "aType","C","C","C","C","C","M","M","M","M","M","M","M")
+   ainit( "aSize",5,80,35,35,35,10,10,10,10,10,10,10)
+   ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0)
+   create (cDb) from aField, aType, aSize, aDec
+endif
+use (cDb) in 0 index (cXb) key upper(ELEMENT)
+if not used()
+   ? "ERROR: table REFERENCE not opened"
+   return
+endif
+set order to 0
+go top
+if reccount() < 1
+   %><h3>Attention!</h3><b>Your Reference database is empty.</b>
+   <p>In order to this module to work you need to load the appropriate archives (reference) in this location: [<b><%=cDbPath%></b>]</p>
+   <p>You can download an updated reference from 
+   <a target="_blank" href="http://www.dbfree.org/updates">www.dbfree.org</a><hr>
+   File to replace: [<%=cDb%>]
+   <%
+   return
+endif
+%>
+<!-- HTML HEADER //-->
+<%=include("tpl/header.htm")%>
+<body>
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+
+<table border="0" width="100%" id="table1" cellspacing="0" cellpadding="4" bgcolor="#94DF9C" onkeyup="document.form1.ef_key.focus();">
+<tr>
+	<td bgcolor="#FFFFFF">
+	&nbsp;<font color="#FF0000"><a href="sintax_list.msp?VAR_ACTION=XLIST">Browse</a></font>&nbsp;&nbsp; 
+	|&nbsp; <a href="#1" onclick="parent.toggleDiv('div_sintax');">Close</a></td>
+	</tr>
+</table>
+
+<div align="center">
+<form name="form1" method="post" style="position:relative; width:98%; background-color:#F3F3F3;" onmouseover="document.form1.ef_key.focus();">
+Search for command or function:&nbsp;<input name="ef_key" type="text" size="20" onkeyup="javascript:ajaxRun('sintax_aj.msp?VAR_KEY=',this.value,'div_results');">
+<input type="reset" value="C" onclick="document.form1.ef_key.focus();">
+</form>
+</div>
+
+<hr style="border:dotted 1px gray">
+<div id="div_results">
+   <!-- results //-->  
+</div>
+
+<font size="1">Using <%=cDb%><br>
+Reference data updated from <a target="_blank" href="http://www.dbfree.org/updates">DBFree Archives</a> on: <%=dmy(lupdate())%></font>
+</body>
+</html>

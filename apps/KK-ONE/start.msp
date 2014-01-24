@@ -1,0 +1,68 @@
+<html>
+<!--
+          DBMAX 2.5  by Gianluca Napolitano
+                
+          DEFAULT HOME PAGE (REMOVE AND CHANGE WITH YOUR OWN)
+                
+          This page is only for first use: it shows basic informations
+          and performs some initial configuration and maintenance tasks.
+          For security reasons links are enabled only for local IP addresses.
+          
+          THIS PAGE DOES NOT MAKE USE OF DATABASES!
+ //-->
+<%
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+xAppId := memoread(webroot()+"\xappid")
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+if empty(cSeed)
+   cSeed := makeSeed()
+endif
+
+%>
+<head>
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Checkup DBMAX first setup</title>
+</head>
+
+<%=include("/parts/html/header.htm")%>
+<body>
+<!----------------------------------- PART # *NAVBAR.HTM--------------------------------------- //-->
+    <header class="navbar navbar-inverse navbar-fixed-top " role="banner">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+          </button>
+          <img border="0" src="/images/logo_dbmax.gif">
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="/index.htm">Home</a></li>
+            <li class="dropdown" id="menu1">
+              <a href="/home.msp" class="dropdown-toggle" data-toggle="dropdown">About</a>
+                <ul class="dropdown-menu">
+                <li class="dropdown-header"></li>
+                <li><a href="/login/login.msp">Login this site</a></li>
+                </ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </header>
+<!----------------------------------- END # *NAVBAR.HTM--------------------------------------- //-->
+
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+
+  
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>

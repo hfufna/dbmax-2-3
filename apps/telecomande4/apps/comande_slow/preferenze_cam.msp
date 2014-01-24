@@ -1,0 +1,196 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<link rel="stylesheet" type="text/css" href="tablet7.css">
+<title>TELECOMANDE WI-FI</title>
+</head>
+<%
+************************************************************ TELCO HEADER 0-1P
+//-- LOADING LIBRARY
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\telecomande1.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- MEMORY MANAGER 2 (solo per telecomande)
+cDbPath  := setDb("telecomande")
+xMemDir :=cDbPath+"mem\"
+cDns     := getenv("SERVER_NAME")
+cIp      := getenv("REMOTE_ADDR")
+cDevId := cIp
+xMemFile := xMemDir + strtran(cDevId,".","_") + ".mem"
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+
+CR_LF := chr(13)+chr(10)
+********************************************************************
+set decimals to 0
+set century on
+set hour to 24
+set date to italian
+cSelf := pagename()
+CR_LF := chr(13)+chr(10)
+SET DELETED ON
+
+//--STANDARD WEBVARS
+cAction := MSPFieldValue("VAR_ACTION")
+cOption := MSPFieldValue("VO")
+cSelf   := pageName()
+
+//-- NOW GO
+public xcRuolo, xcIdOp
+
+*#########################################################################
+//-- DIMENSIONA ELEMENTI
+cLarghTab       := zz(int(xnWW/xnTavs))
+cAltPuls       := zz(min(int(xnWW/10)+20,60)) //-- solo per il menu cameriere
+*
+cLarghIcoTav   := zz(int(xnWW/4*0.6))
+cLarghIcoProd  := zz(int(xnWW/7))
+
+********************************************************************** END
+
+cDbPath := setDb("telecomande")
+dbOpen(xDB,"1")
+select APPARATI
+seek cDevId
+if not found()   
+   ? "ERRORE: apparato " + cDevId + " disconnesso."
+   ? "<hr><a href='/index.msp'>riconnetti da qui</a>" html
+   return
+else
+   //-- giusto per sicurezza
+   nRecApp := recno()
+endif
+
+//-- CASSA APERTA?
+zcSession := ltrim(readIniVar(xcIniFile,"sessionecassa"))
+if empty(zcSession)
+   ? "CASSA CHIUSA: Impossibile operare"
+   ? "Connettere la cassa, aprire la sessione e riprovare"
+   return
+endif
+
+************************************************************************
+
+do case
+**************************
+case cAction ="SAVEALL"
+**************************
+   select apparati
+   if rlock(2)
+      repl ID_OP with MSPFieldValue("EF_IDOP")
+      repl ID_SALA with MSPFieldValue("EF_IDSALA")
+      unlock
+      xcRuolo := MSPFieldValue("EF_RUOLO")
+      xcIdOp  := MSPFieldValue("EF_IDOP")
+      xcIdSala:= MSPFieldValue("EF_IDSALA")
+      save all like x* to (xMemFile)
+   endif   
+   cAction := "OK"
+   
+**************************
+case cAction ="SAVEPASSW"
+**************************
+**-- controllo password supervisore
+   select apparati
+   if rlock(2)
+      repl ID_OP with MSPFieldValue("EF_IDOP")
+      repl ID_SALA with "0"
+      unlock
+      xcRuolo := MSPFieldValue("EF_RUOLO")
+      xcIdOp  := MSPFieldValue("EF_IDOP")
+      xcIdSala:= MSPFieldValue("EF_IDSALA")
+      save all like x* to (xMemFile)
+   endif   
+cAction := ""
+
+*******************************************   
+endcase
+*******************************************
+%>
+<body>
+<%
+do case
+*----------------------------------------------------------------------------------
+case empty(cAction) or cAction = "OK"
+*----------------------------------------------------------------------------------
+%>
+<div align="center">
+<a target="_self" href="vista_tavoli.msp">
+<img border="0" src="../../images/ico_curr_cam.gif" width="50" height="50"></a>
+<font color="#FF9933"><%=capital(xcIdOp)%></font>
+<a href="vista_tavoli.msp">
+<img border="0" src="../../images/ico_curr_sala.gif" height="50" width="50"></a>
+<font color="#FF9933"><%=capital(xcIdSala)%></font>
+<br>
+<a target="_self" href="vista_tavoli.msp"><img src="../../images/pw9_tavoli.gif"></a>
+</div>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "ASKNAME"
+*----------------------------------------------------------------------------------
+%>
+<div align="center">
+    <!-------------------- ------------- //-->
+    <form name="form_nome" action="<%=cSelf%>" method="post">
+    <img border="0" src="../../images/ico_curr_cam.gif" width="50" height="50"> Il tuo nome?<br>
+    <input type="text"   name="EF_IDOP" value="<%=xcIdOp%>" size="10">
+    <input type="hidden" name="EF_RUOLO" value="<%=xcRuolo%>">
+    <input type="hidden" name="VAR_ACTION" value="ASKSALA">
+    <input type="submit" name="PB_OK" value="OK">
+    </form>
+    <!-------------------- ------------- //-->
+    &nbsp;</div>
+<%
+*----------------------------------------------------------------------------------
+case cAction = "ASKSALA"
+*----------------------------------------------------------------------------------
+xcIdOp := MSPFieldValue("EF_IDOP")
+%>
+<div align="center">
+    <!-------------------- ------------- //-->
+    <img border="0" src="../../images/ico_curr_sala.gif" width="50" height="50">La sala? <br>
+    <form name="form_sala" action="<%=cSelf%>" method="post">
+    <select name="EF_IDSALA"><% for iii=1 to 10%><option><%=zz(iii)%></option><% next %></select>
+    <input type="hidden" name="EF_RUOLO" value="<%=xcRuolo%>">
+    <input type="hidden" name="EF_IDOP" value="<%=xcIdOp%>">
+    <input type="hidden" name="VAR_ACTION" value="SAVEALL">
+    <input type="submit" name="PB_OK" value="OK">
+    </form>
+    <!-------------------- ------------- //-->
+    &nbsp;</div>
+
+<%
+*----------------------------------------------------------------------------------
+endcase
+*----------------------------------------------------------------------------------
+%>
+<div align="center"><font size="2" color="lime"><%=pagename()%> <%=xnWW%>x<%=xnHH%> <%=xcScreen%> </font></div>
+<!----------------------------------- *END BODY ----------------------------------- //-->
+
+</body>
+</html>

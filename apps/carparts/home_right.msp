@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>DBFree Active Page</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<!----------------------------------- MaxScript Header -------------------------------------- //-->
+<%
+xAppId  := "demo3"
+cAppLib := "dbmax25.max"
+lDebug  := .f.
+**************************************** DBFree 3-0-4-MINI-HEADER
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\" + cAppLib
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+if lDebug
+   ? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+endif
+next
+
+cDir  := setDb(xAppId)
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 3-0-4 MINI-HEADER
+cTable   := cDir + "PARTS.DBF"
+cIndex1  := cDir + "PARTS_BY_PLACE.MTX"
+cIndex2  := cDir + "PARTS_BY_MODEL.MTX"
+cIndex3  := cDir + "PARTS_BY_ID.MTX"
+
+%>
+<!----------------------------------- HTML BODY START -------------------------------------- //-->
+<body bgcolor="#EFF7F8">
+<font size="4"><b>Items </b></font>
+<button onclick="fx.src='list_parts.msp?VAR_SET=1';">by Placement</button>
+<button onclick="fx.src='list_parts.msp?VAR_SET=2';">by Model</button>
+<button onclick="fx.src='list_parts.msp?VAR_SET=3';">by Part ID</button>
+<button onclick="fx.src='/dbe/browse.msp?VAR_DIR=<%=dblslash(cDir)%>&VAR_TABLE=<%=dblslash(cTable)%>';">Browse</button>
+<iframe frameborder="0" id="ifrm1" name="ifrm1" class="ifrm1" src="list_parts.msp" style="width:100%;height:90%;"></iframe>
+</body>
+<!----------------------------------- javascripts -------------------------------------- //-->
+<script language="javascript">
+var fx = document.getElementById('ifrm1');
+</script>
+</p>
+
+</html>

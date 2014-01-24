@@ -1,0 +1,212 @@
+<html>
+<%
+lDebug :=.f.
+xAppId := "dbmax"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   *return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+%>
+<%=modInfo()%>
+<%
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- WEBVARS USED AS PARAMETERS
+//
+cFolder := MspFieldValue("VD")
+if empty(cFolder)
+   cFolder := curDosDir()
+endif
+
+//-- preloading
+//
+cEditor    := "/core/file_edit.msp"
+cStarter   := "/core/autobooter.msp?XY"+cSeed
+cFileIntro := "app-intro.htm"
+cFileInfos := "app-abstract.htm"
+cFileCapt  := "app-caption.htm"
+
+//-- list of files admitted as application launchers: last one is only 
+//   to pick uo an error message to show if none has been found. 
+// aList
+ainit("aList","start.msp","index.msp","go.msp","index.htm","readme.htm")
+
+
+//-- make sure the store URL has been set into the configuration file
+//
+cStoreUrl := MspConfigVar("STORE")
+if empty(cStoreUrl)
+   cStoreUrl := "http://appstore.dbmaxserver.com"
+   cFile := MspConfigVar("MSPDIR")+"\bin\mspserver.cfg"
+   cCfg := memoread(cFile)
+   cCfg += "STORE="+cStoreUrl+CR_LF
+   memowrit(cFile,cCfg)
+endif
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<%=include("/parts/html/topbar.htm")%>
+<!-- ------------------------------------- PAYLOAD -----------------------------------//-->
+<%=container()%>
+<div class="row">
+<div class="col-sm-6 col-md-9"><h3><b>List of available apps</b>
+<span class="badge"><%=capital(xUser)%>-<%=cSeed%></span>
+</h3></div>
+<div class="col-sm-6 col-md-3">
+   <% if lower(xUser)="admin" %>
+      <a href="<%=link2menu("/console/")%>?XY=<%=cSeed%>" title="" class="btn btn-primary pull-left">Back</a>
+   <% else %>
+      <a href="/login/usermenu.msp?XY=<%=cSeed%>" title="" class="btn btn-primary pull-left">Back</a>
+   <% endif %>
+   <a class="btn btn-success pull-right" href="<%=cStoreUrl%>">More Web Apps</button></a>
+</div>
+</div>
+
+<%
+//-- creating the list of folders (one app one folder)
+//
+$extended
+nnn   := 0
+nFolders := adir( cFolder+"*.", aDName, aDSize, aDDate, aDTime, aDAttr )
+for iii = 1 to nFolders
+   cDosPath  := fixslash(aDName[iii])
+   cFoldName := dos2web(aDName[iii])
+   cFoldDesc := filebone(cFoldName)
+   if aDSize[iii]=0  //-- now we want only folders
+      if not left( cFoldDesc,1) $ "._"
+         nnn++
+         lOk :=.f.
+         //************************************************************************
+         //-- checks a list of possible launchers from array aList declared before
+         //
+         cLookFold := aDName[iii]
+         nFiles := adir( cLookFold+"\*.msp", aFName, aFSize, aFDate, aFTime, aFAttr )
+         for eee=1 to len(aFname)
+            cLauncher := fixslash(cDosPath+ "\" + aList[eee])
+            **************************
+            if file(cLauncher)
+               cLauncher := dos2web(cLauncher) + "?XY=" + cSeed
+               lOk :=.t.
+               exit
+            endif
+         next
+         *? "Launch file:" | cLauncher
+         
+         //-- Application caption file
+         //
+         cFile := cDosPath + "\" + cFileCapt
+         cRef  := [&nbsp;<a data-toggle="modal" href="#div_modal3" onclick="popupFile('/core/file_edit.msp?XY=] + cSeed + [&VF=] + cFile + [','Please provide a title for this app');">(Edit)</a>]
+         if not file(cFile)
+            memowrit(cFile,"<h3>"+cFoldDesc+"</h3>Web application " + cRef)
+         endif
+         cTxt1  := memoread(cFile)
+         
+         
+         //-- Application short presentation file
+         //
+         cFile := cDosPath + "\" + cFileIntro
+         cRef  := [&nbsp;<a data-toggle="modal" href="#div_modal3" onclick="popupFile('/core/file_edit.msp?XY=] + cSeed + [&VF=] + cFile + [','Please provide a brief presentation');">(Edit)</a>]
+         if not file(cFile)
+            memowrit(cFile,"No intro presentation provided so far." + cRef)
+         endif
+         cTxt2  := memoread(cFile)
+         
+         //-- Application extended description file
+         //
+         cFile := cDosPath + "\" + cFileInfos
+         cRef  := [&nbsp;<a data-toggle="modal" href="#div_modal3" onclick="popupFile('/core/file_edit.msp?XY=] + cSeed + [&VF=] + cFile + [','Please provide the detailed informations for the App');">(Edit)</a>]
+         if not file(cFile)
+            memowrit(cFile,"No infos or description of features available (yet)." +cRef)
+         endif
+         cTxt3  := memoread(cFile)
+         cDid := "div_"+zz(nnn)
+         %>
+         <a name="a<%=cDid%>"></a>
+         <div class="well">
+           <div class="row">
+             <div class="col-sm-3 col-md-3 col-lg-3">
+                <%
+                cScreenShot := webroot()+"\sshot.jpg"
+                if file(cScreenShot) 
+                   cScreenShot := dos2web(cScreenShot)
+                else
+                   cScreenShot := "/images/00.jpg"
+                endif
+                %>
+                <% if lOk %><a class="link" href="<%=cLauncher%>"><%=cTxt1%><% endif %>
+                <img class="thumbnail" src="<%=cScreenShot%>" style="width:75%; max-width:100px;">
+                <% if lOk %></a><% endif %>
+             </div>
+             <div class="col-sm-9 col-md-9 col-lg-9" style="background-color: white;">
+               <!-- --------------- * ----------------------------------------//-->
+               <% if lOk %>
+                  <a class="link" href="<%=cLauncher%>">
+               <% else %>
+                  <a class="link" href="<%=cStarter%>?XY=<%=cSeed%>&VD=<%=cDosPath%>&VF=<%=cLauncher%>"
+               title="<%=cStarter%>?VD=<%=cDosPath%>&VF=<%=cLauncher%>"><%=cTxt1%></a>
+               <% endif %>
+               <!-- --------------- * ----------------------------------------//-->
+               <br>
+                <%=cTxt3%>               
+               <a href="#a<%=cDid%>" class="link" onclick="toggleDiv('<%=cDid%>');">More..</a>
+               <div id="<%=cDid%>" style="display:none;" class="alert alert-warning">
+                 <div><%=cTxt2%></div>
+                 <a href="#a<%=cDid%>" class="link" onclick="showDiv('<%=cDid%>',0);">Close</a>
+               </div>
+             </div>
+           </div>
+         </div>
+         <%
+      endif
+   endif
+next
+%>
+<div class="alert">(<%=zz(nnn)%> choices)&nbsp;<a href="/console/start.msp?XY=<%=cSeed%>" class="btn btn-default">Back</button></a>
+<!-- -----------------------------------------PAYLOAD END ----------------------------------//-->
+<small>Page created by <%=cSelf%> vers.<%=libver()%></small>
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal3.htm")%>
+<script type="text/javascript">
+//////////////////////////////////////////////////
+function popupFile(cFile,cMsg) {
+document.getElementById('div_modal-title').innerHTML=unescape(cMsg);
+document.getElementById('div_modal-body').src=cFile; 
+}
+</script>
+</body>
+</html>
+<!-- --------------------------------- LOCAL LIBRARY ----------------------------------------//-->

@@ -1,0 +1,35 @@
+<html>
+<%
+********************************************* MICRO HEADER
+xcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+CR_LF := chr(13)+chr(10)
+*********************************************
+xAppId := memoread(webroot()+"\xappid")
+cSelf := pagename()
+cSeed := MspFieldValue("XY")
+
+if empty(cSeed)
+   cSeed := makeSeed()
+endif
+%>
+<%=include("/parts/html/header.htm")%>
+<body>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<%=include("/parts/html/emptybar.htm")%>
+<%=container()%>
+<div class="jumbotron">
+<h1>Updates</h1>
+<h4>Update system is currently available only on-line through DBMAX official website:</h4>
+<a class="btn btn-sm btn-primary" href="http://www.dbmaxserver.com/updates">Visit the site</a>
+</div>
+<a class="btn btn-danger" href="javascript:window.close();">Close window</a>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+
+</html>
+

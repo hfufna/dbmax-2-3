@@ -1,0 +1,272 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+         DBFREE 3.0 NATIVE LOGIN SYSTEM for MaxScript 2.3
+         This is part of DBFree 3.0 Core Functions
+         Written by G.Napolitano (www.dbfree.org) - October 2012
+         
+//-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/default.css">
+<link rel="stylesheet" type="text/css" href="../default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>DBFree 2.1 Template</title>
+</head>
+
+<style type="text/css">
+a {color:white;text-decoration:none;}
+a:visited {color:white;}
+a:hover {text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<%
+************************************************************ DBFree HEADER_3.0.1.1
+//-- 1 LIBRARY 
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- 2 WEBVAR EXCHANGE SYSTEM
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- 3 SESSION HANDLING VIA MEMORY FILE
+cSeed    := MSPFieldValue("XY")
+cIp      := getenv("REMOTE_ADDR")
+xMemFile := mspconfigvar("DATADIR")+"\_mem\login\"+strTran(cIp,".","_")+"_" + cSeed + ".mem"
+restore from (xMemFile) additive
+
+//-- 4 STANDARD MAXOBJECT WEBVARS
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := MSPFieldValue("VAR_ACTION")
+cSelf   := pageName()
+
+//-- 5 STANDARD DATABASE HANDLING WEBVARS 
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+cView  := MSPFieldValue("VAR_VIEW")
+nRec   := val(MSPFieldValue("VAR_REC"))
+
+
+************************************************************ END HEADER
+CR_LF := chr(13)+chr(10)
+****************************************
+cDbPath  := setDb("noticeboard2")
+
+//--table for messages (father table)
+cDb1  := cDBpath + "BOARD.DBF"
+cXb1  := cDBpath + "BOARD.MTX"
+use (cDb1) in 0 alias FATHER index (cXb1) key D_END
+
+//-- table for logging users (child table)
+cDb2  := cDBpath + "BOARD_DET.DBF"
+cXb2  := cDBpath + "BOARD_DET.MTX"
+use (cDb2) in 0 alias CHILD index (cXb2) key MSG_ID
+****************************************
+
+sele father
+nRecno   := val(MSPFieldValue("VAR_RECNO"))
+nRecno := min(nRecno,lastrec())
+nRecno := max(nRecno,1)
+if nRecno <>0
+   go nRecno
+endif
+
+%>
+<!------ <%=pageName()%> <%=time()%> ----- //-->
+<%
+**************************
+* background actions
+**************************
+do case
+//------------------------
+case cAction ="SAVE"
+//------------------------
+   saveRecord(nRecno,aVars)
+   cAction := "EDIT"
+   
+//------------------------
+case cAction = "APPEND"
+//------------------------
+append blank
+nRecno := recno()
+go nRecno
+if rlock()
+   repl MSG_ID with zz(recno())
+   repl D_REG with date(30)+recno()
+   repl T_REG with time()
+   repl TTL_DAYS with 7
+   repl D_END with D_REG+TTL_DAYS
+   repl ONLY_TO with "Everyone"
+   repl MSG_TYPE with "Public"
+   repl POSTED_BY with "Admin"
+   repl REQ_CONF with .f.
+   repl VISIB with 1
+   unlock
+endif
+cAction = "EDIT"
+? "<b>NEW RECORD!<b>" html
+//------------------------
+endcase
+//------------------------
+%>
+<body background="img/cork_tile.jpg">
+<%
+do case
+*--------------------------------------------------------------------
+case empty(cAction) or cAction="DISPL"
+*--------------------------------------------------------------------
+%>
+<table border="0" width="100%" id="table1" height="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td background="img/cork_tile.jpg" align="center">&nbsp;
+		   <table width="95%" height="95%"><tr><td bgcolor="#FEF9F1" style="padding:8 8 8 8;">
+		   <img style="float:left;" border="0" src="img/notice-board-pinpoint2.gif" width="41" height="44">
+		   <font>
+		   <b>
+		   <font size="3" color="#9C1B0D">#<%=zz(MSG_ID)%></font></b>&nbsp;
+		   <font face="Courier New" size="2">
+		   <%=dmy(D_REG)%></font>
+		   <button onclick="document.location='<%=cSelf%>?VAR_RECNO=<%=recno()-1%>';"><img border="0" src="img/pbi8_skipup.gif" width="16" height="16"></button>&nbsp;
+		   <button onclick="document.location='<%=cSelf%>?VAR_RECNO=<%=recno()+1%>';"><img border="0" src="img/pbi8_skipdown.gif" width="16" height="16"></button><hr>
+		   <br>
+		   
+		   Subject: <font color="maroon"><%=zz(SUBJECT)%></font>
+		   <pre><%=zz(MSG_BODY)%></pre>
+		   <br>(<%=POSTED_BY%>)
+		   </font>
+		   </td></tr></table>
+		</td>
+	</tr>
+</table>
+<div style="position:fixed; top:3; right:5;"><a href="<%=cSelf%>?VAR_ACTION=EDIT&VAR_RECNO=<%=zz(recno())%>"><font color="#FFFFFF">Edit</font></a></div>
+<p>&nbsp;</p>
+<%
+*--------------------------------------------------------------------
+case cAction = "EDIT"
+*--------------------------------------------------------------------
+  cFlag :=""
+  go nRecno
+  do showForm
+*--------------------------------------------------------------------
+case cAction ="SHOW"
+*--------------------------------------------------------------------
+  go nRecno
+  cFlag := "readonly"
+  do showForm
+*--------------------------------------------------------------------
+endcase
+*--------------------------------------------------------------------
+%>
+</body>
+</html>
+<%
+*********************************************
+procedure showForm
+*********************************************
+%>
+<form action="<%=cSelf%>" method="post" class="webform">
+<table border="0" class="table1" cellspacing="0" cellpadding="5" width="95%">
+<tr>
+   <td class="th1" colspan="3">
+   <input type="submit" name="PB_OK" value="Save changes"> 
+   <button type="button" onclick="document.location='<%=cSelf%>?VAR_ACTION=DISPL&VAR_RECNO=<%=zz(recno())%>';">Back</button>
+   <button type="button">Grid View</button>
+   <font color="#FFFFFF">Table:<%=cDb1%> Rec:<%=zz(recno())%><%=zz(reccount())%> Key:<%=indexkey()%> [Action: <%=cAction%> <%=cOption%>]</font>
+   </td>
+</tr>
+<tr>
+   <td class="td1" colspan="3" bgcolor="#FDEED9"><font color="#666666">Notice # </font>
+    <input type="text" name="EF_MSG_ID" value="<%=zz(MSG_ID)%>" size="6" readonly title="Field: MSG_ID (C) Index key">
+    <font color="#666666">Created</font>
+    <input type="text" name="EF_D_REG" value="<%=zz(D_REG)%>" size="12" readonly title="Field: D_REG (D) - Date of creation">
+    <input type="text" name="EF_T_REG" value="<%=zz(T_REG)%>" size="10" readonly title="Field: T_REG (C) - Time of creation">
+    <font color="#666666">Time to live (days) </font>
+    <input <%=cFlag%> type="text" name="EF_TTL_DAYS" value="<%=zz(TTL_DAYS)%>" size="3" title="Field: TTL_DAYS (N) - Time to Live (Days)"></td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">belongs to this category </font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="text" name="EF_MSG_TYPE" value="<%=zz(MSG_TYPE)%>" size="20" title="Field: MSG_TYPE (C) - Category of notice"></td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">This notice will be shown until</font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="text" name="EF_D_END" value="<%=zz(D_END)%>" size="12" title="Field: D_END (D) - Expiration date">
+    </td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">and will be visible to these groups only</font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="text" name="EF_ONLY_TO" value="<%=zz(ONLY_TO)%>" size="40" title="Field: ONLY_TO (C) - List of groups allowed to see this notice">
+    <font color="#666666"><br>
+&nbsp;</font></td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">Abstract</font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="text" name="EF_ABSTRACT" value="<%=zz(ABSTRACT)%>" size="30" title="Field: ABSTRACT (C) - Abstract for searches">
+    </td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">Subject</font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="text" name="EF_SUBJECT" value="<%=zz(SUBJECT)%>" size="40" title="Field: SUBJECT (C) - Subject to show on notice listings">
+    </td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">Full Text</font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <textarea <%=cFlag%> name="EF_MSG_BODY" rows="10" style="width:80%" title="Field: MSG_BODY (M) - Text body of the notice"><%=zz(MSG_BODY)%></textarea>
+    </td>
+</tr>
+<tr>
+   <td class="td1" bgcolor="#FDEED9">&nbsp;</td>
+   <td  class="td1" align="right" bgcolor="#FDEED9" width="20%"><font color="#666666">Log readers </font></td>
+   <td align="left" class="td1" bgcolor="#FDEED9">
+    <input <%=cFlag%> type="checkbox" name="EF_REQ_CONF" value="<%=zz(REQ_CONF)%>" size="1" title="Field: REQ_CONF (L) - Require confirmation of reading and save to a log file (DISABLED)">
+    &nbsp; Display?<input <%=cFlag%> type="text" name="EF_VISIB" value="<%=zz(VISIB)%>" size="3" title="Field: VISIB (N) - Level of visibility of thi notice"> (0=No)
+    </td>
+</tr>
+</table>
+<hr>
+<%=passFields(aVars)%>
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VO" value="">
+&nbsp;
+<% if empty(cFlag) %>
+&nbsp;&nbsp;&nbsp;
+<input type="reset" name="PB_ESC" value="Reset form">&nbsp;&nbsp;<span style="background-color: #FFFFFF"> </span><b><font color="#9C1B0D"><span style="background-color: #FFFFFF">&nbsp;</span></font></b><a target="_self" href="<%=cSelf%>?VAR_ACTION=DISPL&VAR_RECNO=<%=zz(recno())%>"><font color="#9C1B0D"><span style="background-color: #FFFFFF">Back</span></font></a><b><font color="#9C1B0D"><span style="background-color: #FFFFFF">
+</span></font></b><span style="background-color: #FFFFFF">&nbsp;<% else %></span>
+   You're not allowed to make changes from this procedure. To edit this record go to <a href="maint.htm">maintenance page</a>&nbsp;
+<% endif %>
+</form>  
+<%
+return
+%>

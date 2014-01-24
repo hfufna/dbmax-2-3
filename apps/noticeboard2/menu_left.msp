@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="-1">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="default.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>Notice board main display</title>
+</head>
+<!----------------------------------- local styles -------------------------------------- //-->
+<style type="text/css">
+a {color:white;text-decoration:none;}
+a:visited {color:white;}
+a:hover {text-decoration: underline;}
+td {vertical-align: top;}
+li {margin-top:3px;}
+</style>
+<!----------------------------------- javascript -------------------------------------- //-->
+<script type="text/javascript">
+function showDiv(cDiv,nVisib){
+var aa = cDiv;
+var bb = document.getElementById(aa);
+if (nVisib == 1)
+   {
+    bb.style.display='block';
+   }
+else if (nVisib == 0)
+   { 
+    bb.style.display='none';
+   }
+}
+
+function toggleDiv(cSess){
+var aa = cSess;
+var bb=document.getElementById(aa);
+if (bb.style.display == 'block')
+   {
+   bb.style.display='none';
+   }
+else if (bb.style.display == 'none')
+   { 
+   bb.style.display='block';
+   }
+}
+</script>
+<!----------------------------------- MaxScript -------------------------------------- //-->
+<%
+**************************************** DBFree 2-22-MINI-HEADER
+xRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *-- uncomment the line below for debugging
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+
+CR_LF := chr(13)+chr(10)
+**************************************** END 2-22-MINI-HEADER
+set decimals to 0
+set century on
+set hour to 24
+cSelf    := pageName()
+cAction  := MSPFieldValue("VAR_ACTION")
+cOption  := MSPFieldValue("VO")
+
+
+cDbPath  := setDb("noticeboard2")
+****************************************
+
+//--generating table for messages (father table)
+cDb1  := cDBpath + "BOARD.DBF"
+cXb1  := cDBpath + "BOARD.MTX"
+if not file(cDb1)
+  ainit( "aField","MSG_ID","D_REG","T_REG","TTL_DAYS","D_END","ONLY_TO","MSG_TYPE","ABSTRACT","SUBJECT","MSG_BODY","MSG_FILE","ATTACHMENT","POSTED_BY","REPLY_TO","PREV_MSG","NEXT_MSG","REQ_CONF","VISIB")
+  ainit( "aType","C","D","C","N","D","C","C","C","C","M","C","C","C","C","C","C","L","N")
+  ainit( "aSize",12,8,10,3,8,50,20,30,128,10,80,80,35,35,15,15,1,2)
+  ainit( "aDec",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+  create (cDb1) from aField, aType, aSize, aDec
+  use (cDb1) in 0 alias TEMP index (cXb1) key D_END
+  for iii=1 to 10
+       append blank
+       if rlock()
+          repl MSG_ID with zz(recno())
+          repl D_REG with date(30)+recno()
+          repl T_REG with time()
+          repl TTL_DAYS with 7
+          repl D_END with D_REG+TTL_DAYS
+          repl ONLY_TO with "Everyone"
+          repl MSG_TYPE with "Public"
+          repl POSTED_BY with "Admin"
+          repl REQ_CONF with .f.
+          repl VISIB with 1
+          repl ABSTRACT with "Automatic"
+          repl SUBJECT with "Notice #" + zz(recno())
+          repl MSG_BODY with "Test notice #" + zz(recno())
+          unlock
+       endif
+   next
+endif
+
+
+//-- generating table for logging users (child table)
+cDb2  := cDBpath + "BOARD_DET.DBF"
+cXb2  := cDBpath + "BOARD_DET.MTX"
+if not file(cDb2)
+  ainit( "aField","MSG_ID","D_REG","T_REG","D_AKN","USR_NAME","IP_ADDR")
+  ainit( "aType","C","D","C","D","C","C")
+  ainit( "aSize",12,8,10,8,22,15,)
+  ainit( "aDec",0,0,0,0,0,0)
+  create (cDb2) from aField, aType, aSize, aDec
+endif
+
+//-- standard DBFree MTX indexes
+use (cDb2) in 0 alias TEMP index (cXb2) key MSG_ID
+use
+
+**************************************************************
+
+//-- table for messages (father table)
+cDb1  := cDBpath + "BOARD.DBF"
+cXb1  := cDBpath + "BOARD.MTX"
+use (cDb1) in 0 alias FATHER index (cXb1) key D_END
+
+nRecno   := val(MSPFieldValue("VAR_RECNO"))
+if nRecno <>0
+   go nRecno
+endif
+%><!----------------------------------- HTML BODY -------------------------------------- //-->
+<body  background="img/legno_drk.jpg">
+<table border="0" width="100%" cellspacing="0" cellpadding="3">
+<tr>
+   <td bgcolor="#000000">
+      <font color="gray">
+      <a target="frm2" href="login/login.msp">Login</a>&nbsp;&nbsp; |&nbsp; 
+      <a href="search.msp">Search</a></font><font color="#808080"> | </font>&nbsp;<a target="_top" href="booter.msp">Exit</a></td>
+</tr>
+</table>
+<!----------------------------------- 1 -------------------------------------- //-->
+<div id="div1" style=" background-image:url('img/legno.jpg'); min-height:20px;padding:2 3 3 3;margin:0 0 0 0; display:block">
+<font size="3">List of last notices</font><br>
+<%
+sele father
+set filter to D_END > date() .and..not. empty(MSG_BODY) .and. VISIB>0
+go top
+do while not eof()
+   cRec := zz(recno())
+   %>
+   <br><a target="frm2" title="Show record details" href="edit.msp?VAR_ACTION=SHOW&VAR_RECNO=<%=cRec%>">
+   <img border="0" src="img/ico_msg.gif" style="float:left" width="41" height="50"></a>
+   <font size="1" color="gray"><%=dmy(D_REG)%></font>
+   <a target="frm2" href="display.msp?VAR_RECNO=<%=cRec%>" title="Display notice #<%=cRec%>">
+   <br><font color="#0000FF"><%=SUBJECT%></font></a>&nbsp;<hr>
+   <%
+   skip
+enddo
+%>
+</div>
+</body>
+</html>
+<!----------------------------------- -------------------------------------- //-->

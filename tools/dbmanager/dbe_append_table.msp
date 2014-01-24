@@ -1,0 +1,217 @@
+<html>
+<%
+xAppId := "myDBMAX"
+lDebug :=.f.
+******************************************************** HEADER-2-3-1
+//-- AUTODETECT LIBRARY 
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii) +"="+ MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD APP GLOBALS
+xGlobals := webRoot() + "\globals.mem"
+if file(xGlobals)
+   restore from (xGlobals) additive
+endif
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+xMemFile := getMemFile(cSeed)
+if file(xMemFile)
+   restore from (xMemFile) additive
+endif
+
+//-- DATABASE TYPE
+cDbType := MSPFieldValue("VAR_DBTYPE")
+if not empty(cDbType)
+   if upper(cDbType) $ "CLIPPER FOXPRO DBASE"
+      set dbtype to (cDbType)
+   endif
+endif
+
+CR_LF := chr(13)+chr(10)
+******************************************************** END HEADER
+cSelf := pagename()
+cAction := upper(MSPFieldValue("VAR_ACTION"))
+cOption := upper(MSPFieldValue("VAR_OPTION"))
+cMsg    := MspFieldValue("VAR_MSG")
+
+
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+******************************************************** SECTION A
+//-- A1 - STANDARD DATABASE HANDLING WEBVARS
+//
+cDir   := MSPFieldValue("VAR_DIR")
+cTable := MSPFieldValue("VAR_TABLE")
+cIndex := MSPFieldValue("VAR_INDEX")
+
+//-- A2 - EXTENDED SET DATABASE HANDLING WEBVARS
+//
+cView   := MSPFieldValue("VAR_VIEW")
+nRec    := val(MSPFieldValue("VAR_REC"))
+cFilter := MSPFieldValue("VAR_FILTER")
+cKeyFld := MSPFieldValue("VAR_KEYFLD")
+cKeyCond:= MSPFieldValue("VAR_KEYCOND")
+cKeyVal := MSPFieldValue("VAR_KEYVAL")
+
+//-- A3 - AJAX STANDARD WEBVARS
+//        Attention: needs ajax javascript file (jmax.js)
+//
+nFld := val(MSPFieldValue("V_FLD")) //-- Field to update
+nAjRec := val(MSPFieldValue("V_REC")) //-- record to move to
+cAjaxVar := MSPFieldValue("AJX") //-- value to write
+lAjaxRun := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- EMBEDDED AJAX-V3 ACTUATOR (FOR IN-PLACE EDITING)
+//
+cAjxFile    := MSPFieldValue("VAR_TABLE")
+cValCBFedit  := iif(empty(MSPFieldValue("CBF_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCBFedit),"readonly","")
+if lAjaxRun 
+   use (cAjxFile)
+   if not used()
+      ? "ERROR: VAR_TABLE=[" + cAjxFile + "]"
+      return
+   endif
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+
+
+
+******************************************************** END SECTION
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body>
+<div class="container">
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<%
+
+//-- INCOMING WEBVARS
+cSource  := MSPFieldValue("VAR_SOURCE")
+
+//-- STRING TO PASS ON THE URL
+cParmStr := "VAR_DIR="+cDir+"&VAR_TABLE="+cTable
+
+
+do case
+*************************
+case cAction="IMPORT"
+*************************
+   use (cTable)
+   if not used()
+      %><h1>Error!</h1><%
+      cAction := "FAIL"
+   else
+      *-- now appending data
+      use (cTable) exclusive
+      *? "From ["+cSource+"] to ["+cTable+"]" 
+      append from (cSource)
+      cAction := "DONE"
+   endif
+*************************
+endcase
+*************************
+%>
+<body>
+<%
+do case
+*---------------------------------
+case empty(cAction)
+*---------------------------------
+%>
+<p><font size="4">Import records from a table into <%=filebone(cTable)%> </font>
+<hr>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form1">
+<b>Choose the table to <font color="#FF0000">import</font> <font color="#FF0000">from</font> </b> <br>
+<i><font size="2">(fieldnames of source table must match name and type of those of current table to be successfully imported):
+</font></i>
+<ol>
+<%
+//-- makes a list of files from wich to choose
+chooseTable(cDir,"*.dbf")
+%>
+<div id="div_ok" style="display:none;">
+Import from table <input type="text" name="pb_x" value="<%=filebone(cSource)%>" size="<%=len(filebone(cSource))%>" style="border:none;">
+all records <b>whose names match</b> those of <%=filebone(cTable)%>?
+<hr>
+</div>
+<input type="hidden" name="VAR_ACTION" value="IMPORT">
+<input type="hidden" name="VAR_DIR" value="<%=cDir%>">
+<input type="hidden" name="VAR_TABLE" value="<%=cTable%>">
+<input type="hidden" name="VAR_SOURCE" value="<%=cSource%>">
+<input type="submit" name="PB_OK" value="Import now">
+</form>
+</ol>
+<%
+*---------------------------------
+case cAction = "DONE"
+*---------------------------------
+%>
+<script language="javascript">
+<!--
+document.location='dbe_browse.msp?XY=<%=cSeed%>&VAR_DIR=<%=dblslash(cDir)%>&VAR_TABLE=<%=dblslash(cTable)%>';
+//-->
+</script><%
+*----------------------------------
+endcase
+*----------------------------------
+%>
+</body>
+<!-- HTML FOOTER //-->
+</div><!-- container //-->
+<%=include("/parts/html/footer.htm")%>
+</html>
+<%
+***************************************
+procedure chooseTable(cThisFolder,cMask)
+***************************************
+local nnn,iii,cThis
+if type(cMask)="U"
+   cMask :="*.*"
+endif
+   $extended
+   nnn = adir( cThisFolder+"\"+cMask, aFName, aFSize, aFDate, aFTime, aFAttr )
+   for iii = 1 to nnn
+      cThis := aFName[iii]
+      if aFSize[iii]>0  //-- we want only files
+         cThis :=  filename(aFName[iii])
+         if not left(cThis,1) $ "._"
+            %>
+            <li>
+			<img border="0" src="img/d81_table_ico.gif" width="23" height="18">&nbsp;<a href="javascript:void(0);" onclick="form1.VAR_SOURCE.value='<%=dblslash(aFName[iii])%>';form1.pb_x.value='<%=cThis%>';showDiv('div_ok',1);"><%=cThis%></a></li>
+            <%
+         endif
+      endif
+   next 
+return
+%>

@@ -1,0 +1,239 @@
+<html>
+<%
+lDebug :=.f.
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+xAppId := memoread(webroot()+"\xappid")
+
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "ERROR: invalid session handler"
+   *return
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+cDbType    := MspFieldValue("DBT")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- INCOMING WEBVARS
+
+//-- DATABASE SETTINGS
+cDir := setDb(xAppId)
+cDbPath := cDir  //-- for compatibility with 2.x
+
+//-- INCOMING WEBVARS
+nRec  := val(MSPFieldValue("VR"))
+cUsrKey := MspFieldValue("VK")
+
+//-- DATABASE SETTINGS OVVERRIDE
+//   (usermanager uses XBASE indexes)
+cDir := setDb(xAppId)
+set dbtype to ""
+
+
+//-- TABLE TO USE
+cMaster  := cDir + "SITE_USR.DBF"
+cMasterIndex1  := cDir + "SITE_USR_BY_NAME.MTX"
+cMasterIndex2  := cDir + "SITE_USR_BY_MAIL.MTX"
+use (cMaster) in 0 alias USERS index (cMasterIndex1), (cMasterIndex2)
+
+cSlave       := cDir + "USR_MENUS.DBF"
+cSlaveIndex  := cDir + "USR_MENUS.MTX"
+use (cSlave) in 0 alias MENUS index (cSlaveIndex )
+
+%>
+<%=modInfo()%>
+<%
+//-- navigator checkup
+select USERS
+set order to 1
+
+cUsrKey := upper(cUsrKey)
+seek cUsrKey
+if found()
+   nRec := recno()
+else
+   ? "ERROR: USERNAME " + cUsrKey + " NOT FOUND!"
+   return
+endif
+nLast := lastrec()
+if nRec <=0
+   go top
+   nRec := recno()
+endif
+if nRec >nLast
+   go bottom
+   nRec := recno()
+endif
+***********
+go nRec
+***********
+
+//-- BACKGROUND ACTIONS
+//
+do case
+**************************************************************************************************************
+case cAction = "CNOK"  //-- CHANGE NAME OK
+**************************************************************************************************************
+*
+cOldName := upper(MspFieldValue("EF_OLDNAME"))
+cNewName := upper(MspFieldValue("EF_USERNAME"))
+if not empty(cNewName)
+   select USERS
+   seek cOldName
+   if found()
+      if rlock()
+         repl USR_NAME with cNewName
+         unlock
+      endif
+      select MENUS
+      set order to 0
+      if flock()
+         repl all USR_NAME with cNewName for upper(USR_NAME)=cOldName
+         unlock
+      else
+         ? "ERROR: could not lock file! This may result in menu corruption for this user!"
+      endif
+   endif
+else
+   ? "ERROR: did not receive a new name to change"
+endif
+select USERS
+cUsr := cNewName
+%>
+<script type="text/javascript">top.frm1.location='usrm_navigator.msp?XY=<%=cSeed%>&VR=<%=zz(recno())%>';</script>
+<%
+cAction := ""
+**************************************************************************************************************
+endcase
+**************************************************************************************************************
+%>
+<!-- HTML HEADER //-->
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;margin-bottom:3px;background-color:#FFFFFF;">
+<div class="container" >
+<h2><img src="ico_user.JPG"> <small>User profile of <%=USR_NAME%></small> 
+<a class="btn btn-sm btn-danger" href="<%=cSelf%>?XY=<%=cSeed%>&VA=CN&VK=<%=zz(USR_NAME)%>">Change name</a>
+</h2>
+</div>
+<%
+do case
+**************************************************************************************************************
+case empty(cAction)
+**************************************************************************************************************
+%>
+<div class="well">
+<%
+
+if not used()
+   return("ERROR: NO DATABASE OPEN")
+endif
+
+cOutRecTab := ""
+cRecSize   := "10"
+
+if nRec >0 and nRec <= lastrec()
+   nFields := fcount()
+   
+   //-- building a table to host all the fields and their values
+   cOutRecTab += [<table class="table">] + CR_LF
+   
+   for iii = 1 to nFields
+      cLabel := fieldname(iii)
+      mVal   := fieldcont(cLabel)
+      do case
+      case type(mVal) = "M"
+         mVal  := alltrim(mVal)
+         cTyp  := "Memo"
+         cRecSize := "1000"
+      case type(mVal) = "C"
+         mVal  := alltrim(mVal)
+         cTyp  := "Char "
+         cRecSize := wstr(len(mVal))
+      case type(mVal) = "N"
+         mVal := ltrim(str(mVal))
+         cTyp  := "Num "
+      case type(mVal) = "L"
+         mVal := iif(mVal,"Y","N")
+         cTyp  := "Bool"
+         cRecSize := "1"
+      case type(mVal) = "D"
+         mVal := dtoc(mVal)
+         cTyp  := "Day "
+         cRecSize := "12"
+      endcase
+      
+      cOutRecTab +=  [<tr>]  + CR_LF
+      cOutRecTab +=  [<td align="right">] + capital(cLabel) + [&nbsp;(] + cTyp + [) ] + cRecSize +[&nbsp;</td>] + CR_LF
+      
+      if val(cRecSize) > 80
+         cOutRecTab += [<td><textarea readonly style="width:100%" rows="5">] + MSPdecode(mVal) + [</textarea] + CR_LF
+      else
+         cOutRecTab +=  [<td align="left"><input readonly]
+         cOutRecTab +=  [ size="] + cRecSize + [" type="text" name="EF_] + fchar(cLabel) + [" value="] + MSPDecode(mVal) + [" style="color:gray"></td>] + CR_LF
+      endif
+      
+      cOutRecTab +=  [</tr>]  + CR_LF
+   next
+   cOutRecTab += [</table>]  + CR_LF
+endif
+%>
+<%=cOutRecTab %>
+</div>
+<%
+**************************************************************************************************************
+case cAction = "CN"   // change name
+**************************************************************************************************************
+cUsrToChange := MspFieldValue("VK")
+%>
+<%=container()%>
+<!---- form start //---->
+<form name="form1" action="<%=cSelf%>" method="post" style="form">
+<h3>Changing name to user <%=cUsrToChange%></h3>
+<p>
+<!-- input field //-->
+   <div class="input-group">
+     <span class="input-group-addon">Enter the new name:</span>
+     <input type="hidden" name="EF_OLDNAME" value="<%=cUsrToChange%>">
+     <input type="text" class="form-control" placeholder="<%=cUsrToChange%>" id="" name="EF_USERNAME">
+   </div>
+<!-- ****** //-->
+<br><font size="1" color="#808080">(name is case insensitive)</font>
+<hr>
+<input type="hidden" name="VA" value="CNOK">
+<input type="hidden" name="XY" value="<%=cSeed%>">
+<input type="hidden" name="VAR_DBTYPE" value="<%=cDbType%>"><input class="btn btn-sm btn-primary" type="submit" name="PB_OK" value="Save changes">
+</form>
+<!--- form end //--->
+<%=container(0)%>
+<%
+**************************************************************************************************************
+endcase
+**************************************************************************************************************
+%>
+</body>
+</html>

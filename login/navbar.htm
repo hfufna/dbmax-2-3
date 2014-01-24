@@ -1,0 +1,66 @@
+<!----------------------------------- LOGIN*NAVBAR.HTM--------------------------------------- //-->
+    <header class="navbar navbar-inverse navbar-fixed-top " role="banner">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+          </button>
+          <img border="0" src="/images/logo_dbmax.gif">
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="dropdown" id="menu1">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">About this server</a>
+              <ul class="dropdown-menu">
+                <li class="dropdown-header"></li>
+                <li><a href="/about.msp" target="_self">About</a></li>
+              </ul>
+            </li>
+            <li class="dropdown" id="menu2">
+              <a data-toggle="modal" href="#div_modalx" onclick="popupFile('/about.msp','About this server');" target="_self">
+              <ul class="dropdown-menu">
+                <li class="dropdown-header"></li>
+                <li><a href="http://www.dbmaxserver.com/help" target="_blank">DBMAX help</a></li>
+                <li><a href="http://www.dbmaxserver.com/manuals" target="_blank">DBMAX Manuals</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </header>
+<!----------------------------------- END # LOGIN*NAVBAR.HTM--------------------------------------- //-->
+
+<style type="text/css">
+.title { font-size: 1.2em;}
+</style>
+
+<script src="/js/jmodal.js"></script>
+<div class="modal" id="div_modalx" style="">
+	<div class="modal-dialog" id="div_modal-dialog" style="width:auto;height:auto;">
+      <div class="modal-content" id="div_modal-content" style="">
+        <div class="row" style="margin:5px 3px 3px 3px;" style="">
+             <div class="col-md-9"><span id="div_modal-title" class="title">Modal Window</span></div>
+             <div class="col-md-3" align="right">
+                <button id="div_button" data-dismiss="modal" class="btn btn-primary">Close</button>
+             </div>
+         </div>
+        <div class="modal-body" style="padding:5px 5px 5px 5px;">
+          <iframe frameborder="0" id="div_modal-body" src="" style="width:100%;height:100%;"></iframe>
+        </div>
+      </div>
+    </div>
+</div>  
+<!-- ---------------------------------------------------------- * ----------------------------------------//-->
+<script type="text/javascript">
+//function modalResize(){
+var hh = curHeight()*0.98;
+var ww = curWidth()*1.01;
+//alert(hh);
+document.getElementById('div_modal-dialog').style.height=(hh)+'px';
+document.getElementById('div_modal-content').style.height=(hh-50)+'px';
+document.getElementById('div_modal-body').style.height=(hh-150)+'px';
+
+document.getElementById('div_modal-dialog').style.width=(ww)+'px';
+document.getElementById('div_modal-content').style.width=(ww-50)+'px';
+document.getElementById('div_modal-body').style.width=(ww-100)+'px';
+//}
+</script>

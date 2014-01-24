@@ -1,0 +1,130 @@
+<html>
+<%
+lDebug :=.f.
+*xDb := "fedifraga"
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+   aVars[iii,1] := MSPFieldName(iii)
+   aVars[iii,2] := MSPFieldValue(iii)
+   if lDebug
+      ? MSPFieldName(iii)+"="+MSPFieldValue(iii)
+   endif
+next
+
+//-- LOAD SESSION VARS FOR MAXPLANNER
+cSeed := MSPFieldValue("XY")
+cMemFile := getMemFile(cSeed)
+if file(cMemFile)
+   restore from (cMemFile) additive
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+endif
+
+//-- STANDARD WEBVARS
+cSelf := pagename()
+cAction := MSPFieldValue("VA")
+cOption := MSPFieldValue("VO")
+nRec    := val(MspFieldValue("VR"))
+cKey    := MspFieldValue("VK")
+cKeySearch := MspFieldValue("VKS")
+cKeyField  := MspFieldValue("VKF")
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+cTable10  := cDir + "GIORNI.DBF"
+cIndex10  := cDir + "GIORNI.MTX"
+*use (cTable10) in 0 alias GIORNI index (cIndex10)
+
+cTable1  := cDir + "DETTAGLI.DBF"
+cIndex1  := cDir + "DETTAGLI.MTX"
+cIndex2  := cDir + "DETTAGLI-D.MTX"
+use (cTable1) in 0 alias DETTAGLI index (cIndex1),(cIndex2)
+
+//-- INCOMING WEBVARS
+nMonth := val(MspFieldValue("VAR_MONTH"))
+nWeek  := val(MspFieldValue("VAR_WEEK"))
+dDay   := ctod(MspFieldValue("VAR_DAY"))
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+
+<%
+select DETTAGLI
+set order to 2
+
+cQueryStr := ""
+do case
+ case not empty(dDay)
+    cQueryStr := "GIORNO='" + dtoc(dDay) + "'"
+ case not empty(nMonth)
+    cQueryStr := "MESE=" + str(nMonth,2,0)
+ case not empty(nWeek)
+   cQueryStr := "SETTIM=" + str(nWeek,2,0) 
+endcase
+
+if empty(nMonth)
+   nMonth := month(date())
+endif
+
+if empty(dDay)
+   dDay := firstDoM(nMonth)
+end
+%>
+<h2>Report
+<a class="btn btn-sm btn-primary pull-right" href="view_day.msp?XY=<%=cSeed%>&VAR_DAY=<%=dDay%>">Torna al <%=dDay%></a>
+</h2>
+<%
+set filter to &cQueryStr
+go top
+%>
+<table class="">
+<%
+do while not eof()
+   %>
+   <tr>
+   <td width="10%" nowrap><%=itdow(DATA)%> <%=day(DATA)%> <%=itmonth(DATA)%></td>
+   <td width="5%"><%=ORA%></td>
+   <td><%=zz(POSIZIONE)%><br>
+   <% if not empty(COMMENTO)%><br>
+   <small style="margin-top:5px;padding:5px 5px 5px 5px; background-color:#EFEFEF;"><i><%=zz(COMMENTO)%></i></small>
+   <% endif %>
+   </td>
+   </tr>
+   <%
+   skip
+enddo
+%>
+</table>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+<%=include("/parts/html/modal3.htm")%>
+
+</body>
+</html>

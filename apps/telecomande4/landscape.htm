@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<meta http-equiv="Content-Language" content="it">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<title>TELECOMANDE WI-FI</title>
+<link rel="stylesheet" type="text/css" href="default.css">
+</head>
+<!----------------------------------- *LANDSCAPE--------------------------------------- //-->
+<body>
+<div align="center">
+
+<a href="index.msp"><img id="ico0" src="images/telecomande_logo_ww.gif" style="max-width:400px;"></a><br>
+<a href="apps/cassa"><img id="ico1" src="images/ico_cassa.gif" style="height:100;"></a>
+<a href="apps/monitor"><img id="ico2" src="images/ico_monitor.gif" style="height:100;"></a>
+<a href="apps/impostazioni"><img id="ico3" src="images/ico_impostazioni.gif" style="height:100;"></a>
+<a href="apps/strumenti"><img id="ico4" src="images/ico_strumenti.gif" style="height:100;"></a>
+<p>
+<div id="output" style="color:gray;"></div>
+</div>
+
+<!----------------------------------- MENU -------------------------------------- //-->
+<script>
+var jnWW   = window.innerWidth;
+var jnHH   = window.innerHeight;
+var jnRows = jnHH/200;
+var jnCols = jnWW/200;
+var nRatio = jnWW/jnHH;
+//
+var nVirtH = 800*nRatio;
+//var nVirtW = 600
+var nAlt=200*nRatio/3;
+//if( nAlt < 80){nAlt=80};
+//if( nRatio > 2){nAlt=window.innerWidth/6};
+
+//document.getElementById("ico0").height=nAlt;
+document.getElementById("ico1").height=nAlt;
+document.getElementById("ico2").height=nAlt;
+document.getElementById("ico3").height=nAlt;
+document.getElementById("ico4").height=nAlt;
+document.getElementById("output").innerHTML=""+window.innerWidth+"x"+window.innerHeight+"("+screen.width+"x"+screen.height+") R="+nRatio + " A="+nAlt;
+</script>
+
+</body>
+
+</html>

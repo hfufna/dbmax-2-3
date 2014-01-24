@@ -1,0 +1,174 @@
+<html>
+<%
+xDb := "diario"
+lDebug :=.f.
+**************************************** DBMAX-2-3-5 SLAVE HEADER
+zcLib := mspconfigvar("LIB")+"\dbmax25.max"
+set maxlib to &zcLib
+freeslot()
+*****************************************************************
+CR_LF := chr(13)+chr(10)
+
+//-- LOAD SESSION VARS
+cSeed := MSPFieldValue("XY")
+
+cMemFile := getMemFile(cSeed) 
+if file(cMemFile)
+   restore from (cMemFile) additive
+   //-- INITIALIZE THE CARGO
+   if empty(xCargoFile)
+      xCargoFile := xMemDir + "\" + cSeed + "_maxplanner.mem"
+      save all like x* to (xMemFile)
+   endif
+else
+   ? "<h2>ERROR: invalid session handler</h2>" html
+   ? 'Your session have expired: please <a href="/login/login.msp">repeat login</a>' html
+   return
+endif
+
+//-- APPLICATION SPECIFIC SESSION FILE
+if file(xCargoFile)
+   restore from (xCargoFile) additive
+else
+   ? "ERROR: Cargo file missing:" + xCargoFile
+   return
+endif
+
+cAction := MspFieldValue("VA")
+cOption := MspFieldValue("VO")
+cSelf   := pagename()
+
+CR_LF := chr(13)+chr(10)
+*********************************************** END SLAVE-HEADER
+
+//-- REGIONAL SETTINGS
+set century on
+set decimals to 0
+set date to british
+set hour to 24
+
+//-- DATABASE SETTINGS
+cDir := setDb(xDb)
+
+//-- DATABASE IN USE
+cTable  := cDir + "GIORNI.DBF"
+cIndex  := cDir + "GIORNI.MTX"
+use (cTable) alias GIORNI index (cIndex) key DATA
+set filter to USER=upper(xUser)
+go top
+
+//-- INCOMING PARAMETERS
+
+//-- setting year to work with
+znYear := MSPFieldValue("VAR_YEAR")
+
+//-- page to show when clicking on month
+cLink1 := "view_day.msp?XY="+cSeed
+cLink2 := "show_month.msp?XY="+cSeed
+
+%>
+<%=include("/parts/html/header.htm")%>
+<body style="margin-top:-40px;">
+<%=container()%>
+<!-------------------------------------- HTML PAGE START ----------------------------------- //-->
+<div class="panel default"><h3><%=capital(xUser)%>'s Diary <%=znYear%>
+
+<a href="start.msp?XY=<%=cSeed%>&VAR_YEAR=<%=znYear%>&VAR_USR=<%=xUser%>" class="btn btn-primary pull-right">Indietro</a>
+<a href="/login/usermenu.msp?XY=<%=cSeed%>&EF_USERNAME=<%=xUser%>" class="btn btn-info pull-right" style="margin-right:5px;"><%=xUser%>'s Apps</a>
+</h3></div>
+<div align="center">
+<%
+//-- MONTS CYCLING
+nWeek    := 1
+nTotDays := 0
+dFirst   := ctod("01/01/" + zz(znYear))
+
+nCount := 0
+for nThisMonth = 1 to len(zaMonths)
+   nnn := daysOfMonth(nThisMonth)
+   nCount++
+   %>
+   <div class="col-xs-12 col-sm-6 col-lg-4" style="border:solid 1px gray; margin: 5px 5px 5px 5px;">
+   <!----------- * link to month display page //---------------->
+   <a class="btn btn-default" href="<%=cLink2%>&VAR_MONTH=<%=zz(nThisMonth)%>"><font size="3" color="navy"><b><%=zaMonths[nThisMonth]%> <%=znYear%></b></font></a>
+   <!----------------------------------- *boxing a month//----------------------------------------->
+    <table cellpadding="3" cellspacing="3" border="0" id="tbmonth" bgcolor="white">
+    <!-- dayweek column labels //-->
+	 <tr><% for iii=1 to len(zaWeekDays) %><td><%=zaWeekDays[iii]%></td><% next %></tr><tr>
+	 <!-- columns with days //-->
+    <%
+    //-- cells to skip to get correct alignement 
+    //   under the dayweek column label
+    //
+    dThisDay := dFirst + nTotDays
+    nSkip    := dow(dThisDay)  //-- empty cells to insert
+    if nSkip > 1
+       for ccc=1 to nSkip-1
+       %>
+       <td>&nbsp;</td>
+       <%
+       next
+    endif
+    rrr := nSkip-1
+    //-- place a day link for each remaining column
+    for ccc=1 to nnn
+       dThisDay := dFirst + nTotDays
+       cAttr := "default"
+       cClr := "gray"
+       cBgr := "#FFFFFF"
+       cSty := ""
+       seek dThisDay
+       if found()
+          if not empty(TITOLO) .or. not empty(REPORT)
+             cClr := "navy"
+          endif
+          if "FERIE" $ upper(LAVORO) or "MAL" $ upper(LAVORO) or "MAL" $ upper(SALUTE)
+             cAttr := "default"
+             cBgr := "#59fefe"
+          endif            
+          if dow(dThisDay)=7 or dow(dThisDay)=1
+             cAttr := "default"
+             cBgr := "#C0C0C0"
+          endif          
+          if "BODDI" $ upper(SESSO) or "BODDI" $ upper(PERSONE)
+             cBgr := "orange"
+          endif
+          if not empty(SESSO)
+             cAttr := "danger"
+             cClr := "white"
+          endif
+        endif     
+        if dThisDay = date()
+          cAttr := "primary"
+          cClr := "white"
+       endif
+       rrr++
+       nTotDays++
+       %>
+       <!----------- *link to day display page //---------------->
+       <td align="right" bgcolor="<%=cBgr%>">
+       <a class="btn btn-sm btn-<%=cAttr%>" href="<%=cLink1%>&VAR_MONTH=<%=zz(nThisMonth )%>&VAR_DAY=<%=dThisDay%>">
+       <font size="3" color="<%=cClr%>"><b><%=day(dThisDay)%></b></font></a>
+       </td>
+       <!------ *counter for days placed over seven columns //------->
+        <%
+        if rrr > 6
+           %></tr><tr><%
+           rrr := 0
+           nWeek++
+       endif
+    next 
+    %></tr>
+   </table>
+   </div>
+   <% 
+next 
+%>
+</div>
+<!-------------------------------------- HTML PAGE END ----------------------------------- //-->
+<%=container(0)%>
+<%=include("/parts/html/footer.htm")%>
+
+</body>
+</html>
+

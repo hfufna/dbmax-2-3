@@ -1,0 +1,245 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="/screen.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>DBFree 2.1 Template</title>
+</head>
+<%
+*************************************************** TELCO HEADER-0-1
+zcRoot :=  strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+   p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+   p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+   zcRoot := strTran(p1,p2,"")
+endif
+zcLib := strTran(zcRoot,"/","\")+"\lib\free2.max"
+set maxlib to &zcLib
+freeslot()
+
+
+//-- WEBVARS STACK
+declare aVars[ max(MSPFieldCount(),1),2 ]
+for iii = 1 to len(aVars)
+  aVars[iii,1] := MSPFieldName(iii)
+  aVars[iii,2] := MSPFieldValue(iii)
+  *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+//-- GLOBAL VARS SYSTEM
+cMemPath :=MspConfigVar("DATADIR")+"\mem\"
+if not file(cMemPath)
+   md(cMemPath)
+endif
+xMem := MSPFieldValue("X")
+xcSelf := pageName()+"?X="+xMem
+if empty(xMem)
+   xMem := cMemPath + zz(seconds())
+   xcSelf := pageName()+"?X="+xMem
+   save all like x* to (xMem)
+endif
+if file(xMem)
+   restore from xMem additive
+endif
+
+*************************************************** END HEADER
+cAction := upper(MSPFieldValue("VA"))
+cOption := upper(MSPFieldValue("VO"))
+cSelf   := pageName()
+CR_LF := chr(13)+chr(10)
+CSEP  := "&nbsp;&nbsp;|&nbsp;&nbsp;"
+
+
+//-- INCOMING WEBVARS
+cCustNum := MSPFieldValue("VAR_CUST")
+cCustName:=upper(alltrim(MSPFieldValue("VAR_CUSTNAME")))
+
+nRecno := val(MSPFieldValue("VR"))
+
+
+//--DATABASES TO USE
+cDbPath := setDb("demo8")
+cDb := cDbPath + "products.dbf"
+cXb := cDbPath - "products.mtx"
+use (cDb) index (cXb)
+
+do case
+********************************************************
+case cAction="SAVE"
+********************************************************
+saveRecord(nRecno,aVars)
+cAction:=""
+********************************************************
+endcase
+********************************************************
+%>
+<body>
+<%
+do case
+*------------------------------------------------------------------------------------------
+case empty(cAction)
+*------------------------------------------------------------------------------------------
+//-- UNLIMITED BROWSE WITH DIRECT CELL EDITING
+//
+************************************************* 
+//-- AJAX INCOMING WEBVARS
+nFld      := val(MSPFieldValue("V_FLD"))  //-- Field to update
+nAjRec    := val(MSPFieldValue("V_REC"))  //-- record to move to
+cAjaxVar  := MSPFieldValue("AJX")         //-- value to write
+lAjaxRun  := iif(empty(cAjaxVar),.f.,.t.)
+
+//-- AJAX ACTUATOR (EMBEDDED)
+cValCbEdit  := iif(empty(MSPFieldValue("CB_EDIT")),"","checked")
+cIsReadOnly := iif(empty(cValCbEdit),"readonly","")
+*****************************
+if lAjaxRun 
+   cFFld := fieldname(nFld)
+   cVVal := fieldfit(cFFld,cAjaxVar)
+   go nAjRec
+   if rlock(2)
+      repl &cFFld with cVVal
+      unlock
+   endif
+   return
+endif
+*****************************
+
+nRows  := 20
+nRec := val(MSPFieldValue("VAR_REC"))
+if nRecNo > 0
+   nRec := nRecNo
+endif
+do case
+case not empty(MSPFieldValue("PB_PREV"))
+   nRec -= nRows
+case not empty(MSPFieldValue("PB_NEXT"))
+   nRec += nRows
+endcase
+nRec := iif(nRec<=0,1,nRec)
+nRec := iif(nRec>lastrec(),lastrec(),nRec)
+
+%>
+<h2>Catalogue</h2>
+<!----------------------------------- NAVIGATOR FORM -------------------------------------- //-->
+<form name="form_nav" action="<%=cSelf%>" method="post">
+   Rec: <%=zz(nRec)%>-<%=zz(nRec+nRows-1)%>/<%=zz(lastrec())%>
+   <input type="hidden" name="X" value="<%=xMem%>">
+   <input type="hidden" name="VAR_REC" value="<%=nRec%>">
+   <input type="submit" name="PB_TOP" value="Top" onclick="form_nav.VAR_REC.value='1'">
+   <input type="submit" name="PB_PREV" value="PrevPage" onclick="form_nav.VAR_REC.value=<%=zz(nRec)%>">
+   <input type="submit" name="PB_NEXT" value="NextPage" onclick="form_nav.VAR_REC.value=<%=zz(nRec)%>">
+   <input type="submit" name="PB_BOTT" value="Bottom" onclick="form_nav.VAR_REC.value=<%=zz(lastrec())%>">
+   <input type="checkbox" <%=cValCbEdit%> name="CB_EDIT"  onclick="form_nav.submit();">Allow edit
+</form>
+<!----------------------------------- RECORDS GRID -------------------------------------- //-->
+<table cellspacing="0" cellpadding="0" width="100%">
+<% 
+//-- CREATING THE CELLS OF CURRENT ROW
+nFlds := aFields()
+%>
+<tr bgcolor="#000000"><td colspan="<%=nFlds+1%>">
+<font color="#FFFFFF">Table: <i><%=cDb%></i>  index <i><%=filebone(cXb)%></i> on key: <i><%=indexKey()%></i></font></td>
+</tr>
+<tr>
+<td></td>
+<%
+for iii=1 to nFlds
+   %><td><%=fieldname(iii)%></td><%
+next
+%></tr><%
+rrr := 0
+go nRec
+do while not eof()
+   rrr++
+   nRec := recno()
+   displRec(nRec,nRec)
+   skip
+   if rrr > nRows-1
+      exit
+   endif
+enddo
+%>
+</table>
+<%
+*------------------------------------------------------------------------------------------
+case cAction="EDIT"
+*------------------------------------------------------------------------------------------
+nRecno := val(MSPFieldValue("VR"))
+if nRecno > 0
+   go nRecno
+   do editRecNo
+endif
+
+*------------------------------------------------------------------------------------------
+endcase
+*------------------------------------------------------------------------------------------
+%>
+</body>
+</html>
+<%
+**************************************************
+procedure editRecNo
+**************************************************
+//-- PROCEDURE FOR EDITING CURRENT RECORD IN CLASSIC VIEW
+//
+%><h2>Editing <%=str(recno(),6,0)%></h2><form name="form1" action="<%=cSelf%>"><%
+for iii=1 to afields()
+   cThisFld := fieldname(iii)
+   xCargo   := fieldval(iii)
+   cTyp     := type(xCargo)
+   nFldSize  := fieldlen(cThisFld)
+   %>
+   <%=capital(cThisFld)%> <input type="text" name="EF_<%=cThisFld%>" title="<%=cThisFld%> (<%=cTyp%>) <%=nFldSize%>" value="<%=zz(xCargo)%>" size="<%=zz(nFldSize)%>"><br>
+   <%
+next
+%>
+<input type="submit" name="VA" value="Save changes">
+<input type="button" name="PB_ESC" value="Abort" onclick="document.location='<%=cSelf%>?VR=<%=zz(recno())%>';">
+<input type="hidden" name="VR" value="<%=zz(recno())%>">
+
+</form>
+<%
+**************************************************
+procedure displRec(nThisRec, nRowNum)
+**************************************************
+//-- PROCEDURE FOR DISPLAYING A SINGLE RECORD - RE-USABLE CODE
+//   LOOPS ALL THE FIELDS AND BUILDS A ROW WITH THE AJAX HOOK FOR IN-PLACE EDITING
+//-- ATTENTION: cIsReadOnly sets if editing is allowed and must be declared from the caller
+//
+local nFld, cFldName, nFldSize, xCargo, cAjIdentifier, cAjHook, cColor
+cColor := iif(mod(nRowNum,2)=0,"#E7E7E7","#FFFFFF")
+%>
+<!----------------------------------- *Record <%=zz(nThisRec)%>--------------------------------------- //-->
+<tr bgcolor="<%=cColor%>" onmouseover="this.bgcolor='#000000'">
+
+<td><a href="<%=cSelf%>?VA=EDIT&VR=<%=zz(recno())%>&VSR=<%=nRowNum%>"><i><%=str(nRowNum,6,0)%></i></a>&nbsp;</td>
+<%
+for nFld=1 to afields()
+   cAjIdentifier := "div_" + zz(nThisRec)+"-"+zz(nFld)
+   cAjHook  := "&V_REC="+zz(nThisRec)+"&V_FLD="+zz(nFld)
+   xCargo   := fieldval(nFld)
+   cFldName := fieldname(nFld)
+   cTyp     := fieldtype(cFldName)
+   nFldSize := fieldlen(cFldName)
+   %>
+   <td>
+   <div id="<%=cAjIdentifier%>"></div>
+   <input type="text" style="border:none; background-color:<%=cColor%>; text-align:<%=iif(cTyp="N","right","left")%>;" <%=cIsReadOnly%>
+   name="EF_<%=fieldname(nFld)%>" 
+   value="<%=zz(fieldval(nFld))%>" 
+   size="<%=zz(nFldSize)%>"
+   title="Field: <%=cFldName%> (<%=cTyp%>) <%=nFldSize%>"   
+   onchange="javascript:ajaxRun('<%=cSelf%>?AJX=',this.value+'<%=cAjHook%>','<%=cAjIdentifier%>');"> 
+   </td>
+   <%
+next
+%></tr><%
+return
+%>

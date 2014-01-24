@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta http-equiv="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-STORE">
+<META HTTP-EQUIV="EXPIRES" CONTENT="0">
+<META NAME="GOOGLEBOT" CONTENT="NOARCHIVE"> 
+<link rel="stylesheet" type="text/css" href="default.css">
+<script type="text/javascript" src="/js/max-ajax.js"></script>
+<title>Part List</title>
+</head>
+<!----------------------------------- MaxScript Header -------------------------------------- //-->
+<%
+xAppId := "demo3"
+**************************************** DBFree 3-0-3-MINI-HEADER
+xRoot := strTran(getenv("DOCUMENT_ROOT"),"/","\")
+if "IIS" $ getenv("SERVER_SOFTWARE")
+p1 := strTran(getenv("PATH_TRANSLATED"),"/","\")
+p2 := strTran(getenv("SCRIPT_NAME"),"/","\")
+xRoot := strTran(p1,p2,"")
+endif
+xcLib := strTran(xRoot,"/","\")+"\lib\dbmax25.max"
+set maxlib to &xcLib
+freeslot()
+
+//-- WEBVARS STACK
+nnn := max(MSPFieldCount(),1)
+declare aVars[ nnn,2 ]
+for iii = 1 to len(aVars)
+aVars[iii,1] := MSPFieldName(iii)
+aVars[iii,2] := MSPFieldValue(iii)
+*-- uncomment the line below for debugging
+ *? MSPFieldName(iii) + "=" + MSPFieldValue(iii)
+next
+
+cSelf := pagename()
+cAction := MSPFieldValue("VAR_ACTION")
+
+CR_LF := chr(13)+chr(10)
+**************************************** END MINI-HEADER
+set century on
+set decimals to 0
+
+//-- INCOMING WEBVARS
+nRecno := val(MSPFieldValue("VAR_RECNO"))
+ 
+cDbPath := setDb(xAppId)
+cDir := cDbPath
+
+//-- TABLE(S) TO USE
+//
+cTable   := cDir + "PARTS.DBF"
+cIndex1  := cDir + "PARTS_BY_PLACE.MTX"
+cIndex2  := cDir + "PARTS_BY_MODEL.MTX"
+cIndex3  := cDir + "PARTS_BY_ID.MTX"
+
+use (cTable) index (cIndex1) key PLACEMENT, (cIndex2) key MODEL, (cIndex3) key PART_NO
+
+//-- 
+set order to 0
+go (nRecno)
+
+//-- BACKGROUND ACTIONS
+*********************************
+if cAction="SAVE"
+*********************************
+   saveRecord(nRecno,aVars)
+endif
+
+*********************************
+%>
+<body>
+<!-- ===============================================================//-->
+<!-- ===============================================================//-->
+Record <%=recno()%>
+<form action="<%=cSelf%>" method="post" class="webform">
+<table border="0" class="table1">
+<tr>
+   <td class="th1"><font color="#FFFFFF">Field</font></td>
+   <td class="th1"><font color="#FFFFFF">Fieldname</font></td>
+   <td class="th1"><font color="#FFFFFF">Input value</font></td>
+</tr>
+
+<tr>
+   <td class="td1"><font color="#FFFFFF">1</font></td>
+   <td  class="td1" align="right"><font color="#666666">PART_NO&nbsp;(C)15</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_PART_NO" value="<%=zz(PART_NO)%>" size=15>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">2</font></td>
+   <td  class="td1" align="right"><font color="#666666">PART_DESC&nbsp;(C)80</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_PART_DESC" value="<%=zz(PART_DESC)%>" size=40>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">3</font></td>
+   <td  class="td1" align="right"><font color="#666666">PART_INFO&nbsp;(M)0</font></td>
+   <td align="left" class="td1">
+    <textarea name="EF_PART_INFO" rows=4 cols=40><%=zz(PART_INFO)%></textarea>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">4</font></td>
+   <td  class="td1" align="right"><font color="#666666">MODEL&nbsp;(C)20</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_MODEL" value="<%=zz(MODEL)%>" size=20>
+    </td>
+</tr>
+      
+<tr>
+   <td class="td1"><font color="#FFFFFF">5</font></td>
+   <td  class="td1" align="right"><font color="#666666">PLACEMENT&nbsp;(C)25</font></td>
+   <td align="left" class="td1">
+    <input type="text" name="EF_PLACEMENT" value="<%=zz(PLACEMENT)%>" size=25>
+    </td>
+</tr>
+      
+</table>
+<hr>
+<input type="hidden" name="VAR_ACTION" value="SAVE">
+<input type="hidden" name="VAR_RECNO" value="<%=zz(recno())%>">
+&nbsp;
+<input type="submit" name="PB_OK" value="Save changes" onlclik="this.parent.close();">
+</form>  
+<!-- ================================================================//-->
+<!-- ================================================================//-->
+<a href="javascript:top.frm4.document.getElementById('ifrm1').style.display='none';" style="position:absolute;bottom:3;right:3;">Close this window</a>
+</script>
+</body>
+</html>
